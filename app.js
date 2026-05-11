@@ -7,14 +7,14 @@ document.addEventListener('DOMContentLoaded', function() {
     navToggle.addEventListener('click', function() {
       navLinks.classList.toggle('open');
     });
-  }
 
-  // Close mobile menu when clicking outside
-  document.addEventListener('click', function(event) {
-    if (!navToggle.contains(event.target) && !navLinks.contains(event.target)) {
-      navLinks.classList.remove('open');
-    }
-  });
+    // Close mobile menu when clicking outside
+    document.addEventListener('click', function(event) {
+      if (!navToggle.contains(event.target) && !navLinks.contains(event.target)) {
+        navLinks.classList.remove('open');
+      }
+    });
+  }
 
   // Back to top button
   const backToTopBtn = document.querySelector('.back-to-top');
