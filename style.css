@@ -1215,6 +1215,295 @@ select {
   border-radius: 999px;
 }
 
+.auth-page {
+  padding-top: 40px;
+}
+
+.auth-grid {
+  display: grid;
+  gap: 32px;
+  grid-template-columns: 1fr 1.1fr;
+  align-items: start;
+}
+
+.auth-info-card,
+.auth-form-card,
+.dashboard-card,
+.dashboard-panel {
+  background: var(--white);
+  border-radius: 28px;
+  border: 1px solid rgba(27, 94, 32, 0.08);
+  box-shadow: var(--shadow);
+}
+
+.auth-info-card {
+  padding: 32px;
+}
+
+.auth-info-card h2 {
+  margin-top: 0;
+  color: var(--primary);
+}
+
+.auth-info-card ul {
+  margin: 18px 0 0;
+  padding-left: 20px;
+  color: #475569;
+}
+
+.auth-info-card li {
+  margin-bottom: 10px;
+}
+
+.auth-form-card {
+  padding: 32px;
+}
+
+.auth-form label {
+  display: block;
+  margin-bottom: 10px;
+  font-weight: 700;
+}
+
+.auth-form input,
+.auth-form select {
+  margin-bottom: 18px;
+}
+
+.auth-form button {
+  width: 100%;
+}
+
+.admin-login-note {
+  margin-top: 16px;
+  color: #4b5563;
+  font-size: 0.95rem;
+}
+
+.admin-login-note a {
+  color: var(--primary);
+  font-weight: 700;
+}
+
+.auth-tabs {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.auth-tab {
+  padding: 14px 20px;
+  border: none;
+  background: transparent;
+  color: #6b7280;
+  font-weight: 600;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.auth-tab.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+
+.auth-tab-content {
+  display: none;
+}
+
+.auth-tab-content.active {
+  display: block;
+}
+
+.password-input-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-bottom: 18px;
+  width: 100%;
+}
+
+.password-input-group input {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 16px;
+  padding: 14px 50px 14px 16px;
+  background: #fff;
+  color: #0f172a;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  font-size: 1rem;
+  font-family: 'Inter', sans-serif;
+}
+
+.password-input-group input::placeholder {
+  color: #9ca3af;
+}
+
+.password-input-group input:focus {
+  outline: none;
+  border-color: rgba(27, 94, 32, 0.45);
+  box-shadow: 0 0 0 4px rgba(27, 94, 32, 0.12);
+}
+
+.password-toggle {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s ease;
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  z-index: 10;
+  white-space: nowrap;
+}
+
+.password-toggle:hover {
+  color: var(--primary);
+}
+
+.password-toggle:active {
+  color: var(--primary-soft);
+}
+
+.admin-login-section {
+  display: grid;
+  gap: 24px;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.admin-login-card {
+  padding: 32px;
+}
+
+.admin-hero .hero-copy {
+  max-width: 680px;
+  margin: 0 auto;
+}
+
+.admin-dashboard-section {
+  margin-top: 24px;
+}
+
+.dashboard-page {
+  padding-top: 40px;
+}
+
+.dashboard-grid {
+  display: grid;
+  gap: 22px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.dashboard-card {
+  padding: 28px;
+  text-align: left;
+}
+
+.dashboard-card h3 {
+  margin: 0 0 18px;
+  color: var(--primary);
+}
+
+.dashboard-card p {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.dashboard-details {
+  display: grid;
+  gap: 22px;
+  grid-template-columns: 1.2fr 0.8fr;
+  margin-top: 32px;
+}
+
+.dashboard-panel {
+  padding: 32px;
+}
+
+.dashboard-panel h2 {
+  margin-top: 0;
+  color: var(--primary);
+}
+
+.dashboard-panel ul {
+  margin: 18px 0 0;
+  padding-left: 20px;
+  color: #475569;
+}
+
+.dashboard-panel li {
+  margin-bottom: 10px;
+}
+
+.select-driver-section {
+  padding-top: 0;
+}
+
+.driver-grid {
+  display: grid;
+  gap: 22px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 28px;
+}
+
+.driver-card {
+  padding: 28px;
+  border-radius: 28px;
+  border: 1px solid rgba(27, 94, 32, 0.08);
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.driver-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 18px;
+}
+
+.driver-card-header h3 {
+  margin: 0 0 8px;
+  color: var(--primary);
+}
+
+.driver-card-header p {
+  margin: 0;
+  color: #475569;
+}
+
+.driver-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  color: #4b5563;
+  font-weight: 600;
+}
+
+.driver-card-meta span {
+  background: #f8fafc;
+  padding: 10px 14px;
+  border-radius: 16px;
+}
+
+.driver-card button {
+  align-self: flex-start;
+}
+
 .booking-summary,
 .driver-summary {
   display: grid;
