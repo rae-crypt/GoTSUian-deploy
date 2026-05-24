@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GoTSUian | Driver Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-page="driver">
+  <header>
+    <div class="site-shell navbar">
+      <a class="brand" href="index.html"><span>G</span>GoTSUian</a>
+      <nav class="nav-links">
+        <a href="index.html" data-page="home">Home</a>
+        <a href="booking.html" data-page="booking">Booking</a>
+        <a href="driver.html" data-page="driver">Driver</a>
+        <a href="admin.html" data-page="admin">Admin</a>
+        <a href="auth.html" data-page="auth">Login</a>
+      </nav>
+      <div class="nav-cta">
+        <button data-action="logout">Logout</button>
+      </div>
+      <button class="nav-toggle" aria-label="Open navigation"><span></span></button>
+    </div>
+  </header>
+
+  <main class="site-shell dashboard-page">
+    <section class="hero hero-simple">
+      <div class="hero-copy">
+        <span class="hero-badge"><span></span> Driver Panel</span>
+        <h1>Welcome back, <span data-dashboard-welcome>Driver</span></h1>
+        <p>Manage your upcoming trips, track earnings, and stay ready to accept requests from TSU passengers.</p>
+      </div>
+    </section>
+
+    <section class="section dashboard-grid">
+      <article class="dashboard-card">
+        <h3>Today's trips</h3>
+        <p>6</p>
+      </article>
+      <article class="dashboard-card">
+        <h3>Pending requests</h3>
+        <p>3</p>
+      </article>
+      <article class="dashboard-card">
+        <h3>Earnings</h3>
+        <p>₱1,420</p>
+      </article>
+      <article class="dashboard-card">
+        <h3>Completed rides</h3>
+        <p>124</p>
+      </article>
+    </section>
+
+    <section class="section dashboard-details">
+      <div class="dashboard-panel">
+        <h2>Current status</h2>
+        <p>Ready to accept new rides. Review passenger pickup details and mark trips complete as soon as the passenger is delivered.</p>
+      </div>
+      <div class="dashboard-panel">
+        <h2>Driver tools</h2>
+        <ul>
+          <li>View active bookings</li>
+          <li>Driver ratings and feedback</li>
+          <li>Set availability</li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-shell footer">
+    <div class="footer-grid">
+      <div>
+        <h3>GoTSUian</h3>
+        <p>Built for TSU San Isidro students who need fast campus rides, real-time booking, and trusted drivers.</p>
+        <p class="footer-note">© 2026 GoTSUian. Designed for student mobility.</p>
+      </div>
+      <div>
+        <h4>Quick Links</h4>
+        <p><a href="index.html">Home</a> · <a href="booking.html">Booking</a> · <a href="auth.html">Login</a></p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

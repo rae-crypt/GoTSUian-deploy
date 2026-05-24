@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GoTSUian | Sign Up</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-page="auth">
+  <header>
+    <div class="site-shell navbar">
+      <a class="brand" href="index.html"><span>G</span>GoTSUian</a>
+      <nav class="nav-links">
+        <a href="index.html" data-page="home">Home</a>
+        <a href="booking.html" data-page="booking">Booking</a>
+        <a href="driver.html" data-page="driver">Driver</a>
+        <a href="admin.html" data-page="admin">Admin</a>
+        <a href="auth.html" data-page="auth">Login</a>
+      </nav>
+      <div class="nav-cta">
+        <a href="auth.html">Sign up</a>
+      </div>
+      <button class="nav-toggle" aria-label="Open navigation"><span></span></button>
+    </div>
+  </header>
+
+  <main class="site-shell auth-page">
+    <section class="hero hero-simple">
+      <div class="hero-copy">
+        <span class="hero-badge"><span></span> Register or Login</span>
+        <h1>Choose your role to continue</h1>
+        <p>Sign up as a passenger, or login as a registered driver or admin. Passenger sign-up will send you to your dashboard instantly.</p>
+      </div>
+    </section>
+
+    <section class="section section-card auth-section">
+      <div class="auth-grid">
+        <article class="auth-info-card">
+          <h2>Why sign up?</h2>
+          <p>Registering keeps your rides, saved locations, and booking history in one place. Drivers can also access their dashboard for operations and ride management.</p>
+          <ul>
+            <li>Passenger dashboard for booking and ride history</li>
+            <li>Driver dashboard for trips and earnings</li>
+            <li>Create an account and start using GoTSUian today</li>
+          </ul>
+        </article>
+
+        <article class="auth-form-card">
+          <div class="auth-tabs">
+            <button class="auth-tab active" data-tab="register">Register</button>
+            <button class="auth-tab" data-tab="login">Login</button>
+          </div>
+
+          <form id="register-form" class="auth-form auth-tab-content active">
+            <label for="reg-fname">First name</label>
+            <input type="text" id="reg-fname" name="firstName" placeholder="Jane" required>
+
+            <label for="reg-mname">Middle name</label>
+            <input type="text" id="reg-mname" name="middleName" placeholder="Marie" required>
+
+            <label for="reg-lname">Last name</label>
+            <input type="text" id="reg-lname" name="lastName" placeholder="Doe" required>
+
+            <label for="reg-email">Email address</label>
+            <input type="email" id="reg-email" name="email" placeholder="jane@example.com" required>
+
+            <label for="reg-password">Password</label>
+            <div class="password-input-group">
+              <input type="password" id="reg-password" name="password" placeholder="Enter a password" required>
+              <button type="button" class="password-toggle" data-target="#reg-password">Show</button>
+            </div>
+
+            <label for="reg-role">I am a</label>
+            <select id="reg-role" name="role" required>
+              <option value="passenger">Passenger</option>
+              <option value="driver">Driver</option>
+            </select>
+
+            <button type="submit" class="btn-primary">Create account</button>
+            <p class="admin-login-note">Are you an admin? <a href="admin.html">Use the admin login page</a>.</p>
+          </form>
+
+          <form id="login-form" class="auth-form auth-tab-content">
+            <label for="login-email">Email address</label>
+            <input type="email" id="login-email" name="email" placeholder="jane@example.com" required>
+
+            <label for="login-password">Password</label>
+            <div class="password-input-group">
+              <input type="password" id="login-password" name="password" placeholder="Enter your password" required>
+              <button type="button" class="password-toggle" data-target="#login-password">Show</button>
+            </div>
+
+            <button type="submit" class="btn-primary">Login</button>
+            <p class="admin-login-note">Are you an admin? <a href="admin.html">Use the admin login page</a>.</p>
+          </form>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-shell footer">
+    <div class="footer-grid">
+      <div>
+        <h3>GoTSUian</h3>
+        <p>Built for TSU San Isidro students who need fast campus rides, real-time booking, and trusted drivers.</p>
+        <p class="footer-note">© 2026 GoTSUian. Designed for student mobility.</p>
+      </div>
+      <div>
+        <h4>Quick Links</h4>
+        <p><a href="index.html">Home</a> · <a href="booking.html">Booking</a> · <a href="auth.html">Login</a></p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

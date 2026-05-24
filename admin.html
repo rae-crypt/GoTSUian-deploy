@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GoTSUian | Admin Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-page="admin">
+  <header>
+    <div class="site-shell navbar">
+      <a class="brand" href="index.html"><span>G</span>GoTSUian</a>
+      <nav class="nav-links">
+        <a href="index.html" data-page="home">Home</a>
+        <a href="booking.html" data-page="booking">Booking</a>
+        <a href="driver.html" data-page="driver">Driver</a>
+        <a href="admin.html" data-page="admin">Admin</a>
+        <a href="auth.html" data-page="auth">Login</a>
+      </nav>
+      <div class="nav-cta">
+        <button data-action="logout">Logout</button>
+      </div>
+      <button class="nav-toggle" aria-label="Open navigation"><span></span></button>
+    </div>
+  </header>
+
+  <main class="site-shell dashboard-page">
+    <section class="hero hero-simple admin-hero">
+      <div class="hero-copy">
+        <span class="hero-badge"><span></span> Admin Panel</span>
+        <h1>Welcome back, <span data-dashboard-welcome>Admin</span></h1>
+        <p>Monitor rides, manage passenger and driver accounts, and keep campus transport running smoothly.</p>
+      </div>
+    </section>
+
+    <section id="admin-login-section" class="section section-card admin-login-section">
+      <div class="section-intro">
+        <h2>Admin login</h2>
+        <p class="lead">Enter your name and password to open the admin dashboard for monitoring and management.</p>
+      </div>
+      <div class="auth-form-card admin-login-card">
+        <form id="admin-login-form" class="auth-form">
+          <label for="admin-name">Name</label>
+          <input type="text" id="admin-name" name="admin-name" placeholder="Admin Name" required>
+
+          <label for="admin-password">Password</label>
+          <div class="password-input-group">
+            <input type="password" id="admin-password" name="admin-password" placeholder="Enter your password" required>
+            <button type="button" class="password-toggle" data-target="#admin-password">Show</button>
+          </div>
+
+          <button type="submit" class="btn-primary">Go to admin dashboard</button>
+        </form>
+      </div>
+    </section>
+
+    <section id="admin-dashboard-section" class="section admin-dashboard-section" style="display:none;">
+      <div class="dashboard-grid">
+        <article class="dashboard-card">
+          <h3>Total bookings</h3>
+          <p>1,256</p>
+        </article>
+        <article class="dashboard-card">
+          <h3>Registered drivers</h3>
+          <p>84</p>
+        </article>
+        <article class="dashboard-card">
+          <h3>Active passengers</h3>
+          <p>1,032</p>
+        </article>
+        <article class="dashboard-card">
+          <h3>Pending requests</h3>
+          <p>18</p>
+        </article>
+      </div>
+
+      <div class="dashboard-details">
+        <div class="dashboard-panel">
+          <h2>Driver management</h2>
+          <p>Review, approve, and monitor active drivers in the system. Update driver status or remove accounts when needed.</p>
+          <div class="table-card">
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Status</th>
+                  <th>Trips</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Renato Mercado</td>
+                  <td>Active</td>
+                  <td>124</td>
+                </tr>
+                <tr>
+                  <td>Leah Santos</td>
+                  <td>Pending</td>
+                  <td>0</td>
+                </tr>
+                <tr>
+                  <td>Mark Fernandez</td>
+                  <td>Active</td>
+                  <td>98</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="dashboard-panel">
+          <h2>Passenger management</h2>
+          <p>Monitor active riders, verify accounts, and review passenger booking status.</p>
+          <div class="table-card">
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Last booking</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Joy Ramos</td>
+                  <td>Today</td>
+                  <td>Active</td>
+                </tr>
+                <tr>
+                  <td>Carlo Dela Cruz</td>
+                  <td>Yesterday</td>
+                  <td>Active</td>
+                </tr>
+                <tr>
+                  <td>Mia Velasco</td>
+                  <td>2 days ago</td>
+                  <td>Inactive</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-shell footer">
+    <div class="footer-grid">
+      <div>
+        <h3>GoTSUian</h3>
+        <p>Built for TSU San Isidro students who need fast campus rides, real-time booking, and trusted drivers.</p>
+        <p class="footer-note">© 2026 GoTSUian. Designed for student mobility.</p>
+      </div>
+      <div>
+        <h4>Quick Links</h4>
+        <p><a href="index.html">Home</a> · <a href="booking.html">Booking</a> · <a href="auth.html">Login</a></p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
