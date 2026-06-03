@@ -401,33 +401,32 @@ button {
   display: block;
 }
 
+.hero-copy {
+  max-width: 720px;
+  text-align: center;
+}
+
 .hero-simple .hero-copy {
   margin: 0 auto 60px;
-  max-width: 600px;
-}
-
-.hero-copy {
-  max-width: 560px;
-}
-
-.hero-simple .hero-copy {
-  margin: 0 auto;
+  max-width: 720px;
 }
 
 .hero-copy h1 {
-  margin: 0;
+  margin: 0 auto;
   font-family: 'Poppins', sans-serif;
   font-size: clamp(2.8rem, 5vw, 4.2rem);
   line-height: 1.02;
   color: var(--primary);
+  text-align: center;
 }
 
 .hero-copy p {
-  margin: 24px 0 0;
-  max-width: 520px;
+  margin: 24px auto 24px;
+  max-width: 100%;
   color: #444;
   font-size: 1.05rem;
   line-height: 1.8;
+  text-align: center;
 }
 
 .hero-actions {
@@ -1729,7 +1728,7 @@ select {
   }
 
   .hero-simple .hero-copy {
-    max-width: 700px;
+    max-width: 720px;
     margin: 0 auto 40px;
   }
 
@@ -1831,6 +1830,7 @@ select {
   .hero-simple .hero-copy {
     text-align: center;
     margin: 0 auto 30px;
+    max-width: 720px;
   }
 
   .hero-actions {
