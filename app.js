@@ -91,9 +91,9 @@ function hideAdminLinkForNonAdmin() {
   const user = getStoredUser();
   if (!adminLink) return;
   if (user.role !== 'admin') {
-    adminLink.style.display = 'none';
+    adminLink.classList.add('hidden');
   } else {
-    adminLink.style.display = '';
+    adminLink.classList.remove('hidden');
   }
 }
 
@@ -131,11 +131,11 @@ function showAdminDashboardIfLoggedIn() {
   if (!dashboardSection || !loginSection) return;
 
   if (user.role === 'admin') {
-    loginSection.style.display = 'none';
-    dashboardSection.style.display = 'block';
+    loginSection.classList.add('hidden');
+    dashboardSection.classList.remove('hidden');
   } else {
-    loginSection.style.display = 'block';
-    dashboardSection.style.display = 'none';
+    loginSection.classList.remove('hidden');
+    dashboardSection.classList.add('hidden');
   }
 }
 
