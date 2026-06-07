@@ -1779,6 +1779,14 @@ select.input-valid:focus {
   color: #374151;
 }
 
+#strength-text-login {
+  font-size: 0.875rem;
+  font-weight: 600;
+  display: block;
+  color: #374151;
+  margin-bottom: 6px;
+}
+
 .password-checklist {
   background: #fef2f2;
   border: 1px solid #fecaca;
@@ -1816,6 +1824,10 @@ select.input-valid:focus {
   font-size: 0.8rem;
   color: #fca5a5;
   transition: all 0.2s ease;
+}
+
+.check-item.valid {
+  color: #16a34a;
 }
 
 .auth-modal {
@@ -1906,6 +1918,28 @@ select.input-valid:focus {
   color: #4b5563;
   line-height: 1.6;
   font-size: 1rem;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 18px;
+}
+
+.modal-actions .btn-secondary {
+  background: transparent;
+  color: var(--primary);
+  border: 1px solid rgba(127,29,29,0.08);
+  padding: 10px 18px;
+  border-radius: 10px;
+}
+
+/* Ensure OK button remains visible on error modal */
+.auth-modal-content.error .btn-secondary {
+  background: var(--white);
+  color: var(--primary);
+  border: 1px solid rgba(127,29,29,0.18);
+  box-shadow: 0 6px 14px rgba(0,0,0,0.06);
 }
 
 .modal-small-text {
