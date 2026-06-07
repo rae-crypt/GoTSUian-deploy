@@ -192,6 +192,29 @@ function checkPasswordStrength(value) {
   return { hasLower, hasUpper, hasNumber, hasSpecial, isLongEnough };
 }
 
+function validateStudentIdFormat(id) {
+  // Adjust pattern to match your institution's ID format. Currently expects exactly 8 digits.
+  return /^\d{8}$/.test(id);
+}
+
+async function validateStudentIdServer(id) {
+  // Placeholder for server-side validation. Replace URL with your backend endpoint.
+  // Returns `true` if server confirms ID is valid; returns true on network errors to avoid blocking registration.
+  try {
+    const res = await fetch('/api/validate-student-id', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ studentId: id })
+    });
+    if (!res.ok) return true; // don't block on server errors
+    const data = await res.json();
+    return data && data.valid;
+  } catch (e) {
+    console.warn('Student ID server validation failed', e);
+    return true; // allow registration when server is unreachable
+  }
+}
+
 
 function showAuthFeedback(type, title, message) {
   const modal = document.querySelector('#auth-modal');
@@ -286,6 +309,9 @@ function setupAuthForm() {
     const lnameInput = document.querySelector('#reg-lname');
     const emailInput = document.querySelector('#reg-email');
     const passwordInput = document.querySelector('#reg-password');
+    const roleSelect = document.querySelector('#reg-role');
+    const studentSection = document.querySelector('#reg-student-section');
+    const studentIdInput = document.querySelector('#reg-student-id');
 
     // Real-time validation for first name
     if (fnameInput) {
@@ -301,6 +327,22 @@ function setupAuthForm() {
           this.classList.add('input-error');
           document.querySelector('#fname-error').textContent = 'Only letters allowed (minimum 2 characters)';
         } else if (isValid) {
+          this.classList.add('input-valid');
+        }
+      });
+    }
+
+    // Real-time validation for confirm password
+    const regPasswordConfirm = document.querySelector('#reg-password-confirm');
+    if (regPasswordConfirm && passwordInput) {
+      regPasswordConfirm.addEventListener('input', function() {
+        const val = this.value;
+        document.querySelector('#password-confirm-error').textContent = '';
+        this.classList.remove('input-error', 'input-valid');
+        if (val.length > 0 && passwordInput.value !== val) {
+          this.classList.add('input-error');
+          document.querySelector('#password-confirm-error').textContent = 'Passwords do not match';
+        } else if (val.length > 0 && passwordInput.value === val) {
           this.classList.add('input-valid');
         }
       });
@@ -343,9 +385,73 @@ function setupAuthForm() {
       });
     }
 
+    // Toggle student ID visibility based on role
+    const toggleStudentSection = () => {
+      if (!studentSection || !roleSelect) return;
+      if (roleSelect.value === 'passenger') {
+        studentSection.style.display = '';
+        if (studentIdInput) studentIdInput.setAttribute('required', 'required');
+      } else {
+        studentSection.style.display = 'none';
+        if (studentIdInput) {
+          studentIdInput.value = '';
+          document.querySelector('#student-id-error').textContent = '';
+          studentIdInput.classList.remove('input-error', 'input-valid');
+          studentIdInput.removeAttribute('required');
+        }
+      }
+    };
+
+    if (roleSelect) roleSelect.addEventListener('change', toggleStudentSection);
+    toggleStudentSection();
+
+    // Real-time validation for student ID (passenger only)
+    if (studentIdInput) {
+      studentIdInput.addEventListener('input', function() {
+        const val = this.value.trim();
+        const isValid = /^\d{8}$/.test(val); // expect 8 digits; adjust as needed
+        this.classList.remove('input-error', 'input-valid');
+        document.querySelector('#student-id-error').textContent = '';
+        if (val.length > 0 && !isValid) {
+          this.classList.add('input-error');
+          document.querySelector('#student-id-error').textContent = 'Student ID must be 8 digits';
+        } else if (isValid) {
+          this.classList.add('input-valid');
+        }
+      });
+    }
+
+    // Name extension select -> show/hide 'Other' input
+    const extSelect = document.querySelector('#reg-ext');
+    const extOtherInput = document.querySelector('#reg-ext-other');
+    if (extSelect && extOtherInput) {
+      const toggleExtOther = () => {
+        if (extSelect.value === 'Other') {
+          extOtherInput.style.display = '';
+          extOtherInput.setAttribute('required', 'required');
+        } else {
+          extOtherInput.style.display = 'none';
+          extOtherInput.removeAttribute('required');
+          extOtherInput.value = '';
+          document.querySelector('#ext-error').textContent = '';
+        }
+      };
+      extSelect.addEventListener('change', toggleExtOther);
+      toggleExtOther();
+      // Live validation for the "Other" extension input
+      extOtherInput.addEventListener('input', function() {
+        const v = this.value.trim();
+        this.classList.remove('input-error', 'input-valid');
+        document.querySelector('#ext-error').textContent = '';
+        if (v.length > 0) {
+          this.classList.add('input-valid');
+        }
+      });
+    }
+
     
 
-    registerForm.addEventListener('submit', function(event) {
+    registerForm.addEventListener('submit', async function(event) {
       event.preventDefault();
       const fnameInput = document.querySelector('#reg-fname');
       const mnameInput = document.querySelector('#reg-mname');
@@ -359,7 +465,18 @@ function setupAuthForm() {
       const lastNameRaw = lnameInput.value.trim();
       const email = emailInput.value.trim().toLowerCase();
       const password = passwordInput.value;
-      const role = roleSelect.value;
+      const role = roleSelect ? roleSelect.value : 'passenger';
+      const studentId = studentIdInput ? studentIdInput.value.trim() : '';
+      const extSelect = document.querySelector('#reg-ext');
+      const extOtherInput = document.querySelector('#reg-ext-other');
+      let extensionRaw = '';
+      if (extSelect) {
+        if (extSelect.value === 'Other') {
+          extensionRaw = extOtherInput ? extOtherInput.value.trim() : '';
+        } else {
+          extensionRaw = extSelect.value.trim();
+        }
+      }
 
       let isValid = true;
 
@@ -406,6 +523,43 @@ function setupAuthForm() {
         emailInput.classList.add('input-valid');
       }
 
+      // Validate student ID for passengers
+      if (role === 'passenger') {
+        if (!studentId) {
+          document.querySelector('#student-id-error').textContent = 'Student ID is required for passengers';
+          if (studentIdInput) studentIdInput.classList.add('input-error');
+          isValid = false;
+        } else if (!/^\d{8}$/.test(studentId)) {
+          document.querySelector('#student-id-error').textContent = 'Student ID must be 8 digits';
+          if (studentIdInput) studentIdInput.classList.add('input-error');
+          isValid = false;
+        } else {
+          // Optionally perform server-side check to verify the student ID belongs to a student
+          try {
+            const serverOk = await validateStudentIdServer(studentId);
+            if (!serverOk) {
+              document.querySelector('#student-id-error').textContent = 'Student ID not recognized';
+              if (studentIdInput) studentIdInput.classList.add('input-error');
+              isValid = false;
+            }
+          } catch (e) {
+            // On network failure, allow registration but log the issue
+            console.warn('Student ID server validation failed, proceeding locally', e);
+          }
+        }
+      }
+
+      // Validate extension 'Other' text when selected
+      const extSelectVal = extSelect ? extSelect.value : '';
+      if (extSelectVal === 'Other') {
+        const otherVal = extOtherInput ? extOtherInput.value.trim() : '';
+        if (!otherVal) {
+          document.querySelector('#ext-error').textContent = 'Please enter a name extension or choose another option';
+          if (extOtherInput) extOtherInput.classList.add('input-error');
+          isValid = false;
+        }
+      }
+
       // Validate password (basic length requirement)
       if (!password) {
         document.querySelector('#password-error').textContent = 'Password is required';
@@ -415,13 +569,26 @@ function setupAuthForm() {
         isValid = false;
       }
 
+      // Confirm password
+      const confirmPasswordInput = document.querySelector('#reg-password-confirm');
+      const confirmPassword = confirmPasswordInput ? confirmPasswordInput.value : '';
+      if (!confirmPassword) {
+        document.querySelector('#password-confirm-error').textContent = 'Please confirm your password';
+        if (confirmPasswordInput) confirmPasswordInput.classList.add('input-error');
+        isValid = false;
+      } else if (confirmPassword !== password) {
+        document.querySelector('#password-confirm-error').textContent = 'Passwords do not match';
+        if (confirmPasswordInput) confirmPasswordInput.classList.add('input-error');
+        isValid = false;
+      }
+
       if (!isValid) return;
 
       // Format names
       const firstName = formatName(firstNameRaw);
-      const middleName = formatName(middleNameRaw);
+      const middleName = middleNameRaw ? formatName(middleNameRaw) : '';
       const lastName = formatName(lastNameRaw);
-      const fullName = `${firstName} ${middleName} ${lastName}`;
+      const fullName = `${firstName}${middleName ? ' ' + middleName : ''} ${lastName}${extensionRaw ? ' ' + extensionRaw : ''}`.trim();
 
       // Check if email already registered
       let users = JSON.parse(localStorage.getItem('gotsUianUsers') || '[]');
