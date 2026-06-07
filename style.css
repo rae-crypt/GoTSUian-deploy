@@ -1920,6 +1920,12 @@ select.input-valid:focus {
   font-size: 1rem;
 }
 
+.required-star {
+  color: #dc2626;
+  margin-left: 4px;
+  font-weight: 700;
+}
+
 .modal-actions {
   display: flex;
   justify-content: center;

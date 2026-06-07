@@ -55,23 +55,43 @@
           </div>
 
           <form id="register-form" class="auth-form auth-tab-content active">
-            <label for="reg-fname">First name</label>
+            <label for="reg-fname">First name <span class="required-star">*</span></label>
             <input type="text" id="reg-fname" name="firstName" placeholder="Jane" required>
             <small class="error-msg" id="fname-error"></small>
 
-            <label for="reg-mname">Middle name</label>
-            <input type="text" id="reg-mname" name="middleName" placeholder="Marie" required>
+            <label for="reg-mname">Middle name (optional)</label>
+            <input type="text" id="reg-mname" name="middleName" placeholder="Marie">
             <small class="error-msg" id="mname-error"></small>
 
-            <label for="reg-lname">Last name</label>
+            <label for="reg-lname">Last name <span class="required-star">*</span></label>
             <input type="text" id="reg-lname" name="lastName" placeholder="Doe" required>
             <small class="error-msg" id="lname-error"></small>
 
-            <label for="reg-email">Email address</label>
+            <label for="reg-ext">Name extension (optional)</label>
+            <select id="reg-ext" name="nameExtension">
+              <option value="">None</option>
+              <option value="Jr.">Jr.</option>
+              <option value="Sr.">Sr.</option>
+              <option value="II">II</option>
+              <option value="III">III</option>
+              <option value="IV">IV</option>
+              <option value="V">V</option>
+              <option value="Other">Other</option>
+            </select>
+            <input type="text" id="reg-ext-other" name="nameExtensionOther" placeholder="Enter extension" style="display:none; margin-top:8px;">
+            <small class="error-msg" id="ext-error"></small>
+
+            <label for="reg-email">Email address <span class="required-star">*</span></label>
             <input type="email" id="reg-email" name="email" placeholder="jane@example.com" required>
             <small class="error-msg" id="email-error"></small>
 
-            <label for="reg-password">Password</label>
+            <div id="reg-student-section" style="display:none;">
+              <label for="reg-student-id">Student ID <span class="required-star">*</span></label>
+              <input type="text" id="reg-student-id" name="studentId" placeholder="Enter your student ID (numbers only)">
+              <small class="error-msg" id="student-id-error"></small>
+            </div>
+
+            <label for="reg-password">Password <span class="required-star">*</span></label>
             <input type="password" id="reg-password" name="password" placeholder="Enter a password" required>
             <div class="password-feedback">
               <div class="strength-bar-container">
@@ -86,6 +106,11 @@
               <small><span class="check-item" id="check-special">✗</span> Has special character (!@#$%^&*)</small>
               <small><span class="check-item" id="check-length">✗</span> Is at least 8 characters long</small>
             </div>
+
+            <label for="reg-password-confirm">Confirm password <span class="required-star">*</span></label>
+            <input type="password" id="reg-password-confirm" name="passwordConfirm" placeholder="Re-enter your password" required>
+            <small class="error-msg" id="password-confirm-error"></small>
+
             <small class="error-msg" id="password-error"></small>
 
             <label for="reg-role">I am a</label>
