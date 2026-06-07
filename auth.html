@@ -72,14 +72,14 @@
             <small class="error-msg" id="email-error"></small>
 
             <label for="reg-password">Password</label>
-            <input type="password" id="reg-password" name="password" placeholder="Enter a strong password" required>
+            <input type="password" id="reg-password" name="password" placeholder="Enter a password" required>
             <div class="password-feedback">
               <div class="strength-bar-container">
                 <div class="strength-bar" id="strength-bar"></div>
               </div>
               <small id="strength-text"></small>
             </div>
-            <div class="password-checklist">
+            <div class="password-checklist" id="password-checklist">
               <small><span class="check-item" id="check-lower">✗</span> Has lowercase letters (a-z)</small>
               <small><span class="check-item" id="check-upper">✗</span> Has uppercase letters (A-Z)</small>
               <small><span class="check-item" id="check-number">✗</span> Has numbers (0-9)</small>
@@ -107,6 +107,20 @@
               <input type="password" id="login-password" name="password" placeholder="Enter your password" required>
             </div>
 
+            <div class="password-feedback">
+              <div class="strength-bar-container">
+                <div class="strength-bar" id="strength-bar-login"></div>
+              </div>
+              <small id="strength-text-login"></small>
+            </div>
+            <div class="password-checklist" id="password-checklist-login">
+              <small><span class="check-item" id="check-lower-login">✗</span> Has lowercase letters (a-z)</small>
+              <small><span class="check-item" id="check-upper-login">✗</span> Has uppercase letters (A-Z)</small>
+              <small><span class="check-item" id="check-number-login">✗</span> Has numbers (0-9)</small>
+              <small><span class="check-item" id="check-special-login">✗</span> Has special character (!@#$%^&*)</small>
+              <small><span class="check-item" id="check-length-login">✗</span> Is at least 8 characters long</small>
+            </div>
+
             <button type="submit" class="btn-primary">Login</button>
             <p class="admin-login-note">Are you an admin? <a href="admin.html">Use the admin login page</a>.</p>
           </form>
@@ -124,6 +138,9 @@
         <div class="modal-progress">
           <div class="modal-progress-bar" id="modal-progress-bar"></div>
         </div>
+          <div class="modal-actions">
+            <button id="modal-ok-btn" class="btn-secondary">OK</button>
+          </div>
       </div>
     </div>
   </main>
