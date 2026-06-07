@@ -192,10 +192,6 @@ function checkPasswordStrength(value) {
   return { hasLower, hasUpper, hasNumber, hasSpecial, isLongEnough };
 }
 
-function isStrongPassword(value) {
-  const checks = checkPasswordStrength(value);
-  return checks.hasLower && checks.hasUpper && checks.hasNumber && checks.hasSpecial && checks.isLongEnough;
-}
 
 function showAuthFeedback(type, title, message) {
   const modal = document.querySelector('#auth-modal');
@@ -204,6 +200,7 @@ function showAuthFeedback(type, title, message) {
   const modalMessage = document.querySelector('#modal-message');
   const modalRedirectText = document.querySelector('#modal-redirect-text');
   const progressBar = document.querySelector('#modal-progress-bar');
+  const modalContent = document.querySelector('.auth-modal-content');
 
   if (type === 'success') {
     modalIcon.textContent = '✓';
@@ -217,6 +214,7 @@ function showAuthFeedback(type, title, message) {
     modalIcon.className = 'auth-modal-icon error';
     modalTitle.textContent = 'Oops!';
     modalTitle.style.color = '#dc2626';
+    if (modalContent) modalContent.classList.add('error');
     modalMessage.textContent = message || 'Something went wrong. Please try again.';
     modalRedirectText.style.display = 'none';
   }
@@ -234,6 +232,7 @@ function showAuthFeedback(type, title, message) {
     }, 10);
 
     setTimeout(() => {
+      if (modalContent) modalContent.classList.remove('error');
       modal.classList.add('hidden');
     }, 2500);
   }
@@ -243,6 +242,26 @@ function hideAuthModal() {
   const modal = document.querySelector('#auth-modal');
   modal.classList.add('hidden');
 }
+
+// Dismiss modal on OK button or clicking overlay
+document.addEventListener('click', function(event) {
+  const okBtn = document.querySelector('#modal-ok-btn');
+  if (!okBtn) return;
+  if (event.target === okBtn) {
+    hideAuthModal();
+  }
+});
+
+// Allow clicking the modal overlay to close
+document.addEventListener('DOMContentLoaded', function() {
+  const modal = document.querySelector('#auth-modal');
+  if (!modal) return;
+  modal.addEventListener('click', function(e) {
+    if (e.target === modal) hideAuthModal();
+  });
+});
+
+function setupAuthForm() {
   const registerForm = document.querySelector('#register-form');
   const loginForm = document.querySelector('#login-form');
   const authTabs = document.querySelectorAll('.auth-tab');
@@ -324,45 +343,7 @@ function hideAuthModal() {
       });
     }
 
-    // Real-time password strength feedback
-    if (passwordInput) {
-      passwordInput.addEventListener('input', function() {
-        const checks = checkPasswordStrength(this.value);
-        const strengthBar = document.querySelector('#strength-bar');
-        const strengthText = document.querySelector('#strength-text');
-        const checklist = document.querySelector('.password-checklist');
-        
-        // Update checklist items with real-time feedback
-        document.querySelector('#check-lower').className = checks.hasLower ? 'check-item valid' : 'check-item';
-        document.querySelector('#check-upper').className = checks.hasUpper ? 'check-item valid' : 'check-item';
-        document.querySelector('#check-number').className = checks.hasNumber ? 'check-item valid' : 'check-item';
-        document.querySelector('#check-special').className = checks.hasSpecial ? 'check-item valid' : 'check-item';
-        document.querySelector('#check-length').className = checks.isLongEnough ? 'check-item valid' : 'check-item';
-        
-        const passCount = Object.values(checks).filter(Boolean).length;
-        const strengthPercentage = (passCount / 5) * 100;
-        
-        const colors = ['#e5e7eb', '#dc2626', '#f97316', '#eab308', '#22c55e'];
-        const labels = ['', '⚠️ Weak password', '⚠️ Fair password', '✓ Good password', '✓ Strong password!'];
-        
-        if (this.value.length === 0) {
-          strengthBar.style.width = '0%';
-          strengthText.textContent = '';
-          strengthBar.style.backgroundColor = colors[0];
-          checklist.classList.remove('complete');
-        } else {
-          strengthBar.style.width = strengthPercentage + '%';
-          strengthText.textContent = labels[passCount];
-          strengthBar.style.backgroundColor = colors[passCount];
-          
-          if (passCount === 5) {
-            checklist.classList.add('complete');
-          } else {
-            checklist.classList.remove('complete');
-          }
-        }
-      });
-    }
+    
 
     registerForm.addEventListener('submit', function(event) {
       event.preventDefault();
@@ -425,12 +406,12 @@ function hideAuthModal() {
         emailInput.classList.add('input-valid');
       }
 
-      // Validate password
+      // Validate password (basic length requirement)
       if (!password) {
         document.querySelector('#password-error').textContent = 'Password is required';
         isValid = false;
-      } else if (!isStrongPassword(password)) {
-        document.querySelector('#password-error').textContent = 'Please make sure your password meets all the requirements shown above';
+      } else if (password.length < 8) {
+        document.querySelector('#password-error').textContent = 'Password must be at least 8 characters';
         isValid = false;
       }
 
@@ -468,7 +449,98 @@ function hideAuthModal() {
     });
   }
 
-  if (loginForm) {
+  // Attach login-password listener outside of registerForm block so it runs regardless
+  const loginPasswordInputGlobal = document.querySelector('#login-password');
+  if (loginPasswordInputGlobal) {
+    loginPasswordInputGlobal.addEventListener('input', function() {
+      const checks = checkPasswordStrength(this.value);
+      const strengthBar = document.querySelector('#strength-bar-login');
+      const strengthText = document.querySelector('#strength-text-login');
+      const checklist = document.querySelector('#password-checklist-login');
+
+      const setClass = (id, ok) => {
+        const el = document.querySelector(id);
+        if (!el) return;
+        el.className = ok ? 'check-item valid' : 'check-item';
+      };
+
+      setClass('#check-lower-login', checks.hasLower);
+      setClass('#check-upper-login', checks.hasUpper);
+      setClass('#check-number-login', checks.hasNumber);
+      setClass('#check-special-login', checks.hasSpecial);
+      setClass('#check-length-login', checks.isLongEnough);
+
+      const passCount = Object.values(checks).filter(Boolean).length;
+      const strengthPercentage = (passCount / 5) * 100;
+      const colors = ['#e5e7eb', '#dc2626', '#f97316', '#eab308', '#22c55e'];
+      const labels = ['', '⚠️ Weak password', '⚠️ Fair password', '✓ Good password', '✓ Strong password!'];
+
+      if (!strengthBar || !strengthText) return;
+
+      if (this.value.length === 0) {
+        strengthBar.style.width = '0%';
+        strengthText.textContent = '';
+        strengthBar.style.backgroundColor = colors[0];
+        if (checklist) checklist.classList.remove('complete');
+      } else {
+        strengthBar.style.width = strengthPercentage + '%';
+        strengthText.textContent = labels[passCount];
+        strengthBar.style.backgroundColor = colors[passCount];
+        if (checklist) {
+          if (passCount === 5) checklist.classList.add('complete');
+          else checklist.classList.remove('complete');
+        }
+      }
+    });
+  }
+
+  // Attach register-password listener as well
+  const regPasswordInput = document.querySelector('#reg-password');
+  if (regPasswordInput) {
+    regPasswordInput.addEventListener('input', function() {
+      const checks = checkPasswordStrength(this.value);
+      const strengthBar = document.querySelector('#strength-bar');
+      const strengthText = document.querySelector('#strength-text');
+      const checklist = document.querySelector('#password-checklist');
+
+      const setClass = (id, ok) => {
+        const el = document.querySelector(id);
+        if (!el) return;
+        el.className = ok ? 'check-item valid' : 'check-item';
+      };
+
+      setClass('#check-lower', checks.hasLower);
+      setClass('#check-upper', checks.hasUpper);
+      setClass('#check-number', checks.hasNumber);
+      setClass('#check-special', checks.hasSpecial);
+      setClass('#check-length', checks.isLongEnough);
+
+      const passCount = Object.values(checks).filter(Boolean).length;
+      const colors = ['#e5e7eb', '#dc2626', '#f97316', '#eab308', '#22c55e'];
+      const labels = ['', '⚠️ Weak password', '⚠️ Fair password', '✓ Good password', '✓ Strong password!'];
+
+      if (!strengthBar || !strengthText) return;
+
+      if (this.value.length === 0) {
+        strengthBar.style.width = '0%';
+        strengthText.textContent = '';
+        strengthBar.style.backgroundColor = colors[0];
+        if (checklist) checklist.classList.remove('complete');
+      } else {
+        strengthBar.style.width = (passCount / 5) * 100 + '%';
+        strengthText.textContent = labels[passCount];
+        strengthBar.style.backgroundColor = colors[passCount];
+        if (checklist) {
+          if (passCount === 5) checklist.classList.add('complete');
+          else checklist.classList.remove('complete');
+        }
+      }
+    });
+  }
+
+    
+
+    if (loginForm) {
     loginForm.addEventListener('submit', function(event) {
       event.preventDefault();
       const email = document.querySelector('#login-email').value.trim();
@@ -493,7 +565,7 @@ function hideAuthModal() {
 
       redirectToDashboard(user.role);
     });
-  }
+}
 }
 
 document.addEventListener('DOMContentLoaded', function() {
