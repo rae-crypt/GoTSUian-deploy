@@ -193,8 +193,8 @@ function checkPasswordStrength(value) {
 }
 
 function validateStudentIdFormat(id) {
-  // Adjust pattern to match your institution's ID format. Currently expects exactly 8 digits.
-  return /^\d{8}$/.test(id);
+  // Adjust pattern to match your institution's ID format. Currently expects exactly 10 digits.
+  return /^\d{10}$/.test(id);
 }
 
 async function validateStudentIdServer(id) {
@@ -409,12 +409,12 @@ function setupAuthForm() {
     if (studentIdInput) {
       studentIdInput.addEventListener('input', function() {
         const val = this.value.trim();
-        const isValid = /^\d{8}$/.test(val); // expect 8 digits; adjust as needed
+        const isValid = /^\d{10}$/.test(val); // expect 10 digits; adjust as needed
         this.classList.remove('input-error', 'input-valid');
         document.querySelector('#student-id-error').textContent = '';
         if (val.length > 0 && !isValid) {
           this.classList.add('input-error');
-          document.querySelector('#student-id-error').textContent = 'Student ID must be 8 digits';
+          document.querySelector('#student-id-error').textContent = 'Student ID must be 10 digits';
         } else if (isValid) {
           this.classList.add('input-valid');
         }
@@ -529,8 +529,8 @@ function setupAuthForm() {
           document.querySelector('#student-id-error').textContent = 'Student ID is required for passengers';
           if (studentIdInput) studentIdInput.classList.add('input-error');
           isValid = false;
-        } else if (!/^\d{8}$/.test(studentId)) {
-          document.querySelector('#student-id-error').textContent = 'Student ID must be 8 digits';
+        } else if (!/^\d{10}$/.test(studentId)) {
+          document.querySelector('#student-id-error').textContent = 'Student ID must be 10 digits';
           if (studentIdInput) studentIdInput.classList.add('input-error');
           isValid = false;
         } else {
