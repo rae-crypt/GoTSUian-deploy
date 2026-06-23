@@ -429,6 +429,17 @@ button {
   text-align: center;
 }
 
+.hero-trust {
+  margin-top: 24px;
+}
+
+.hero-trust p {
+  margin: 0;
+  color: #1f2937;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
 .hero-actions {
   margin-top: 30px;
   display: flex;
@@ -778,7 +789,7 @@ button {
   background: var(--white);
   border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: 24px;
-  padding: 28px;
+  padding: 32px;
   box-shadow: var(--shadow);
   overflow: hidden;
 }
@@ -796,7 +807,7 @@ button {
 
 .support-card h3 {
   position: relative;
-  margin: 0 0 14px;
+  margin: 0 0 12px;
   z-index: 1;
 }
 
@@ -804,6 +815,11 @@ button {
   position: relative;
   z-index: 1;
   color: #475569;
+}
+
+.support-copy {
+  display: grid;
+  gap: 12px;
 }
 
 .testimonial-grid {
@@ -835,6 +851,47 @@ button {
   margin: 0 0 18px;
   font-family: 'Poppins', sans-serif;
   color: var(--primary);
+}
+
+.feature-card,
+.step-card,
+.support-card,
+.testimonial-card {
+  min-height: 240px;
+}
+
+.support-card,
+.feature-card,
+.testimonial-card {
+  padding: 32px;
+}
+
+.feat-copy,
+.support-copy,
+.testimonial-copy {
+  color: #475569;
+  line-height: 1.7;
+}
+
+.step-card h3,
+.feature-card h3,
+.support-card h3,
+.testimonial-card h3 {
+  font-size: 1.15rem;
+}
+
+.step-card p,
+.feature-card p,
+.support-card p,
+.testimonial-card p {
+  margin: 0;
+  font-size: 0.98rem;
+}
+
+.testimonial-card small {
+  color: #6b7280;
+  display: block;
+  margin-top: 18px;
 }
 
 .section p.lead {
@@ -1015,16 +1072,18 @@ button {
 
 .testimonial-card {
   position: relative;
-  min-height: 170px;
+  min-height: 220px;
 }
 
 .testimonial-card p {
-  margin-bottom: 16px;
+  margin-bottom: 18px;
+  color: #475569;
 }
 
 .testimonial-card small {
   display: block;
-  color: var(--muted);
+  color: #6b7280;
+  font-size: 0.95rem;
 }
 
 .footer {
