@@ -2,18 +2,38 @@
 function setupNavMenu() {
   const navToggle = document.querySelector('.nav-toggle');
   const navLinks = document.querySelector('.nav-links');
+  const navBackdrop = document.querySelector('.nav-backdrop');
 
-  if (navToggle && navLinks) {
-    navToggle.addEventListener('click', function() {
-      navLinks.classList.toggle('open');
-    });
+  if (!navToggle || !navLinks) return;
 
-    document.addEventListener('click', function(event) {
-      if (!navToggle.contains(event.target) && !navLinks.contains(event.target)) {
-        navLinks.classList.remove('open');
-      }
+  function closeNav() {
+    navLinks.classList.remove('open');
+    navToggle.classList.remove('open');
+    if (navBackdrop) {
+      navBackdrop.classList.remove('active');
+    }
+  }
+
+  navToggle.addEventListener('click', function(event) {
+    event.stopPropagation();
+    navLinks.classList.toggle('open');
+    navToggle.classList.toggle('open');
+    if (navBackdrop) {
+      navBackdrop.classList.toggle('active');
+    }
+  });
+
+  if (navBackdrop) {
+    navBackdrop.addEventListener('click', function() {
+      closeNav();
     });
   }
+
+  document.addEventListener('click', function(event) {
+    if (!navToggle.contains(event.target) && !navLinks.contains(event.target)) {
+      closeNav();
+    }
+  });
 }
 
 function setupBackToTop() {
@@ -44,6 +64,24 @@ function highlightActiveNav() {
       link.classList.add('active');
     }
   });
+}
+
+function setupScrollReveal() {
+  const revealItems = document.querySelectorAll('.feature-card, .step-card, .support-card, .testimonial-card');
+  if (!revealItems.length || !('IntersectionObserver' in window)) return;
+
+  const observer = new IntersectionObserver((entries, obs) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('is-visible');
+        obs.unobserve(entry.target);
+      }
+    });
+  }, {
+    threshold: 0.16
+  });
+
+  revealItems.forEach(item => observer.observe(item));
 }
 
 function getStoredUser() {
