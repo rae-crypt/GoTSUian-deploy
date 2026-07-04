@@ -290,7 +290,11 @@ function saveRideRequests(requests) {
 function updateRideRequest(requestId, updates) {
   const requests = getRideRequests().map(request => {
     if (request.id !== requestId) return request;
-    return { ...request, ...updates };
+    return {
+      ...request,
+      ...updates,
+      updatedAt: updates.status ? new Date().toISOString() : request.updatedAt || request.createdAt
+    };
   });
   saveRideRequests(requests);
   renderPassengerRideStatus();
@@ -330,7 +334,8 @@ function setupPassengerRideRequestForm() {
       rideType,
       notes,
       status: 'Pending',
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
 
     const requests = getRideRequests();
@@ -341,6 +346,28 @@ function setupPassengerRideRequestForm() {
     renderDriverRideRequests();
     alert('Ride request sent. A driver will review it shortly.');
   });
+}
+
+function getRideStatusConfig(status) {
+  const configs = {
+    Pending: { label: 'Pending', description: 'Waiting for driver review.', tone: 'warning' },
+    Accepted: { label: 'Accepted', description: 'Driver has accepted the ride.', tone: 'success' },
+    'Picked Up': { label: 'Picked Up', description: 'The driver has picked up the passenger.', tone: 'info' },
+    'In Progress': { label: 'In Progress', description: 'The trip is underway.', tone: 'info' },
+    Completed: { label: 'Completed', description: 'The ride has been completed.', tone: 'success' },
+    Cancelled: { label: 'Cancelled', description: 'The ride was cancelled.', tone: 'danger' },
+    Failed: { label: 'Failed', description: 'The ride could not be completed.', tone: 'danger' }
+  };
+
+  return configs[status] || { label: status || 'Unknown', description: 'Status update received.', tone: 'warning' };
+}
+
+function getNextRideStatusOptions(currentStatus) {
+  if (currentStatus === 'Pending') return ['Accepted', 'Cancelled'];
+  if (currentStatus === 'Accepted') return ['Picked Up', 'Cancelled'];
+  if (currentStatus === 'Picked Up') return ['In Progress', 'Completed', 'Cancelled'];
+  if (currentStatus === 'In Progress') return ['Completed', 'Failed'];
+  return [];
 }
 
 function renderPassengerRideStatus() {
@@ -360,7 +387,7 @@ function renderPassengerRideStatus() {
     .filter(request => request.passengerEmail === user.email)
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-  const activeRequest = requests.find(request => !['Completed', 'Cancelled'].includes(request.status)) || requests[0];
+  const activeRequest = requests.find(request => !['Completed', 'Cancelled', 'Failed'].includes(request.status)) || null;
 
   if (!activeRequest) {
     emptyState.style.display = 'block';
@@ -372,23 +399,29 @@ function renderPassengerRideStatus() {
   emptyState.style.display = 'none';
   container.style.display = 'block';
   const createdAt = new Date(activeRequest.createdAt).toLocaleString();
+  const updatedAt = new Date(activeRequest.updatedAt || activeRequest.createdAt).toLocaleString();
   const driverName = activeRequest.driverName || 'Awaiting confirmation';
-  const statusLabel = activeRequest.status === 'Accepted' ? 'Driver assigned' : activeRequest.status;
+  const statusConfig = getRideStatusConfig(activeRequest.status);
+  const canCancel = !['Completed', 'Cancelled', 'Failed'].includes(activeRequest.status);
 
   container.innerHTML = `
     <div style="display:flex; justify-content:space-between; gap:1rem; align-items:flex-start;">
       <div>
-        <h4>${escapeHtml(statusLabel)}</h4>
+        <h4>${escapeHtml(statusConfig.label)}</h4>
         <p><strong>${escapeHtml(activeRequest.pickupLocation)}</strong> → <strong>${escapeHtml(activeRequest.dropoffLocation)}</strong></p>
         <p><strong>Ride type:</strong> ${escapeHtml(activeRequest.rideType)}</p>
         <p><strong>Driver:</strong> ${escapeHtml(driverName)}</p>
         <p><small>Requested ${escapeHtml(createdAt)}</small></p>
+        <p><small>Last updated ${escapeHtml(updatedAt)}</small></p>
         <p>${escapeHtml(activeRequest.notes || 'No notes added.')}</p>
       </div>
-      <span class="badge badge-success">${escapeHtml(activeRequest.status)}</span>
+      <span style="padding:0.35rem 0.7rem; border-radius:999px; background:#dbeafe; color:#1d4ed8; font-weight:600;">${escapeHtml(statusConfig.label)}</span>
+    </div>
+    <div style="margin-top:1rem;">
+      <p style="margin:0; color:#475569;">${escapeHtml(statusConfig.description)}</p>
     </div>
     <div style="margin-top:1rem; display:flex; gap:0.75rem; flex-wrap:wrap;">
-      <button type="button" class="btn-secondary-outline" data-action="cancel-request" data-request-id="${activeRequest.id}">Cancel request</button>
+      ${canCancel ? `<button type="button" class="btn-secondary-outline" data-action="cancel-request" data-request-id="${activeRequest.id}">Cancel request</button>` : ''}
     </div>
   `;
 
@@ -412,34 +445,48 @@ function renderDriverRideRequests() {
   }
 
   const requests = getRideRequests()
-    .filter(request => ['Pending', 'Accepted'].includes(request.status))
+    .filter(request => ['Pending', 'Accepted', 'Picked Up', 'In Progress'].includes(request.status))
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
   if (!requests.length) {
-    container.innerHTML = '<article class="dashboard-card"><p>No new ride requests right now.</p></article>';
+    container.innerHTML = '<article class="dashboard-card"><p>No active ride requests right now.</p></article>';
     return;
   }
 
-  container.innerHTML = requests.map(request => `
-    <article class="driver-card">
-      <div class="driver-card-header">
-        <div>
-          <h3>${escapeHtml(request.passengerName || 'Passenger')}</h3>
-          <p>${escapeHtml(request.pickupLocation)} → ${escapeHtml(request.dropoffLocation)}</p>
-        </div>
-        <span class="badge badge-success">${escapeHtml(request.status)}</span>
-      </div>
-      <div class="driver-card-meta">
-        <span>${escapeHtml(request.rideType)}</span>
-        <span>${new Date(request.createdAt).toLocaleString()}</span>
-      </div>
-      <p>${escapeHtml(request.notes || 'No notes provided.')}</p>
-      <div style="display:flex; gap:0.75rem; margin-top:1rem; flex-wrap:wrap;">
+  container.innerHTML = requests.map(request => {
+    const statusConfig = getRideStatusConfig(request.status);
+    const nextStatusButtons = getNextRideStatusOptions(request.status)
+      .map(nextStatus => `<button type="button" class="btn-secondary-outline" data-action="advance-status" data-request-id="${request.id}" data-next-status="${nextStatus}">${escapeHtml(nextStatus)}</button>`)
+      .join('');
+
+    const pendingActions = request.status === 'Pending'
+      ? `
         <button type="button" class="btn-primary" data-action="accept-request" data-request-id="${request.id}">Accept</button>
         <button type="button" class="btn-secondary-outline" data-action="decline-request" data-request-id="${request.id}">Decline</button>
-      </div>
-    </article>
-  `).join('');
+      `
+      : nextStatusButtons;
+
+    return `
+      <article class="driver-card">
+        <div class="driver-card-header">
+          <div>
+            <h3>${escapeHtml(request.passengerName || 'Passenger')}</h3>
+            <p>${escapeHtml(request.pickupLocation)} → ${escapeHtml(request.dropoffLocation)}</p>
+          </div>
+          <span style="padding:0.35rem 0.7rem; border-radius:999px; background:#dcfce7; color:#15803d; font-weight:600;">${escapeHtml(statusConfig.label)}</span>
+        </div>
+        <div class="driver-card-meta">
+          <span>${escapeHtml(request.rideType)}</span>
+          <span>${new Date(request.createdAt).toLocaleString()}</span>
+        </div>
+        <p>${escapeHtml(request.notes || 'No notes provided.')}</p>
+        <p style="margin-top:0.6rem; color:#475569;">${escapeHtml(statusConfig.description)}</p>
+        <div style="display:flex; gap:0.75rem; margin-top:1rem; flex-wrap:wrap;">
+          ${pendingActions}
+        </div>
+      </article>
+    `;
+  }).join('');
 
   container.querySelectorAll('[data-action="accept-request"]').forEach(button => {
     button.addEventListener('click', function() {
@@ -457,6 +504,18 @@ function renderDriverRideRequests() {
       const requestId = this.getAttribute('data-request-id');
       updateRideRequest(requestId, { status: 'Cancelled' });
       alert('Ride request declined.');
+    });
+  });
+
+  container.querySelectorAll('[data-action="advance-status"]').forEach(button => {
+    button.addEventListener('click', function() {
+      const requestId = this.getAttribute('data-request-id');
+      const nextStatus = this.getAttribute('data-next-status');
+      updateRideRequest(requestId, {
+        status: nextStatus,
+        driverName: user.name || 'Driver'
+      });
+      alert(`Ride status updated to ${nextStatus}.`);
     });
   });
 }

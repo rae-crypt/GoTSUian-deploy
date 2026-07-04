@@ -145,6 +145,11 @@ This section should always reflect the latest known state of the project.
 - trip lifecycle transitions
 - UI feedback and success/error handling
 
+### Recently improved
+- ride lifecycle now supports richer status transitions for drivers and passengers
+- passenger status panel now shows active ride progress and avoids showing completed rides as active
+- driver queue now supports accept, decline, and status progression actions
+
 ### Not yet implemented
 - real backend authentication
 - persistent database-backed ride storage
@@ -269,9 +274,9 @@ Keep this section updated after every meaningful change.
 
 ### Latest update
 - Date: 2026-07-04
-- Summary: added stronger AI handoff protocol, current state snapshot, done criteria, testing checklist, and backlog structure
+- Summary: added stronger AI handoff protocol, current state snapshot, done criteria, testing checklist, backlog structure, and richer ride lifecycle updates
 - Status: documentation updated
-- Next action: continue implementing the core backend and ride lifecycle
+- Next action: continue implementing the core backend and real-time ride syncing
 
 ### Log format
 - Date:
