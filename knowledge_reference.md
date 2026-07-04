@@ -60,8 +60,18 @@ When the task is finished, the agent should:
 - Favor mobile-friendly and accessible design.
 - Avoid introducing features that break the core flow.
 
-### Mandatory documentation rule for AI agents
-Whenever an AI agent changes the codebase, it must also update this markdown file.
+### Mandatory documentation workflow for AI agents
+Whenever an AI agent changes the codebase, it must also update this markdown file before considering the task complete.
+
+This is not optional. It is part of the implementation.
+
+Required documentation actions for every meaningful change:
+- add a dated entry to the change log
+- update the Current State Snapshot
+- update the Task and Status Board
+- update Known Issues and Bug Log if relevant
+- record any new risk, blocker, or follow-up task
+- state what was verified and what remains pending
 
 The update must include:
 - what changed
@@ -69,8 +79,28 @@ The update must include:
 - what remains pending
 - any new pain points or risks
 - the current status of the relevant task
+- the files touched
+- the verification performed
 
-If a change affects the app workflow, UI, backend, or reliability, the agent must reflect that in this file before considering the task complete.
+If a change affects the app workflow, UI, backend, reliability, or documentation itself, the agent must reflect that in this file immediately.
+
+### Automatic handoff rule
+Every future agent must treat this file as the authoritative continuation record. If the file is not updated after a change, the change is considered incomplete.
+
+### Required update template for every change
+Each time an agent makes a meaningful change, it must add a block in this format:
+
+- Date:
+- Summary:
+- Files touched:
+- What changed:
+- What was completed:
+- What remains pending:
+- Risks or issues:
+- Verification performed:
+- Next step:
+
+This template must be followed verbatim for every update.
 
 ### Expected update behavior
 After each meaningful change, the agent should:
@@ -133,6 +163,73 @@ After finishing a task, the agent should briefly record:
 ## Current State Snapshot
 This section should always reflect the latest known state of the project.
 
+## Change Log
+This section is append-only. Every meaningful change must be recorded here in chronological order.
+
+### Change log template
+- Date:
+- Summary:
+- Files touched:
+- Why it changed:
+- Verification:
+- Status:
+- Next step:
+
+### Latest entries
+- Date: 2026-07-04
+- Summary: Added richer passenger and driver ride lifecycle states, improved feedback handling, and hardened local registration validation for preview environments.
+- Files touched: app.js, passenger.html, driver.html, knowledge_reference.md
+- Why it changed: To make the prototype closer to a complete ride-hailing flow and make local browser testing more reliable.
+- Verification: Verified through browser interaction for registration, ride request creation, driver queue handling, and cancellation.
+- Status: Completed
+- Next step: Continue with backend-ready persistence and stronger authentication.
+
+## File Map
+This section explains where the main responsibilities live so agents can navigate the project quickly.
+
+- app.js: core application logic, authentication, ride lifecycle state, dashboard rendering, validation, and local storage handling
+- auth.html: authentication and registration UI
+- passenger.html: passenger dashboard, ride request form, and ride status view
+- driver.html: driver dashboard, ride queue, and dashboard controls
+- admin.html: admin dashboard shell
+- knowledge_reference.md: shared handoff documentation for AI agents
+- README.md: project overview and summary
+
+## Local Run Instructions
+Use these steps when opening the project locally.
+
+1. Open the project folder in VS Code.
+2. Start a local static server from the project root, for example with Python:
+   - python -m http.server 8000
+3. Open the app in the browser at http://127.0.0.1:8000/.
+4. Use auth.html for sign-up and login flows.
+5. Use passenger.html and driver.html for ride-related testing.
+
+## Architecture Overview
+This project is currently a frontend-first prototype.
+
+- The UI is built with plain HTML, CSS, and JavaScript.
+- State is stored in browser storage for now, not in a backend database.
+- The app is structured around role-based flows for passengers, drivers, and admins.
+- The main logic is centralized in app.js so future agents can extend the behavior from one place.
+
+## Data and Storage Assumptions
+Important for future work and handoff continuity.
+
+- The current app relies on localStorage and sessionStorage for persistence.
+- This means data is not shared across devices or users yet.
+- Authentication and rides are prototype-level and should not be treated as production-secure.
+- Any future backend implementation should replace this storage model with a real database and secure auth flow.
+
+## Production Readiness Roadmap
+These are the next major steps toward a more realistic product.
+
+1. Replace browser storage with a backend API and database.
+2. Implement secure authentication and role-based access control.
+3. Add real-time ride updates and notifications.
+4. Add ride history, payments, safety reporting, and admin monitoring.
+5. Improve UI polish and mobile responsiveness.
+
 ### Implemented so far
 - session-based login and logout flow
 - passenger ride request form
@@ -190,7 +287,19 @@ A task is only considered done when all of the following are true:
 - the UI behaves as expected
 - the core logic is verified
 - the markdown file is updated
+- the change log is updated
 - the next step is clearly documented
+- the handoff state is clear enough for another AI agent to continue without re-discovery
+
+## Handoff Checklist for Every Agent
+Before finishing a task, the agent should confirm all of the following:
+- [ ] The implementation is complete in the app
+- [ ] The relevant UI and logic are verified
+- [ ] The change is documented in the knowledge reference
+- [ ] The change log contains a dated entry
+- [ ] The current state snapshot reflects the latest progress
+- [ ] The task board and backlog reflect the new reality
+- [ ] Any new issues or risks are logged
 
 ---
 
