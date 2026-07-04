@@ -165,6 +165,25 @@ This section should always reflect the latest known state of the project.
 
 ---
 
+## Latest Implementation Notes
+These details should be preserved for future agents working on this project.
+
+### Current frontend behavior
+- Registration validates first name, last name, email, password strength, password confirmation, student ID format, and name extension input.
+- Passenger users can create ride requests, view ride status, and cancel active requests.
+- Driver users can view a ride queue, accept or decline requests, and advance a ride through the visible lifecycle.
+- The app uses browser storage for the current prototype, so state is local to the browser session/device.
+
+### Reliability notes
+- Student ID verification is intentionally non-blocking on localhost and 127.0.0.1 so the static preview can be tested without a backend.
+- Error and success feedback is shown through inline messages and toast-style feedback for key actions.
+
+### Verification performed
+- Confirmed registration flow reaches the passenger dashboard.
+- Confirmed ride request creation updates the passenger ride status panel.
+- Confirmed driver queue actions work for accept and decline flows.
+- Confirmed duplicate registration and invalid input cases produce appropriate feedback.
+
 ## Definition of Done
 A task is only considered done when all of the following are true:
 - the feature works in the app
