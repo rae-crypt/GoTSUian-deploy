@@ -36,6 +36,39 @@
       </div>
     </section>
 
+    <section class="section">
+      <div class="dashboard-grid">
+        <article class="dashboard-card">
+          <h3>Request a ride</h3>
+          <form id="ride-request-form" class="auth-form">
+            <label for="pickup-location">Pickup location</label>
+            <input type="text" id="pickup-location" name="pickup" placeholder="e.g. TSU Main Gate" required>
+
+            <label for="dropoff-location">Drop-off location</label>
+            <input type="text" id="dropoff-location" name="dropoff" placeholder="e.g. San Isidro Market" required>
+
+            <label for="ride-type">Ride type</label>
+            <select id="ride-type" name="rideType">
+              <option value="Standard">Standard</option>
+              <option value="Shared">Shared</option>
+              <option value="Priority">Priority</option>
+            </select>
+
+            <label for="ride-notes">Notes</label>
+            <textarea id="ride-notes" name="notes" rows="3" placeholder="Add any pickup instructions"></textarea>
+
+            <button type="submit" class="btn-primary">Request ride</button>
+          </form>
+        </article>
+
+        <article id="ride-status-panel" class="dashboard-card">
+          <h3>Current ride status</h3>
+          <p id="ride-status-empty">No active ride request yet.</p>
+          <div id="ride-status-details" style="display:none;"></div>
+        </article>
+      </div>
+    </section>
+
     <section class="section dashboard-grid">
       <article class="dashboard-card">
         <h3>Upcoming ride</h3>
