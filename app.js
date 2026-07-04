@@ -85,11 +85,89 @@ function setupScrollReveal() {
 }
 
 function getStoredUser() {
-  return {
-    name: localStorage.getItem('userName') || '',
-    role: localStorage.getItem('userRole') || '',
-    email: localStorage.getItem('userEmail') || ''
+  const rawUser = sessionStorage.getItem('authUser');
+  if (!rawUser) {
+    return {
+      name: '',
+      role: '',
+      email: ''
+    };
+  }
+
+  try {
+    const parsedUser = JSON.parse(rawUser);
+    return {
+      name: parsedUser.name || '',
+      role: parsedUser.role || '',
+      email: parsedUser.email || ''
+    };
+  } catch (error) {
+    console.warn('Unable to read stored session user', error);
+    return {
+      name: '',
+      role: '',
+      email: ''
+    };
+  }
+}
+
+function setStoredUser(user) {
+  const payload = {
+    name: user.name || '',
+    role: user.role || '',
+    email: user.email || ''
   };
+
+  sessionStorage.setItem('authUser', JSON.stringify(payload));
+  sessionStorage.setItem('isAuthenticated', 'true');
+  localStorage.removeItem('userName');
+  localStorage.removeItem('userRole');
+  localStorage.removeItem('userEmail');
+  renderAuthStatus();
+}
+
+function clearStoredUser() {
+  sessionStorage.removeItem('authUser');
+  sessionStorage.removeItem('isAuthenticated');
+  localStorage.removeItem('userName');
+  localStorage.removeItem('userRole');
+  localStorage.removeItem('userEmail');
+  renderAuthStatus();
+}
+
+function renderAuthStatus() {
+  const navCta = document.querySelector('.nav-cta');
+  if (!navCta) return;
+
+  const user = getStoredUser();
+  const authenticated = isAuthenticated();
+  let badge = navCta.querySelector('.nav-user-badge');
+
+  if (authenticated && user.name) {
+    if (!badge) {
+      badge = document.createElement('span');
+      badge.className = 'nav-user-badge';
+      badge.style.display = 'inline-flex';
+      badge.style.alignItems = 'center';
+      badge.style.marginRight = '0.75rem';
+      badge.style.padding = '0.45rem 0.75rem';
+      badge.style.borderRadius = '999px';
+      badge.style.background = 'rgba(34, 197, 84, 0.14)';
+      badge.style.color = '#166534';
+      badge.style.fontSize = '0.9rem';
+      badge.style.fontWeight = '600';
+      badge.style.whiteSpace = 'nowrap';
+      navCta.insertBefore(badge, navCta.firstChild);
+    }
+    badge.textContent = `Signed in as ${user.name}`;
+    badge.style.display = 'inline-flex';
+  } else if (badge) {
+    badge.remove();
+  }
+}
+
+function isAuthenticated() {
+  return Boolean(getStoredUser().role) && sessionStorage.getItem('isAuthenticated') === 'true';
 }
 
 function redirectToDashboard(role) {
@@ -106,7 +184,7 @@ function enforceDashboardAccess() {
 
   if (!allowedRoles.includes(page)) return;
 
-  if (!user.role) {
+  if (!isAuthenticated()) {
     if (page === 'admin') {
       return;
     }
@@ -128,7 +206,7 @@ function hideAdminLinkForNonAdmin() {
   const adminLink = document.querySelector('.nav-links a[data-page="admin"]');
   const user = getStoredUser();
   if (!adminLink) return;
-  if (user.role !== 'admin') {
+  if (!isAuthenticated() || user.role !== 'admin') {
     adminLink.classList.add('hidden');
   } else {
     adminLink.classList.remove('hidden');
@@ -148,9 +226,11 @@ function setupAdminLoginForm() {
     const ADMIN_PASSWORD = 'admin123';
 
     if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
-      localStorage.setItem('userName', 'Administrator');
-      localStorage.setItem('userRole', 'admin');
-      localStorage.setItem('userEmail', 'admin@gotsUian.local');
+      setStoredUser({
+        name: 'Administrator',
+        role: 'admin',
+        email: 'admin@gotsUian.local'
+      });
       redirectToDashboard('admin');
     } else {
       alert('Invalid admin credentials');
@@ -168,7 +248,7 @@ function showAdminDashboardIfLoggedIn() {
 
   if (!dashboardSection || !loginSection) return;
 
-  if (user.role === 'admin') {
+  if (isAuthenticated() && user.role === 'admin') {
     loginSection.classList.add('hidden');
     dashboardSection.classList.remove('hidden');
   } else {
@@ -185,15 +265,216 @@ function fillDashboardWelcome() {
   welcomeName.textContent = displayName;
 }
 
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function getRideRequests() {
+  try {
+    return JSON.parse(localStorage.getItem('gotsUianRideRequests') || '[]');
+  } catch (error) {
+    console.warn('Unable to read ride requests', error);
+    return [];
+  }
+}
+
+function saveRideRequests(requests) {
+  localStorage.setItem('gotsUianRideRequests', JSON.stringify(requests));
+}
+
+function updateRideRequest(requestId, updates) {
+  const requests = getRideRequests().map(request => {
+    if (request.id !== requestId) return request;
+    return { ...request, ...updates };
+  });
+  saveRideRequests(requests);
+  renderPassengerRideStatus();
+  renderDriverRideRequests();
+  return requests;
+}
+
+function setupPassengerRideRequestForm() {
+  const form = document.querySelector('#ride-request-form');
+  if (!form) return;
+
+  form.addEventListener('submit', function(event) {
+    event.preventDefault();
+    const user = getStoredUser();
+
+    if (!isAuthenticated() || user.role !== 'passenger') {
+      alert('Please log in to request a ride.');
+      return;
+    }
+
+    const pickupLocation = document.querySelector('#pickup-location').value.trim();
+    const dropoffLocation = document.querySelector('#dropoff-location').value.trim();
+    const rideType = document.querySelector('#ride-type').value;
+    const notes = document.querySelector('#ride-notes').value.trim();
+
+    if (!pickupLocation || !dropoffLocation) {
+      alert('Please enter both pickup and drop-off locations.');
+      return;
+    }
+
+    const newRequest = {
+      id: `ride-${Date.now()}`,
+      passengerName: user.name || 'Passenger',
+      passengerEmail: user.email,
+      pickupLocation,
+      dropoffLocation,
+      rideType,
+      notes,
+      status: 'Pending',
+      createdAt: new Date().toISOString()
+    };
+
+    const requests = getRideRequests();
+    requests.unshift(newRequest);
+    saveRideRequests(requests);
+    form.reset();
+    renderPassengerRideStatus();
+    renderDriverRideRequests();
+    alert('Ride request sent. A driver will review it shortly.');
+  });
+}
+
+function renderPassengerRideStatus() {
+  const container = document.querySelector('#ride-status-details');
+  const emptyState = document.querySelector('#ride-status-empty');
+  if (!container || !emptyState) return;
+
+  const user = getStoredUser();
+  if (!isAuthenticated() || user.role !== 'passenger') {
+    emptyState.style.display = 'block';
+    container.style.display = 'none';
+    container.innerHTML = '';
+    return;
+  }
+
+  const requests = getRideRequests()
+    .filter(request => request.passengerEmail === user.email)
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  const activeRequest = requests.find(request => !['Completed', 'Cancelled'].includes(request.status)) || requests[0];
+
+  if (!activeRequest) {
+    emptyState.style.display = 'block';
+    container.style.display = 'none';
+    container.innerHTML = '';
+    return;
+  }
+
+  emptyState.style.display = 'none';
+  container.style.display = 'block';
+  const createdAt = new Date(activeRequest.createdAt).toLocaleString();
+  const driverName = activeRequest.driverName || 'Awaiting confirmation';
+  const statusLabel = activeRequest.status === 'Accepted' ? 'Driver assigned' : activeRequest.status;
+
+  container.innerHTML = `
+    <div style="display:flex; justify-content:space-between; gap:1rem; align-items:flex-start;">
+      <div>
+        <h4>${escapeHtml(statusLabel)}</h4>
+        <p><strong>${escapeHtml(activeRequest.pickupLocation)}</strong> → <strong>${escapeHtml(activeRequest.dropoffLocation)}</strong></p>
+        <p><strong>Ride type:</strong> ${escapeHtml(activeRequest.rideType)}</p>
+        <p><strong>Driver:</strong> ${escapeHtml(driverName)}</p>
+        <p><small>Requested ${escapeHtml(createdAt)}</small></p>
+        <p>${escapeHtml(activeRequest.notes || 'No notes added.')}</p>
+      </div>
+      <span class="badge badge-success">${escapeHtml(activeRequest.status)}</span>
+    </div>
+    <div style="margin-top:1rem; display:flex; gap:0.75rem; flex-wrap:wrap;">
+      <button type="button" class="btn-secondary-outline" data-action="cancel-request" data-request-id="${activeRequest.id}">Cancel request</button>
+    </div>
+  `;
+
+  const cancelButton = container.querySelector('[data-action="cancel-request"]');
+  if (cancelButton) {
+    cancelButton.addEventListener('click', function() {
+      updateRideRequest(activeRequest.id, { status: 'Cancelled' });
+      alert('Ride request cancelled.');
+    });
+  }
+}
+
+function renderDriverRideRequests() {
+  const container = document.querySelector('#driver-ride-requests');
+  if (!container) return;
+
+  const user = getStoredUser();
+  if (!isAuthenticated() || user.role !== 'driver') {
+    container.innerHTML = '<article class="dashboard-card"><p>Log in as a driver to view ride requests.</p></article>';
+    return;
+  }
+
+  const requests = getRideRequests()
+    .filter(request => ['Pending', 'Accepted'].includes(request.status))
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  if (!requests.length) {
+    container.innerHTML = '<article class="dashboard-card"><p>No new ride requests right now.</p></article>';
+    return;
+  }
+
+  container.innerHTML = requests.map(request => `
+    <article class="driver-card">
+      <div class="driver-card-header">
+        <div>
+          <h3>${escapeHtml(request.passengerName || 'Passenger')}</h3>
+          <p>${escapeHtml(request.pickupLocation)} → ${escapeHtml(request.dropoffLocation)}</p>
+        </div>
+        <span class="badge badge-success">${escapeHtml(request.status)}</span>
+      </div>
+      <div class="driver-card-meta">
+        <span>${escapeHtml(request.rideType)}</span>
+        <span>${new Date(request.createdAt).toLocaleString()}</span>
+      </div>
+      <p>${escapeHtml(request.notes || 'No notes provided.')}</p>
+      <div style="display:flex; gap:0.75rem; margin-top:1rem; flex-wrap:wrap;">
+        <button type="button" class="btn-primary" data-action="accept-request" data-request-id="${request.id}">Accept</button>
+        <button type="button" class="btn-secondary-outline" data-action="decline-request" data-request-id="${request.id}">Decline</button>
+      </div>
+    </article>
+  `).join('');
+
+  container.querySelectorAll('[data-action="accept-request"]').forEach(button => {
+    button.addEventListener('click', function() {
+      const requestId = this.getAttribute('data-request-id');
+      updateRideRequest(requestId, {
+        status: 'Accepted',
+        driverName: user.name || 'Driver'
+      });
+      alert('Ride request accepted.');
+    });
+  });
+
+  container.querySelectorAll('[data-action="decline-request"]').forEach(button => {
+    button.addEventListener('click', function() {
+      const requestId = this.getAttribute('data-request-id');
+      updateRideRequest(requestId, { status: 'Cancelled' });
+      alert('Ride request declined.');
+    });
+  });
+}
+
 function setupLogoutButtons() {
   const logoutButtons = document.querySelectorAll('[data-action="logout"]');
   logoutButtons.forEach(button => {
-    button.addEventListener('click', function() {
-      localStorage.removeItem('userName');
-      localStorage.removeItem('userRole');
-      localStorage.removeItem('userEmail');
+    button.addEventListener('click', function(event) {
+      event.preventDefault();
+      clearStoredUser();
       window.location.href = 'auth.html';
     });
+
+    if (isAuthenticated()) {
+      button.style.display = '';
+    } else {
+      button.style.display = 'none';
+    }
   });
 }
 
@@ -640,9 +921,7 @@ function setupAuthForm() {
       // Register user
       users.push({ name: fullName, email, password, role });
       localStorage.setItem('gotsUianUsers', JSON.stringify(users));
-      localStorage.setItem('userName', fullName);
-      localStorage.setItem('userRole', role);
-      localStorage.setItem('userEmail', email);
+      setStoredUser({ name: fullName, role, email });
 
       // Show success feedback
       showAuthFeedback('success', `Welcome, ${firstName}!`, `Your ${role} account is ready. Let's get you started!`);
@@ -748,7 +1027,7 @@ function setupAuthForm() {
     if (loginForm) {
     loginForm.addEventListener('submit', function(event) {
       event.preventDefault();
-      const email = document.querySelector('#login-email').value.trim();
+      const email = document.querySelector('#login-email').value.trim().toLowerCase();
       const password = document.querySelector('#login-password').value.trim();
 
       if (!email || !password) {
@@ -757,17 +1036,14 @@ function setupAuthForm() {
       }
 
       let users = JSON.parse(localStorage.getItem('gotsUianUsers') || '[]');
-      const user = users.find(u => u.email === email && u.password === password);
+      const user = users.find(u => u.email.toLowerCase() === email && u.password === password);
 
       if (!user) {
         alert('Invalid email or password');
         return;
       }
 
-      localStorage.setItem('userName', user.name);
-      localStorage.setItem('userRole', user.role);
-      localStorage.setItem('userEmail', user.email);
-
+      setStoredUser({ name: user.name, role: user.role, email: user.email });
       redirectToDashboard(user.role);
     });
 }
@@ -782,6 +1058,10 @@ document.addEventListener('DOMContentLoaded', function() {
   setupAuthForm();
   setupAdminLoginForm();
   setupLogoutButtons();
+  renderAuthStatus();
   fillDashboardWelcome();
+  setupPassengerRideRequestForm();
+  renderPassengerRideStatus();
+  renderDriverRideRequests();
   showAdminDashboardIfLoggedIn();
 });
