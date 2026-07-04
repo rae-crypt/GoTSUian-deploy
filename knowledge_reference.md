@@ -407,6 +407,56 @@ These are the signs that the project is moving in the right direction.
 
 ---
 
+## Runbook for Common Setup Issues
+Use this section for quick recovery steps when the app behaves unexpectedly.
+
+### If the app does not load
+- confirm the local server is running
+- verify the correct project folder is being served
+- check the browser console for file loading errors
+
+### If login or logout behaves incorrectly
+- clear browser storage for the app domain
+- confirm the auth state is being set or cleared correctly
+- verify the correct page is being redirected after auth changes
+
+### If ride requests are not showing
+- confirm the request was saved to the expected storage key
+- verify the dashboard is reading the stored data correctly
+- inspect the browser console for rendering errors
+
+---
+
+## Release Checklist
+Use this list before considering the project ready for a broader demo or release.
+
+### Release readiness checklist
+- [ ] core authentication works reliably
+- [ ] ride requests can be created and tracked
+- [ ] driver actions are visible and consistent
+- [ ] major UI states are understandable
+- [ ] documentation is updated and current
+- [ ] key flows have been manually verified
+
+---
+
+## Environment Dependencies
+Track the external requirements needed for setup and future expansion.
+
+### Current environment notes
+- local browser-based prototype
+- no production backend configured yet
+- no database service configured yet
+- future deployment may require Node.js, a backend service, and a database
+
+### Future dependency planning
+- backend runtime: Node.js
+- database: PostgreSQL or MySQL
+- authentication: secure session or token-based flow
+- deployment target: cloud hosting or a simple managed service
+
+---
+
 ## Primary User Roles
 
 ### 1. Passenger
