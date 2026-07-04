@@ -668,20 +668,23 @@ function validateStudentIdFormat(id) {
 }
 
 async function validateStudentIdServer(id) {
-  // Placeholder for server-side validation. Replace URL with your backend endpoint.
-  // Returns `true` if server confirms ID is valid; returns true on network errors to avoid blocking registration.
+  // Local preview runs from a static server, so skip the backend check there to avoid noisy errors.
+  if (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost') {
+    return true;
+  }
+
   try {
     const res = await fetch('/api/validate-student-id', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ studentId: id })
     });
-    if (!res.ok) return true; // don't block on server errors
+    if (!res.ok) return true;
     const data = await res.json();
-    return data && data.valid;
+    return Boolean(data && data.valid);
   } catch (e) {
     console.warn('Student ID server validation failed', e);
-    return true; // allow registration when server is unreachable
+    return true;
   }
 }
 

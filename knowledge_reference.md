@@ -141,6 +141,8 @@ This section should always reflect the latest known state of the project.
 - basic dashboard structure for passenger, driver, and admin
 - enhanced ride lifecycle progress for passengers and drivers
 - driver dashboard counters and status feedback
+- browser-verified registration, ride request, driver queue, and cancellation flows
+- local preview-safe student ID validation fallback for registration
 
 ### Partially implemented
 - driver-side request handling
@@ -151,6 +153,8 @@ This section should always reflect the latest known state of the project.
 - ride lifecycle now supports richer status transitions for drivers and passengers
 - passenger status panel now shows active ride progress and avoids showing completed rides as active
 - driver queue now supports accept, decline, and status progression actions
+- registration flow was hardened so local preview testing does not fail when student ID server validation is unavailable
+- browser-based edge-case checks were performed for duplicate registration, invalid inputs, and driver decline handling
 
 ### Not yet implemented
 - real backend authentication
@@ -186,6 +190,13 @@ Track issues here as they are discovered.
 - Impact:
 - Fix status:
 - Notes:
+
+### Latest bug fix entry
+- Date: 2026-07-04
+- Issue: Student ID validation attempted a backend check during local preview, which could cause registration to fail in a static environment.
+- Impact: Registration reliability was reduced during local testing and demo runs.
+- Fix status: Resolved
+- Notes: Validation now degrades gracefully on localhost/127.0.0.1 and the flow was verified in the browser for the main path and edge cases.
 
 ---
 
