@@ -274,6 +274,54 @@ function escapeHtml(value) {
     .replace(/'/g, '&#39;');
 }
 
+function showRideFeedback(type, title, message) {
+  const existing = document.querySelector('[data-ride-feedback]');
+  if (existing) existing.remove();
+
+  const feedback = document.createElement('div');
+  feedback.setAttribute('data-ride-feedback', '');
+  feedback.style.position = 'fixed';
+  feedback.style.right = '1rem';
+  feedback.style.bottom = '1rem';
+  feedback.style.zIndex = '1200';
+  feedback.style.maxWidth = '320px';
+  feedback.style.padding = '0.95rem 1rem';
+  feedback.style.borderRadius = '14px';
+  feedback.style.boxShadow = '0 16px 40px rgba(15, 23, 42, 0.18)';
+  feedback.style.background = type === 'error' ? '#fee2e2' : type === 'success' ? '#dcfce7' : '#dbeafe';
+  feedback.style.color = type === 'error' ? '#991b1b' : type === 'success' ? '#166534' : '#1d4ed8';
+  feedback.style.transform = 'translateY(12px)';
+  feedback.style.opacity = '0';
+  feedback.style.transition = 'all 180ms ease';
+  feedback.innerHTML = `
+    <div style="font-weight:700; margin-bottom:0.25rem;">${escapeHtml(title)}</div>
+    <div style="font-size:0.95rem; line-height:1.4;">${escapeHtml(message)}</div>
+  `;
+
+  document.body.appendChild(feedback);
+  window.setTimeout(() => {
+    feedback.style.opacity = '1';
+    feedback.style.transform = 'translateY(0)';
+  }, 10);
+
+  window.setTimeout(() => {
+    feedback.style.opacity = '0';
+    feedback.style.transform = 'translateY(12px)';
+    window.setTimeout(() => feedback.remove(), 180);
+  }, 2800);
+}
+
+function getRideLifecycleSteps(status) {
+  const steps = ['Pending', 'Accepted', 'Picked Up', 'In Progress', 'Completed'];
+  const statusIndex = steps.indexOf(status);
+
+  return steps.map((step, index) => ({
+    label: step,
+    active: index <= statusIndex,
+    complete: index < statusIndex
+  }));
+}
+
 function getRideRequests() {
   try {
     return JSON.parse(localStorage.getItem('gotsUianRideRequests') || '[]');
@@ -299,6 +347,7 @@ function updateRideRequest(requestId, updates) {
   saveRideRequests(requests);
   renderPassengerRideStatus();
   renderDriverRideRequests();
+  renderDriverDashboardStats();
   return requests;
 }
 
@@ -344,7 +393,8 @@ function setupPassengerRideRequestForm() {
     form.reset();
     renderPassengerRideStatus();
     renderDriverRideRequests();
-    alert('Ride request sent. A driver will review it shortly.');
+    renderDriverDashboardStats();
+    showRideFeedback('success', 'Ride requested', 'Your trip request is now waiting for a driver.');
   });
 }
 
@@ -403,6 +453,25 @@ function renderPassengerRideStatus() {
   const driverName = activeRequest.driverName || 'Awaiting confirmation';
   const statusConfig = getRideStatusConfig(activeRequest.status);
   const canCancel = !['Completed', 'Cancelled', 'Failed'].includes(activeRequest.status);
+  const progressSteps = getRideLifecycleSteps(activeRequest.status)
+    .map(step => `
+      <div style="display:flex; align-items:center; gap:0.65rem; padding:0.45rem 0.6rem; border-radius:10px; background:${step.active ? '#e0f2fe' : '#f8fafc'}; color:${step.active ? '#0f172a' : '#64748b'};">
+        <span style="width:0.7rem; height:0.7rem; border-radius:999px; background:${step.complete ? '#16a34a' : step.active ? '#2563eb' : '#cbd5e1'};"></span>
+        <span style="font-weight:${step.active ? '700' : '500'};">${escapeHtml(step.label)}</span>
+      </div>
+    `)
+    .join('');
+  const nextStepText = activeRequest.status === 'Pending'
+    ? 'Waiting for a driver to accept your request.'
+    : activeRequest.status === 'Accepted'
+      ? 'Your driver is on the way to your pickup point.'
+      : activeRequest.status === 'Picked Up'
+        ? 'The trip is underway and the driver is heading to your destination.'
+        : activeRequest.status === 'In Progress'
+          ? 'You are on your way to your destination.'
+          : activeRequest.status === 'Completed'
+            ? 'The ride has been completed successfully.'
+            : 'This ride has reached a terminal state.';
 
   container.innerHTML = `
     <div style="display:flex; justify-content:space-between; gap:1rem; align-items:flex-start;">
@@ -419,6 +488,10 @@ function renderPassengerRideStatus() {
     </div>
     <div style="margin-top:1rem;">
       <p style="margin:0; color:#475569;">${escapeHtml(statusConfig.description)}</p>
+      <p style="margin:0.5rem 0 0; color:#0f172a; font-weight:600;">${escapeHtml(nextStepText)}</p>
+    </div>
+    <div style="margin-top:1rem; display:grid; gap:0.5rem;">
+      ${progressSteps}
     </div>
     <div style="margin-top:1rem; display:flex; gap:0.75rem; flex-wrap:wrap;">
       ${canCancel ? `<button type="button" class="btn-secondary-outline" data-action="cancel-request" data-request-id="${activeRequest.id}">Cancel request</button>` : ''}
@@ -429,7 +502,7 @@ function renderPassengerRideStatus() {
   if (cancelButton) {
     cancelButton.addEventListener('click', function() {
       updateRideRequest(activeRequest.id, { status: 'Cancelled' });
-      alert('Ride request cancelled.');
+      showRideFeedback('info', 'Ride cancelled', 'Your ride request has been cancelled.');
     });
   }
 }
@@ -495,7 +568,7 @@ function renderDriverRideRequests() {
         status: 'Accepted',
         driverName: user.name || 'Driver'
       });
-      alert('Ride request accepted.');
+      showRideFeedback('success', 'Ride accepted', 'The trip is now assigned to you.');
     });
   });
 
@@ -503,7 +576,7 @@ function renderDriverRideRequests() {
     button.addEventListener('click', function() {
       const requestId = this.getAttribute('data-request-id');
       updateRideRequest(requestId, { status: 'Cancelled' });
-      alert('Ride request declined.');
+      showRideFeedback('info', 'Ride declined', 'The request was declined and removed from your queue.');
     });
   });
 
@@ -515,9 +588,28 @@ function renderDriverRideRequests() {
         status: nextStatus,
         driverName: user.name || 'Driver'
       });
-      alert(`Ride status updated to ${nextStatus}.`);
+      showRideFeedback('success', 'Status updated', `The ride is now marked as ${nextStatus}.`);
     });
   });
+}
+
+function renderDriverDashboardStats() {
+  const todayCount = document.querySelector('#driver-count-today');
+  const pendingCount = document.querySelector('#driver-pending-count');
+  const earningsBox = document.querySelector('#driver-earnings');
+  const completedCount = document.querySelector('#driver-completed-count');
+
+  if (!todayCount && !pendingCount && !earningsBox && !completedCount) return;
+
+  const requests = getRideRequests();
+  const activeRequests = requests.filter(request => ['Pending', 'Accepted', 'Picked Up', 'In Progress'].includes(request.status));
+  const completedRequests = requests.filter(request => request.status === 'Completed');
+  const pendingRequests = requests.filter(request => request.status === 'Pending');
+
+  if (todayCount) todayCount.textContent = String(activeRequests.length + completedRequests.length);
+  if (pendingCount) pendingCount.textContent = String(pendingRequests.length);
+  if (earningsBox) earningsBox.textContent = `₱${completedRequests.length * 120}`;
+  if (completedCount) completedCount.textContent = String(completedRequests.length);
 }
 
 function setupLogoutButtons() {
@@ -1122,5 +1214,6 @@ document.addEventListener('DOMContentLoaded', function() {
   setupPassengerRideRequestForm();
   renderPassengerRideStatus();
   renderDriverRideRequests();
+  renderDriverDashboardStats();
   showAdminDashboardIfLoggedIn();
 });
