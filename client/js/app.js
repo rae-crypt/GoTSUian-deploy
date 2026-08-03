@@ -3,9 +3,9 @@ function setupNavMenu() {
   const navToggle = document.querySelector('.nav-toggle');
   const navLinks = document.querySelector('.nav-links');
   const navBackdrop = document.querySelector('.nav-backdrop');
-
+ 
   if (!navToggle || !navLinks) return;
-
+ 
   function closeNav() {
     navLinks.classList.remove('open');
     navToggle.classList.remove('open');
@@ -13,7 +13,7 @@ function setupNavMenu() {
       navBackdrop.classList.remove('active');
     }
   }
-
+ 
   navToggle.addEventListener('click', function(event) {
     event.stopPropagation();
     navLinks.classList.toggle('open');
@@ -22,24 +22,24 @@ function setupNavMenu() {
       navBackdrop.classList.toggle('active');
     }
   });
-
+ 
   if (navBackdrop) {
     navBackdrop.addEventListener('click', function() {
       closeNav();
     });
   }
-
+ 
   document.addEventListener('click', function(event) {
     if (!navToggle.contains(event.target) && !navLinks.contains(event.target)) {
       closeNav();
     }
   });
 }
-
+ 
 function setupBackToTop() {
   const backToTopBtn = document.querySelector('.back-to-top');
   if (!backToTopBtn) return;
-
+ 
   window.addEventListener('scroll', function() {
     if (window.pageYOffset > 300) {
       backToTopBtn.classList.add('visible');
@@ -47,7 +47,7 @@ function setupBackToTop() {
       backToTopBtn.classList.remove('visible');
     }
   });
-
+ 
   backToTopBtn.addEventListener('click', function() {
     window.scrollTo({
       top: 0,
@@ -55,7 +55,7 @@ function setupBackToTop() {
     });
   });
 }
-
+ 
 function highlightActiveNav() {
   const currentPage = document.body.getAttribute('data-page');
   const navLinksArray = document.querySelectorAll('.nav-links a');
@@ -65,11 +65,11 @@ function highlightActiveNav() {
     }
   });
 }
-
+ 
 function setupScrollReveal() {
   const revealItems = document.querySelectorAll('.feature-card, .step-card, .support-card, .testimonial-card');
   if (!revealItems.length || !('IntersectionObserver' in window)) return;
-
+ 
   const observer = new IntersectionObserver((entries, obs) => {
     entries.forEach(entry => {
       if (entry.isIntersecting) {
@@ -80,17 +80,19 @@ function setupScrollReveal() {
   }, {
     threshold: 0.16
   });
-
+ 
   revealItems.forEach(item => observer.observe(item));
 }
-
+ 
 function getStoredUser() {
   const rawUser = sessionStorage.getItem('authUser');
   if (!rawUser) {
     return {
       name: '',
       role: '',
-      email: ''
+      email: '',
+      accountId: null,
+      accountStatus: ''
     };
   }
 
@@ -99,14 +101,18 @@ function getStoredUser() {
     return {
       name: parsedUser.name || '',
       role: parsedUser.role || '',
-      email: parsedUser.email || ''
+      email: parsedUser.email || '',
+      accountId: parsedUser.accountId || null,
+      accountStatus: parsedUser.accountStatus || ''
     };
   } catch (error) {
     console.warn('Unable to read stored session user', error);
     return {
       name: '',
       role: '',
-      email: ''
+      email: '',
+      accountId: null,
+      accountStatus: ''
     };
   }
 }
@@ -115,7 +121,9 @@ function setStoredUser(user) {
   const payload = {
     name: user.name || '',
     role: user.role || '',
-    email: user.email || ''
+    email: user.email || '',
+    accountId: user.accountId || null,
+    accountStatus: user.accountStatus || ''
   };
 
   sessionStorage.setItem('authUser', JSON.stringify(payload));
@@ -124,6 +132,8 @@ function setStoredUser(user) {
   localStorage.removeItem('userRole');
   localStorage.removeItem('userEmail');
   renderAuthStatus();
+  updateLoginNavLinkLabel();
+  updateDriverLinkVisibility();
 }
 
 function clearStoredUser() {
@@ -133,16 +143,18 @@ function clearStoredUser() {
   localStorage.removeItem('userRole');
   localStorage.removeItem('userEmail');
   renderAuthStatus();
+  updateLoginNavLinkLabel();
+  updateDriverLinkVisibility();
 }
-
+ 
 function renderAuthStatus() {
   const navCta = document.querySelector('.nav-cta');
   if (!navCta) return;
-
+ 
   const user = getStoredUser();
   const authenticated = isAuthenticated();
   let badge = navCta.querySelector('.nav-user-badge');
-
+ 
   if (authenticated && user.name) {
     if (!badge) {
       badge = document.createElement('span');
@@ -165,25 +177,25 @@ function renderAuthStatus() {
     badge.remove();
   }
 }
-
+ 
 function isAuthenticated() {
   return Boolean(getStoredUser().role) && sessionStorage.getItem('isAuthenticated') === 'true';
 }
-
+ 
 function redirectToDashboard(role) {
   if (!role) return;
   if (role === 'passenger') location.replace('passenger.html');
   if (role === 'driver') location.replace('driver.html');
   if (role === 'admin') location.replace('admin.html');
 }
-
+ 
 function enforceDashboardAccess() {
   const page = document.body.getAttribute('data-page');
   const allowedRoles = ['passenger', 'driver', 'admin'];
   const user = getStoredUser();
-
+ 
   if (!allowedRoles.includes(page)) return;
-
+ 
   if (!isAuthenticated()) {
     if (page === 'admin') {
       return;
@@ -191,15 +203,25 @@ function enforceDashboardAccess() {
     location.replace('auth.html');
     return;
   }
-
+ 
   if (page === 'admin' && user.role !== 'admin') {
     redirectToDashboard(user.role);
     return;
   }
-
+ 
   if (page !== user.role && allowedRoles.includes(page)) {
     redirectToDashboard(user.role);
   }
+}
+
+function redirectBookingIfAuthenticated() {
+  // booking.html is a logged-out landing/teaser page ("Sign in / Register").
+  // Without this, an already-logged-in user landing here (via the home page,
+  // a bookmark, or the browser Back button) sees a sign-in prompt again
+  // instead of being sent to the dashboard they're already signed into.
+  if (document.body.getAttribute('data-page') !== 'booking') return;
+  if (!isAuthenticated()) return;
+  redirectToDashboard(getStoredUser().role);
 }
 
 function hideAdminLinkForNonAdmin() {
@@ -213,41 +235,106 @@ function hideAdminLinkForNonAdmin() {
   }
 }
 
+// Shows a friendly heads-up on the driver dashboard when the logged-in
+// driver's account is still "Pending" — they can log in and look around,
+// but rideController.acceptRide will reject any accept attempt until an
+// admin flips their account_status to "Active".
+function showDriverApprovalBanner() {
+  const banner = document.querySelector('#driver-approval-banner');
+  if (!banner) return;
+  const user = getStoredUser();
+  if (isAuthenticated() && user.role === 'driver' && user.accountStatus === 'Pending') {
+    banner.classList.remove('hidden');
+  } else {
+    banner.classList.add('hidden');
+  }
+}
+
+// Driver.html is a protected page for role "driver" only. Same rule as the
+// Admin link: hidden unless you are actually logged in as a driver.
+function updateDriverLinkVisibility() {
+  const driverLink = document.querySelector('.nav-links a[data-page="driver"]');
+  if (!driverLink) return;
+  const user = getStoredUser();
+  if (isAuthenticated() && user.role === 'driver') {
+    driverLink.classList.remove('hidden');
+  } else {
+    driverLink.classList.add('hidden');
+  }
+}
+
+// The nav-cta button (the real Logout button) is hidden entirely on mobile
+// (.nav-cta { display: none } in the hamburger breakpoint), so it's this
+// "Login" nav-links item that has to double as "Logout" once signed in —
+// otherwise the mobile menu shows "Login" forever, even while logged in.
+function updateLoginNavLinkLabel() {
+  const loginLink = document.querySelector('.nav-links a[data-page="auth"]');
+  if (!loginLink) return;
+  loginLink.textContent = isAuthenticated() ? 'Logout' : 'Login';
+}
+
+function setupLoginNavLink() {
+  const loginLink = document.querySelector('.nav-links a[data-page="auth"]');
+  if (!loginLink) return;
+
+  loginLink.addEventListener('click', function(event) {
+    if (isAuthenticated()) {
+      event.preventDefault();
+      clearStoredUser();
+      window.location.href = 'auth.html';
+    }
+    // Not authenticated: let the link behave normally and navigate to auth.html.
+  });
+
+  updateLoginNavLinkLabel();
+}
+ 
 function setupAdminLoginForm() {
   const adminLoginForm = document.querySelector('#admin-login-form');
   if (!adminLoginForm) return;
-
-  adminLoginForm.addEventListener('submit', function(event) {
+ 
+  adminLoginForm.addEventListener('submit', async function(event) {
     event.preventDefault();
     const username = document.querySelector('#admin-name').value.trim();
     const password = document.querySelector('#admin-password').value.trim();
 
-    const ADMIN_USERNAME = 'admin';
-    const ADMIN_PASSWORD = 'admin123';
+    if (!username || !password) {
+      alert('Please enter both name and password');
+      return;
+    }
 
-    if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
-      setStoredUser({
-        name: 'Administrator',
-        role: 'admin',
-        email: 'admin@gotsUian.local'
+    try {
+      const response = await fetch(`${API_BASE_URL}/login/admin`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
       });
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.error || 'Invalid admin credentials');
+        return;
+      }
+
+      setStoredUser({ name: data.user.name, role: data.user.role, email: data.user.username });
       redirectToDashboard('admin');
-    } else {
-      alert('Invalid admin credentials');
+    } catch (error) {
+      console.error('Admin login request failed', error);
+      alert('Could not connect to the server. Please make sure the backend is running.');
     }
   });
 }
-
+ 
 function showAdminDashboardIfLoggedIn() {
   const page = document.body.getAttribute('data-page');
   if (page !== 'admin') return;
-
+ 
   const user = getStoredUser();
   const loginSection = document.querySelector('#admin-login-section');
   const dashboardSection = document.querySelector('#admin-dashboard-section');
-
+ 
   if (!dashboardSection || !loginSection) return;
-
+ 
   if (isAuthenticated() && user.role === 'admin') {
     loginSection.classList.add('hidden');
     dashboardSection.classList.remove('hidden');
@@ -256,7 +343,7 @@ function showAdminDashboardIfLoggedIn() {
     dashboardSection.classList.add('hidden');
   }
 }
-
+ 
 function fillDashboardWelcome() {
   const welcomeName = document.querySelector('[data-dashboard-welcome]');
   if (!welcomeName) return;
@@ -264,7 +351,7 @@ function fillDashboardWelcome() {
   const displayName = user.name || user.role || 'User';
   welcomeName.textContent = displayName;
 }
-
+ 
 function escapeHtml(value) {
   return String(value)
     .replace(/&/g, '&amp;')
@@ -273,11 +360,11 @@ function escapeHtml(value) {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 }
-
+ 
 function showRideFeedback(type, title, message) {
   const existing = document.querySelector('[data-ride-feedback]');
   if (existing) existing.remove();
-
+ 
   const feedback = document.createElement('div');
   feedback.setAttribute('data-ride-feedback', '');
   feedback.style.position = 'fixed';
@@ -297,65 +384,137 @@ function showRideFeedback(type, title, message) {
     <div style="font-weight:700; margin-bottom:0.25rem;">${escapeHtml(title)}</div>
     <div style="font-size:0.95rem; line-height:1.4;">${escapeHtml(message)}</div>
   `;
-
+ 
   document.body.appendChild(feedback);
   window.setTimeout(() => {
     feedback.style.opacity = '1';
     feedback.style.transform = 'translateY(0)';
   }, 10);
-
+ 
   window.setTimeout(() => {
     feedback.style.opacity = '0';
     feedback.style.transform = 'translateY(12px)';
     window.setTimeout(() => feedback.remove(), 180);
   }, 2800);
 }
-
+ 
 function getRideLifecycleSteps(status) {
   const steps = ['Pending', 'Accepted', 'Picked Up', 'In Progress', 'Completed'];
   const statusIndex = steps.indexOf(status);
-
+ 
   return steps.map((step, index) => ({
     label: step,
     active: index <= statusIndex,
     complete: index < statusIndex
   }));
 }
+ 
+const RIDES_API_URL = 'http://localhost:3000/api/rides';
 
-function getRideRequests() {
+// Formats a JS Date as 'YYYY-MM-DD HH:MM:SS' in local time, which is what
+// MySQL's DATETIME column expects — avoids timezone drift from ISO strings.
+function toMySQLDateTime(date) {
+  const pad = n => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
+
+// Groups a flat list of ride rows by pool_id, so a shared trip with 2-4
+// riders renders as one card instead of one per passenger.
+function groupRidesByPool(rides) {
+  const pools = {};
+  const grouped = [];
+  rides.forEach(ride => {
+    if (!ride.pool_id) {
+      grouped.push({ poolId: null, riders: [ride] });
+      return;
+    }
+    if (!pools[ride.pool_id]) {
+      pools[ride.pool_id] = { poolId: ride.pool_id, riders: [] };
+      grouped.push(pools[ride.pool_id]);
+    }
+    pools[ride.pool_id].riders.push(ride);
+  });
+  return grouped;
+}
+
+async function fetchMyRides() {
+  const user = getStoredUser();
+  if (!user.accountId) return [];
   try {
-    return JSON.parse(localStorage.getItem('gotsUianRideRequests') || '[]');
+    const res = await fetch(`${RIDES_API_URL}/mine/${user.accountId}`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.rides || [];
   } catch (error) {
-    console.warn('Unable to read ride requests', error);
+    console.warn('Unable to fetch your rides', error);
     return [];
   }
 }
 
-function saveRideRequests(requests) {
-  localStorage.setItem('gotsUianRideRequests', JSON.stringify(requests));
+async function fetchPendingRides() {
+  try {
+    const res = await fetch(`${RIDES_API_URL}/pending`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.rides || [];
+  } catch (error) {
+    console.warn('Unable to fetch pending rides', error);
+    return [];
+  }
 }
 
-function updateRideRequest(requestId, updates) {
-  const requests = getRideRequests().map(request => {
-    if (request.id !== requestId) return request;
-    return {
-      ...request,
-      ...updates,
-      updatedAt: updates.status ? new Date().toISOString() : request.updatedAt || request.createdAt
-    };
+async function fetchDriverRides() {
+  const user = getStoredUser();
+  if (!user.accountId) return [];
+  try {
+    const res = await fetch(`${RIDES_API_URL}/driver/${user.accountId}`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.rides || [];
+  } catch (error) {
+    console.warn('Unable to fetch your accepted rides', error);
+    return [];
+  }
+}
+
+async function createRideRequest(payload) {
+  const res = await fetch(RIDES_API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
   });
-  saveRideRequests(requests);
-  renderPassengerRideStatus();
-  renderDriverRideRequests();
-  renderDriverDashboardStats();
-  return requests;
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Unable to request a ride');
+  return data;
+}
+
+async function acceptRideRemote(rideId, driverAccountId) {
+  const res = await fetch(`${RIDES_API_URL}/${rideId}/accept`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ driver_account_id: driverAccountId })
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Unable to accept this ride');
+  return data;
+}
+
+async function updateRideStatusRemote(rideId, status) {
+  const res = await fetch(`${RIDES_API_URL}/${rideId}/status`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status })
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Unable to update this ride');
+  return data;
 }
 
 function setupPassengerRideRequestForm() {
   const form = document.querySelector('#ride-request-form');
   if (!form) return;
 
-  form.addEventListener('submit', function(event) {
+  form.addEventListener('submit', async function(event) {
     event.preventDefault();
     const user = getStoredUser();
 
@@ -364,40 +523,59 @@ function setupPassengerRideRequestForm() {
       return;
     }
 
-    const pickupLocation = document.querySelector('#pickup-location').value.trim();
-    const dropoffLocation = document.querySelector('#dropoff-location').value.trim();
+    const pickupLocation = document.querySelector('#pickup-location').value;
+    const dropoffLocation = document.querySelector('#dropoff-location').value;
     const rideType = document.querySelector('#ride-type').value;
+    const scheduleSelect = document.querySelector('#ride-schedule');
+    const scheduleMinutes = scheduleSelect ? parseInt(scheduleSelect.value, 10) : 0;
+    const scheduledAt = scheduleMinutes > 0 ? toMySQLDateTime(new Date(Date.now() + scheduleMinutes * 60000)) : null;
     const notes = document.querySelector('#ride-notes').value.trim();
+    const routeError = document.querySelector('#route-error');
+    if (routeError) routeError.textContent = '';
 
     if (!pickupLocation || !dropoffLocation) {
-      alert('Please enter both pickup and drop-off locations.');
+      if (routeError) routeError.textContent = 'Please select both a pickup and a drop-off point.';
       return;
     }
 
-    const newRequest = {
-      id: `ride-${Date.now()}`,
-      passengerName: user.name || 'Passenger',
-      passengerEmail: user.email,
-      pickupLocation,
-      dropoffLocation,
-      rideType,
-      notes,
-      status: 'Pending',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
+    if (pickupLocation === dropoffLocation) {
+      if (routeError) routeError.textContent = 'Pickup and drop-off must be different campuses.';
+      return;
+    }
 
-    const requests = getRideRequests();
-    requests.unshift(newRequest);
-    saveRideRequests(requests);
-    form.reset();
-    renderPassengerRideStatus();
-    renderDriverRideRequests();
-    renderDriverDashboardStats();
-    showRideFeedback('success', 'Ride requested', 'Your trip request is now waiting for a driver.');
+    const submitButton = form.querySelector('button[type="submit"]');
+    if (submitButton) submitButton.disabled = true;
+
+    try {
+      await createRideRequest({
+        passenger_account_id: user.accountId,
+        pickup_location: pickupLocation,
+        dropoff_location: dropoffLocation,
+        ride_type: rideType,
+        scheduled_at: scheduledAt,
+        notes
+      });
+
+      form.reset();
+      renderPassengerRideStatus();
+      renderDriverRideRequests();
+      renderDriverDashboardStats();
+      showRideFeedback(
+        'success',
+        'Ride requested',
+        rideType === 'Shared'
+          ? 'Your seat is booked. Fare is finalized once the tricycle fills up or a driver departs early.'
+          : 'Your trip request is now waiting for a driver.'
+      );
+    } catch (error) {
+      console.error('Ride request failed', error);
+      showRideFeedback('error', 'Request failed', error.message || 'Could not connect to the server.');
+    } finally {
+      if (submitButton) submitButton.disabled = false;
+    }
   });
 }
-
+ 
 function getRideStatusConfig(status) {
   const configs = {
     Pending: { label: 'Pending', description: 'Waiting for driver review.', tone: 'warning' },
@@ -408,10 +586,10 @@ function getRideStatusConfig(status) {
     Cancelled: { label: 'Cancelled', description: 'The ride was cancelled.', tone: 'danger' },
     Failed: { label: 'Failed', description: 'The ride could not be completed.', tone: 'danger' }
   };
-
+ 
   return configs[status] || { label: status || 'Unknown', description: 'Status update received.', tone: 'warning' };
 }
-
+ 
 function getNextRideStatusOptions(currentStatus) {
   if (currentStatus === 'Pending') return ['Accepted', 'Cancelled'];
   if (currentStatus === 'Accepted') return ['Picked Up', 'Cancelled'];
@@ -419,8 +597,8 @@ function getNextRideStatusOptions(currentStatus) {
   if (currentStatus === 'In Progress') return ['Completed', 'Failed'];
   return [];
 }
-
-function renderPassengerRideStatus() {
+ 
+async function renderPassengerRideStatus() {
   const container = document.querySelector('#ride-status-details');
   const emptyState = document.querySelector('#ride-status-empty');
   if (!container || !emptyState) return;
@@ -433,13 +611,10 @@ function renderPassengerRideStatus() {
     return;
   }
 
-  const requests = getRideRequests()
-    .filter(request => request.passengerEmail === user.email)
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  const rides = await fetchMyRides();
+  const activeRide = rides.find(ride => !['Completed', 'Cancelled', 'Failed'].includes(ride.status)) || null;
 
-  const activeRequest = requests.find(request => !['Completed', 'Cancelled', 'Failed'].includes(request.status)) || null;
-
-  if (!activeRequest) {
+  if (!activeRide) {
     emptyState.style.display = 'block';
     container.style.display = 'none';
     container.innerHTML = '';
@@ -448,66 +623,172 @@ function renderPassengerRideStatus() {
 
   emptyState.style.display = 'none';
   container.style.display = 'block';
-  const createdAt = new Date(activeRequest.createdAt).toLocaleString();
-  const updatedAt = new Date(activeRequest.updatedAt || activeRequest.createdAt).toLocaleString();
-  const driverName = activeRequest.driverName || 'Awaiting confirmation';
-  const statusConfig = getRideStatusConfig(activeRequest.status);
-  const canCancel = !['Completed', 'Cancelled', 'Failed'].includes(activeRequest.status);
-  const progressSteps = getRideLifecycleSteps(activeRequest.status)
+  const createdAt = new Date(activeRide.created_at).toLocaleString();
+  const updatedAt = new Date(activeRide.updated_at || activeRide.created_at).toLocaleString();
+  const driverName = activeRide.driver_name || 'Awaiting confirmation';
+  const statusConfig = getRideStatusConfig(activeRide.status);
+  const canCancel = !['Completed', 'Cancelled', 'Failed'].includes(activeRide.status);
+  const fareText = activeRide.fare != null
+    ? `₱${Number(activeRide.fare).toFixed(0)}`
+    : 'Calculating — waiting for more students to join';
+  const scheduleText = activeRide.scheduled_at
+    ? `Scheduled for ${new Date(activeRide.scheduled_at).toLocaleString()}`
+    : 'Requested for now';
+
+  const progressSteps = getRideLifecycleSteps(activeRide.status)
     .map(step => `
-      <div style="display:flex; align-items:center; gap:0.65rem; padding:0.45rem 0.6rem; border-radius:10px; background:${step.active ? '#e0f2fe' : '#f8fafc'}; color:${step.active ? '#0f172a' : '#64748b'};">
-        <span style="width:0.7rem; height:0.7rem; border-radius:999px; background:${step.complete ? '#16a34a' : step.active ? '#2563eb' : '#cbd5e1'};"></span>
-        <span style="font-weight:${step.active ? '700' : '500'};">${escapeHtml(step.label)}</span>
+      <div class="ride-progress-step${step.active ? ' is-active' : ''}">
+        <span class="ride-progress-dot${step.complete ? ' is-complete' : step.active ? ' is-active' : ''}"></span>
+        <span class="ride-progress-label">${escapeHtml(step.label)}</span>
       </div>
     `)
     .join('');
-  const nextStepText = activeRequest.status === 'Pending'
-    ? 'Waiting for a driver to accept your request.'
-    : activeRequest.status === 'Accepted'
+  const nextStepText = activeRide.status === 'Pending'
+    ? (activeRide.ride_type === 'Shared'
+      ? 'Waiting for the tricycle to fill up, or for a driver to depart early.'
+      : 'Waiting for a driver to accept your request.')
+    : activeRide.status === 'Accepted'
       ? 'Your driver is on the way to your pickup point.'
-      : activeRequest.status === 'Picked Up'
+      : activeRide.status === 'Picked Up'
         ? 'The trip is underway and the driver is heading to your destination.'
-        : activeRequest.status === 'In Progress'
+        : activeRide.status === 'In Progress'
           ? 'You are on your way to your destination.'
-          : activeRequest.status === 'Completed'
+          : activeRide.status === 'Completed'
             ? 'The ride has been completed successfully.'
             : 'This ride has reached a terminal state.';
 
   container.innerHTML = `
-    <div style="display:flex; justify-content:space-between; gap:1rem; align-items:flex-start;">
-      <div>
-        <h4>${escapeHtml(statusConfig.label)}</h4>
-        <p><strong>${escapeHtml(activeRequest.pickupLocation)}</strong> → <strong>${escapeHtml(activeRequest.dropoffLocation)}</strong></p>
-        <p><strong>Ride type:</strong> ${escapeHtml(activeRequest.rideType)}</p>
-        <p><strong>Driver:</strong> ${escapeHtml(driverName)}</p>
-        <p><small>Requested ${escapeHtml(createdAt)}</small></p>
-        <p><small>Last updated ${escapeHtml(updatedAt)}</small></p>
-        <p>${escapeHtml(activeRequest.notes || 'No notes added.')}</p>
+    <div class="ride-status-head">
+      <div class="ride-status-summary">
+        <h4>${escapeHtml(activeRide.pickup_location)} <span class="ride-route-arrow">→</span> ${escapeHtml(activeRide.dropoff_location)}</h4>
+        <div class="ride-meta">
+          <span><strong>Ride type:</strong> ${escapeHtml(activeRide.ride_type)}</span>
+          <span><strong>Driver:</strong> ${escapeHtml(driverName)}</span>
+          <span><strong>Fare:</strong> ${escapeHtml(fareText)}</span>
+        </div>
+        <div class="ride-timestamps">
+          <small>${escapeHtml(scheduleText)}</small>
+          <small>Requested ${escapeHtml(createdAt)}</small>
+          <small>Last updated ${escapeHtml(updatedAt)}</small>
+        </div>
       </div>
-      <span style="padding:0.35rem 0.7rem; border-radius:999px; background:#dbeafe; color:#1d4ed8; font-weight:600;">${escapeHtml(statusConfig.label)}</span>
+      <span class="ride-badge tone-${statusConfig.tone}">${escapeHtml(statusConfig.label)}</span>
     </div>
-    <div style="margin-top:1rem;">
-      <p style="margin:0; color:#475569;">${escapeHtml(statusConfig.description)}</p>
-      <p style="margin:0.5rem 0 0; color:#0f172a; font-weight:600;">${escapeHtml(nextStepText)}</p>
+
+    <p class="ride-notes">${escapeHtml(activeRide.notes || 'No notes added.')}</p>
+
+    <div class="ride-status-detail">
+      <p class="ride-description">${escapeHtml(statusConfig.description)}</p>
+      <p class="ride-next-step">${escapeHtml(nextStepText)}</p>
     </div>
-    <div style="margin-top:1rem; display:grid; gap:0.5rem;">
+
+    <div class="ride-progress">
       ${progressSteps}
     </div>
-    <div style="margin-top:1rem; display:flex; gap:0.75rem; flex-wrap:wrap;">
-      ${canCancel ? `<button type="button" class="btn-secondary-outline" data-action="cancel-request" data-request-id="${activeRequest.id}">Cancel request</button>` : ''}
+
+    <div class="ride-actions">
+      ${canCancel ? `<button type="button" class="btn-secondary-outline" data-action="cancel-request" data-ride-id="${activeRide.ride_id}">Cancel request</button>` : ''}
     </div>
   `;
 
   const cancelButton = container.querySelector('[data-action="cancel-request"]');
   if (cancelButton) {
-    cancelButton.addEventListener('click', function() {
-      updateRideRequest(activeRequest.id, { status: 'Cancelled' });
-      showRideFeedback('info', 'Ride cancelled', 'Your ride request has been cancelled.');
+    cancelButton.addEventListener('click', async function() {
+      try {
+        await updateRideStatusRemote(activeRide.ride_id, 'Cancelled');
+        showRideFeedback('info', 'Ride cancelled', 'Your ride request has been cancelled.');
+        renderPassengerRideStatus();
+        renderDriverRideRequests();
+        renderDriverDashboardStats();
+      } catch (error) {
+        showRideFeedback('error', 'Could not cancel', error.message || 'Please try again.');
+      }
     });
   }
 }
 
-function renderDriverRideRequests() {
+function renderPendingRideCard(group) {
+  if (group.type === 'solo') {
+    const ride = group.ride;
+    const statusConfig = getRideStatusConfig(ride.status);
+    return `
+      <article class="driver-card">
+        <div class="driver-card-header">
+          <div>
+            <h3>${escapeHtml(ride.passenger_name || 'Passenger')}</h3>
+            <p>${escapeHtml(ride.pickup_location)} → ${escapeHtml(ride.dropoff_location)}</p>
+          </div>
+          <span class="ride-badge tone-${statusConfig.tone}">Solo</span>
+        </div>
+        <div class="driver-card-meta">
+          <span>Fare: ₱${Number(ride.fare || 60).toFixed(0)}</span>
+          <span>${new Date(ride.created_at).toLocaleString()}</span>
+        </div>
+        <p>${escapeHtml(ride.notes || 'No notes provided.')}</p>
+        <div class="driver-card-actions">
+          <button type="button" class="btn-primary" data-action="accept-ride" data-ride-id="${ride.ride_id}">Accept</button>
+          <button type="button" class="btn-secondary-outline" data-action="decline-ride" data-ride-id="${ride.ride_id}">Decline</button>
+        </div>
+      </article>
+    `;
+  }
+
+  const riderCount = group.riders.length;
+  const fareGuess = riderCount >= 4 ? 20 : riderCount === 3 ? 25 : riderCount === 2 ? 30 : 60;
+  const names = group.riders.map(r => escapeHtml(r.passenger_name || 'Passenger')).join(', ');
+  const anchorRideId = group.riders[0].ride_id;
+
+  return `
+    <article class="driver-card">
+      <div class="driver-card-header">
+        <div>
+          <h3>Shared ride (${riderCount}/4)</h3>
+          <p>${escapeHtml(group.pickup_location)} → ${escapeHtml(group.dropoff_location)}</p>
+        </div>
+        <span class="ride-badge tone-warning">${riderCount}/4 joined</span>
+      </div>
+      <div class="driver-card-meta">
+        <span>Fare if accepted now: ₱${fareGuess}/student</span>
+        <span>${names}</span>
+      </div>
+      <p class="driver-card-description">${riderCount < 4 ? 'Wait for more students, or accept now to depart with the current group.' : 'Tricycle is full and ready to depart.'}</p>
+      <div class="driver-card-actions">
+        <button type="button" class="btn-primary" data-action="accept-ride" data-ride-id="${anchorRideId}">Accept${riderCount < 4 ? ' & depart now' : ''}</button>
+      </div>
+    </article>
+  `;
+}
+
+function renderActiveRideCard(group) {
+  const anchor = group.riders[0];
+  const statusConfig = getRideStatusConfig(anchor.status);
+  const names = group.riders.map(r => escapeHtml(r.passenger_name || 'Passenger')).join(', ');
+  const nextStatusButtons = getNextRideStatusOptions(anchor.status)
+    .map(nextStatus => `<button type="button" class="btn-secondary-outline" data-action="advance-status" data-ride-id="${anchor.ride_id}" data-next-status="${nextStatus}">${escapeHtml(nextStatus)}</button>`)
+    .join('');
+
+  return `
+    <article class="driver-card">
+      <div class="driver-card-header">
+        <div>
+          <h3>${group.riders.length > 1 ? `Shared trip · ${group.riders.length} students` : escapeHtml(names)}</h3>
+          <p>${escapeHtml(anchor.pickup_location)} → ${escapeHtml(anchor.dropoff_location)}</p>
+        </div>
+        <span class="ride-badge tone-${statusConfig.tone}">${escapeHtml(statusConfig.label)}</span>
+      </div>
+      <div class="driver-card-meta">
+        <span>${group.riders.length > 1 ? names : escapeHtml(anchor.ride_type)}</span>
+        <span>Fare: ₱${Number(anchor.fare || 0).toFixed(0)}/student</span>
+      </div>
+      <p class="driver-card-description">${escapeHtml(statusConfig.description)}</p>
+      <div class="driver-card-actions">
+        ${nextStatusButtons}
+      </div>
+    </article>
+  `;
+}
+
+async function renderDriverRideRequests() {
   const container = document.querySelector('#driver-ride-requests');
   if (!container) return;
 
@@ -517,83 +798,63 @@ function renderDriverRideRequests() {
     return;
   }
 
-  const requests = getRideRequests()
-    .filter(request => ['Pending', 'Accepted', 'Picked Up', 'In Progress'].includes(request.status))
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  const [pendingGroups, myRides] = await Promise.all([fetchPendingRides(), fetchDriverRides()]);
+  const activeGroups = groupRidesByPool(myRides.filter(r => ['Accepted', 'Picked Up', 'In Progress'].includes(r.status)));
 
-  if (!requests.length) {
+  if (!pendingGroups.length && !activeGroups.length) {
     container.innerHTML = '<article class="dashboard-card"><p>No active ride requests right now.</p></article>';
     return;
   }
 
-  container.innerHTML = requests.map(request => {
-    const statusConfig = getRideStatusConfig(request.status);
-    const nextStatusButtons = getNextRideStatusOptions(request.status)
-      .map(nextStatus => `<button type="button" class="btn-secondary-outline" data-action="advance-status" data-request-id="${request.id}" data-next-status="${nextStatus}">${escapeHtml(nextStatus)}</button>`)
-      .join('');
+  container.innerHTML = pendingGroups.map(renderPendingRideCard).join('') + activeGroups.map(renderActiveRideCard).join('');
 
-    const pendingActions = request.status === 'Pending'
-      ? `
-        <button type="button" class="btn-primary" data-action="accept-request" data-request-id="${request.id}">Accept</button>
-        <button type="button" class="btn-secondary-outline" data-action="decline-request" data-request-id="${request.id}">Decline</button>
-      `
-      : nextStatusButtons;
-
-    return `
-      <article class="driver-card">
-        <div class="driver-card-header">
-          <div>
-            <h3>${escapeHtml(request.passengerName || 'Passenger')}</h3>
-            <p>${escapeHtml(request.pickupLocation)} → ${escapeHtml(request.dropoffLocation)}</p>
-          </div>
-          <span style="padding:0.35rem 0.7rem; border-radius:999px; background:#dcfce7; color:#15803d; font-weight:600;">${escapeHtml(statusConfig.label)}</span>
-        </div>
-        <div class="driver-card-meta">
-          <span>${escapeHtml(request.rideType)}</span>
-          <span>${new Date(request.createdAt).toLocaleString()}</span>
-        </div>
-        <p>${escapeHtml(request.notes || 'No notes provided.')}</p>
-        <p style="margin-top:0.6rem; color:#475569;">${escapeHtml(statusConfig.description)}</p>
-        <div style="display:flex; gap:0.75rem; margin-top:1rem; flex-wrap:wrap;">
-          ${pendingActions}
-        </div>
-      </article>
-    `;
-  }).join('');
-
-  container.querySelectorAll('[data-action="accept-request"]').forEach(button => {
-    button.addEventListener('click', function() {
-      const requestId = this.getAttribute('data-request-id');
-      updateRideRequest(requestId, {
-        status: 'Accepted',
-        driverName: user.name || 'Driver'
-      });
-      showRideFeedback('success', 'Ride accepted', 'The trip is now assigned to you.');
+  container.querySelectorAll('[data-action="accept-ride"]').forEach(button => {
+    button.addEventListener('click', async function() {
+      const rideId = this.getAttribute('data-ride-id');
+      try {
+        const result = await acceptRideRemote(rideId, user.accountId);
+        showRideFeedback('success', 'Ride accepted', result.fare ? `Trip assigned to you — fare locked at ₱${result.fare}/student.` : 'The trip is now assigned to you.');
+        renderPassengerRideStatus();
+        renderDriverRideRequests();
+        renderDriverDashboardStats();
+      } catch (error) {
+        showRideFeedback('error', 'Could not accept', error.message || 'Please try again.');
+      }
     });
   });
 
-  container.querySelectorAll('[data-action="decline-request"]').forEach(button => {
-    button.addEventListener('click', function() {
-      const requestId = this.getAttribute('data-request-id');
-      updateRideRequest(requestId, { status: 'Cancelled' });
-      showRideFeedback('info', 'Ride declined', 'The request was declined and removed from your queue.');
+  container.querySelectorAll('[data-action="decline-ride"]').forEach(button => {
+    button.addEventListener('click', async function() {
+      const rideId = this.getAttribute('data-ride-id');
+      try {
+        await updateRideStatusRemote(rideId, 'Cancelled');
+        showRideFeedback('info', 'Ride declined', 'The request was declined and removed from your queue.');
+        renderDriverRideRequests();
+        renderDriverDashboardStats();
+      } catch (error) {
+        showRideFeedback('error', 'Could not decline', error.message || 'Please try again.');
+      }
     });
   });
 
   container.querySelectorAll('[data-action="advance-status"]').forEach(button => {
-    button.addEventListener('click', function() {
-      const requestId = this.getAttribute('data-request-id');
+    button.addEventListener('click', async function() {
+      const rideId = this.getAttribute('data-ride-id');
       const nextStatus = this.getAttribute('data-next-status');
-      updateRideRequest(requestId, {
-        status: nextStatus,
-        driverName: user.name || 'Driver'
-      });
-      showRideFeedback('success', 'Status updated', `The ride is now marked as ${nextStatus}.`);
+      try {
+        await updateRideStatusRemote(rideId, nextStatus);
+        showRideFeedback('success', 'Status updated', `The ride is now marked as ${nextStatus}.`);
+        renderPassengerRideStatus();
+        renderDriverRideRequests();
+        renderDriverDashboardStats();
+      } catch (error) {
+        showRideFeedback('error', 'Could not update', error.message || 'Please try again.');
+      }
     });
   });
 }
 
-function renderDriverDashboardStats() {
+async function renderDriverDashboardStats() {
   const todayCount = document.querySelector('#driver-count-today');
   const pendingCount = document.querySelector('#driver-pending-count');
   const earningsBox = document.querySelector('#driver-earnings');
@@ -601,17 +862,21 @@ function renderDriverDashboardStats() {
 
   if (!todayCount && !pendingCount && !earningsBox && !completedCount) return;
 
-  const requests = getRideRequests();
-  const activeRequests = requests.filter(request => ['Pending', 'Accepted', 'Picked Up', 'In Progress'].includes(request.status));
-  const completedRequests = requests.filter(request => request.status === 'Completed');
-  const pendingRequests = requests.filter(request => request.status === 'Pending');
+  const user = getStoredUser();
+  if (!user.accountId) return;
 
-  if (todayCount) todayCount.textContent = String(activeRequests.length + completedRequests.length);
-  if (pendingCount) pendingCount.textContent = String(pendingRequests.length);
-  if (earningsBox) earningsBox.textContent = `₱${completedRequests.length * 120}`;
-  if (completedCount) completedCount.textContent = String(completedRequests.length);
+  const [driverRides, pendingGroups] = await Promise.all([fetchDriverRides(), fetchPendingRides()]);
+  const activeRides = driverRides.filter(r => ['Accepted', 'Picked Up', 'In Progress'].includes(r.status));
+  const completedRides = driverRides.filter(r => r.status === 'Completed');
+  const pendingRideCount = pendingGroups.reduce((sum, g) => sum + g.riders.length, 0);
+  const earnings = completedRides.reduce((sum, r) => sum + Number(r.fare || 0), 0);
+
+  if (todayCount) todayCount.textContent = String(activeRides.length + completedRides.length);
+  if (pendingCount) pendingCount.textContent = String(pendingRideCount);
+  if (earningsBox) earningsBox.textContent = `₱${earnings.toFixed(0)}`;
+  if (completedCount) completedCount.textContent = String(completedRides.length);
 }
-
+ 
 function setupLogoutButtons() {
   const logoutButtons = document.querySelectorAll('[data-action="logout"]');
   logoutButtons.forEach(button => {
@@ -620,7 +885,7 @@ function setupLogoutButtons() {
       clearStoredUser();
       window.location.href = 'auth.html';
     });
-
+ 
     if (isAuthenticated()) {
       button.style.display = '';
     } else {
@@ -628,11 +893,11 @@ function setupLogoutButtons() {
     }
   });
 }
-
+ 
 function sanitizeName(value) {
   return value.replace(/[^a-zA-Z\s'-]/g, '').trim();
 }
-
+ 
 function formatName(value) {
   const sanitized = sanitizeName(value);
   return sanitized
@@ -640,39 +905,44 @@ function formatName(value) {
     .map(part => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
     .join(' ');
 }
-
+ 
 function isValidName(value) {
   const sanitized = sanitizeName(value).trim();
   return sanitized.length >= 2 && /^[a-zA-Z\s'-]+$/.test(sanitized);
 }
-
+ 
 function isValidEmail(value) {
   // RFC 5322 simplified email validation
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(value);
 }
 
+function isValidContactNumber(value) {
+  // Philippine mobile format: 09XXXXXXXXX (11 digits, starts with 09)
+  return /^09\d{9}$/.test(value);
+}
+ 
 function checkPasswordStrength(value) {
   const hasLower = /[a-z]/.test(value);
   const hasUpper = /[A-Z]/.test(value);
   const hasNumber = /\d/.test(value);
   const hasSpecial = /[!@#$%^&*()\-_=+\[\]{};:'",.<>?/\\|`~]/.test(value);
   const isLongEnough = value.length >= 8;
-
+ 
   return { hasLower, hasUpper, hasNumber, hasSpecial, isLongEnough };
 }
-
+ 
 function validateStudentIdFormat(id) {
   // Adjust pattern to match your institution's ID format. Currently expects exactly 10 digits.
   return /^\d{10}$/.test(id);
 }
-
+ 
 async function validateStudentIdServer(id) {
   // Local preview runs from a static server, so skip the backend check there to avoid noisy errors.
   if (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost') {
     return true;
   }
-
+ 
   try {
     const res = await fetch('/api/validate-student-id', {
       method: 'POST',
@@ -687,8 +957,8 @@ async function validateStudentIdServer(id) {
     return true;
   }
 }
-
-
+ 
+ 
 function showAuthFeedback(type, title, message) {
   const modal = document.querySelector('#auth-modal');
   const modalIcon = document.querySelector('#modal-icon');
@@ -697,7 +967,7 @@ function showAuthFeedback(type, title, message) {
   const modalRedirectText = document.querySelector('#modal-redirect-text');
   const progressBar = document.querySelector('#modal-progress-bar');
   const modalContent = document.querySelector('.auth-modal-content');
-
+ 
   if (type === 'success') {
     modalIcon.textContent = '✓';
     modalIcon.className = 'auth-modal-icon';
@@ -714,10 +984,10 @@ function showAuthFeedback(type, title, message) {
     modalMessage.textContent = message || 'Something went wrong. Please try again.';
     modalRedirectText.style.display = 'none';
   }
-
+ 
   // Show modal
   modal.classList.remove('hidden');
-
+ 
   // Auto-hide and redirect for success
   if (type === 'success') {
     progressBar.style.width = '0%';
@@ -726,19 +996,19 @@ function showAuthFeedback(type, title, message) {
       void progressBar.offsetWidth; // Trigger reflow
       progressBar.style.animation = 'progressFill 2.5s ease forwards';
     }, 10);
-
+ 
     setTimeout(() => {
       if (modalContent) modalContent.classList.remove('error');
       modal.classList.add('hidden');
     }, 2500);
   }
 }
-
+ 
 function hideAuthModal() {
   const modal = document.querySelector('#auth-modal');
   modal.classList.add('hidden');
 }
-
+ 
 // Dismiss modal on OK button or clicking overlay
 document.addEventListener('click', function(event) {
   const okBtn = document.querySelector('#modal-ok-btn');
@@ -747,7 +1017,7 @@ document.addEventListener('click', function(event) {
     hideAuthModal();
   }
 });
-
+ 
 // Allow clicking the modal overlay to close
 document.addEventListener('DOMContentLoaded', function() {
   const modal = document.querySelector('#auth-modal');
@@ -756,13 +1026,16 @@ document.addEventListener('DOMContentLoaded', function() {
     if (e.target === modal) hideAuthModal();
   });
 });
-
+ 
+// Base URL of the backend API
+const API_BASE_URL = 'http://localhost:3000/api/auth';
+ 
 function setupAuthForm() {
   const registerForm = document.querySelector('#register-form');
   const loginForm = document.querySelector('#login-form');
   const authTabs = document.querySelectorAll('.auth-tab');
   const tabContents = document.querySelectorAll('.auth-tab-content');
-
+ 
   if (authTabs.length > 0) {
     authTabs.forEach(tab => {
       tab.addEventListener('click', function() {
@@ -775,17 +1048,19 @@ function setupAuthForm() {
       });
     });
   }
-
+ 
   if (registerForm) {
     const fnameInput = document.querySelector('#reg-fname');
-    const mnameInput = document.querySelector('#reg-mname');
     const lnameInput = document.querySelector('#reg-lname');
     const emailInput = document.querySelector('#reg-email');
+    const contactInput = document.querySelector('#reg-contact');
     const passwordInput = document.querySelector('#reg-password');
     const roleSelect = document.querySelector('#reg-role');
     const studentSection = document.querySelector('#reg-student-section');
     const studentIdInput = document.querySelector('#reg-student-id');
-
+    const driverSection = document.querySelector('#reg-driver-section');
+    const licenseInput = document.querySelector('#reg-license');
+ 
     // Real-time validation for first name
     if (fnameInput) {
       fnameInput.addEventListener('input', function() {
@@ -804,7 +1079,7 @@ function setupAuthForm() {
         }
       });
     }
-
+ 
     // Real-time validation for confirm password
     const regPasswordConfirm = document.querySelector('#reg-password-confirm');
     if (regPasswordConfirm && passwordInput) {
@@ -820,7 +1095,7 @@ function setupAuthForm() {
         }
       });
     }
-
+ 
     // Real-time validation for last name
     if (lnameInput) {
       lnameInput.addEventListener('input', function() {
@@ -839,7 +1114,7 @@ function setupAuthForm() {
         }
       });
     }
-
+ 
     // Real-time validation for email
     if (emailInput) {
       emailInput.addEventListener('input', function() {
@@ -852,6 +1127,24 @@ function setupAuthForm() {
         if (!isEmpty && !isValid) {
           this.classList.add('input-error');
           document.querySelector('#email-error').textContent = 'Please enter a valid email (example@domain.com)';
+        } else if (isValid) {
+          this.classList.add('input-valid');
+        }
+      });
+    }
+
+    // Real-time validation for contact number
+    if (contactInput) {
+      contactInput.addEventListener('input', function() {
+        const isEmpty = this.value.trim().length === 0;
+        const isValid = !isEmpty && isValidContactNumber(this.value.trim());
+
+        this.classList.remove('input-error', 'input-valid');
+        document.querySelector('#contact-error').textContent = '';
+
+        if (!isEmpty && !isValid) {
+          this.classList.add('input-error');
+          document.querySelector('#contact-error').textContent = 'Enter an 11-digit number starting with 09';
         } else if (isValid) {
           this.classList.add('input-valid');
         }
@@ -874,9 +1167,29 @@ function setupAuthForm() {
         }
       }
     };
-
+ 
     if (roleSelect) roleSelect.addEventListener('change', toggleStudentSection);
     toggleStudentSection();
+
+    // Toggle driver's license field visibility based on role
+    const toggleDriverSection = () => {
+      if (!driverSection || !roleSelect) return;
+      if (roleSelect.value === 'driver') {
+        driverSection.style.display = '';
+        if (licenseInput) licenseInput.setAttribute('required', 'required');
+      } else {
+        driverSection.style.display = 'none';
+        if (licenseInput) {
+          licenseInput.value = '';
+          document.querySelector('#license-error').textContent = '';
+          licenseInput.classList.remove('input-error', 'input-valid');
+          licenseInput.removeAttribute('required');
+        }
+      }
+    };
+
+    if (roleSelect) roleSelect.addEventListener('change', toggleDriverSection);
+    toggleDriverSection();
 
     // Real-time validation for student ID (passenger only)
     if (studentIdInput) {
@@ -894,6 +1207,22 @@ function setupAuthForm() {
       });
     }
 
+    // Real-time validation for driver's license number (driver only)
+    if (licenseInput) {
+      licenseInput.addEventListener('input', function() {
+        const val = this.value.trim();
+        const isValid = val.length >= 5;
+        this.classList.remove('input-error', 'input-valid');
+        document.querySelector('#license-error').textContent = '';
+        if (val.length > 0 && !isValid) {
+          this.classList.add('input-error');
+          document.querySelector('#license-error').textContent = 'Enter a valid license number';
+        } else if (isValid) {
+          this.classList.add('input-valid');
+        }
+      });
+    }
+ 
     // Name extension select -> show/hide 'Other' input
     const extSelect = document.querySelector('#reg-ext');
     const extOtherInput = document.querySelector('#reg-ext-other');
@@ -921,25 +1250,26 @@ function setupAuthForm() {
         }
       });
     }
-
+ 
     
-
+ 
     registerForm.addEventListener('submit', async function(event) {
       event.preventDefault();
       const fnameInput = document.querySelector('#reg-fname');
-      const mnameInput = document.querySelector('#reg-mname');
       const lnameInput = document.querySelector('#reg-lname');
       const emailInput = document.querySelector('#reg-email');
+      const contactInput = document.querySelector('#reg-contact');
       const passwordInput = document.querySelector('#reg-password');
       const roleSelect = document.querySelector('#reg-role');
 
       const firstNameRaw = fnameInput.value.trim();
-      const middleNameRaw = mnameInput.value.trim();
       const lastNameRaw = lnameInput.value.trim();
       const email = emailInput.value.trim().toLowerCase();
+      const contactNumber = contactInput ? contactInput.value.trim() : '';
       const password = passwordInput.value;
       const role = roleSelect ? roleSelect.value : 'passenger';
       const studentId = studentIdInput ? studentIdInput.value.trim() : '';
+      const licenseNumber = licenseInput ? licenseInput.value.trim() : '';
       const extSelect = document.querySelector('#reg-ext');
       const extOtherInput = document.querySelector('#reg-ext-other');
       let extensionRaw = '';
@@ -950,13 +1280,13 @@ function setupAuthForm() {
           extensionRaw = extSelect.value.trim();
         }
       }
-
+ 
       let isValid = true;
-
+ 
       // Clear all error messages and states
       document.querySelectorAll('.error-msg').forEach(el => el.textContent = '');
       document.querySelectorAll('input, select').forEach(el => el.classList.remove('input-error', 'input-valid'));
-
+ 
       // Validate first name
       if (!firstNameRaw) {
         fnameInput.classList.add('input-error');
@@ -969,7 +1299,7 @@ function setupAuthForm() {
       } else {
         fnameInput.classList.add('input-valid');
       }
-
+ 
       // Validate last name
       if (!lastNameRaw) {
         lnameInput.classList.add('input-error');
@@ -982,7 +1312,7 @@ function setupAuthForm() {
       } else {
         lnameInput.classList.add('input-valid');
       }
-
+ 
       // Validate email
       if (!email) {
         emailInput.classList.add('input-error');
@@ -992,8 +1322,26 @@ function setupAuthForm() {
         emailInput.classList.add('input-error');
         document.querySelector('#email-error').textContent = 'Please enter a valid email (example@domain.com)';
         isValid = false;
+      } else if (role === 'passenger' && !email.endsWith('@student.tsu.edu.ph')) {
+        // Passengers must register using the official school email
+        emailInput.classList.add('input-error');
+        document.querySelector('#email-error').textContent = 'Passengers must use a valid @student.tsu.edu.ph email';
+        isValid = false;
       } else {
         emailInput.classList.add('input-valid');
+      }
+
+      // Validate contact number
+      if (!contactNumber) {
+        document.querySelector('#contact-error').textContent = 'Contact number is required';
+        if (contactInput) contactInput.classList.add('input-error');
+        isValid = false;
+      } else if (!isValidContactNumber(contactNumber)) {
+        document.querySelector('#contact-error').textContent = 'Enter an 11-digit number starting with 09';
+        if (contactInput) contactInput.classList.add('input-error');
+        isValid = false;
+      } else if (contactInput) {
+        contactInput.classList.add('input-valid');
       }
 
       // Validate student ID for passengers
@@ -1021,6 +1369,21 @@ function setupAuthForm() {
           }
         }
       }
+ 
+      // Validate driver's license number for drivers
+      if (role === 'driver') {
+        if (!licenseNumber) {
+          document.querySelector('#license-error').textContent = "Driver's license number is required";
+          if (licenseInput) licenseInput.classList.add('input-error');
+          isValid = false;
+        } else if (licenseNumber.length < 5) {
+          document.querySelector('#license-error').textContent = 'Enter a valid license number';
+          if (licenseInput) licenseInput.classList.add('input-error');
+          isValid = false;
+        } else if (licenseInput) {
+          licenseInput.classList.add('input-valid');
+        }
+      }
 
       // Validate extension 'Other' text when selected
       const extSelectVal = extSelect ? extSelect.value : '';
@@ -1032,7 +1395,7 @@ function setupAuthForm() {
           isValid = false;
         }
       }
-
+ 
       // Validate password (basic length requirement)
       if (!password) {
         document.querySelector('#password-error').textContent = 'Password is required';
@@ -1041,7 +1404,7 @@ function setupAuthForm() {
         document.querySelector('#password-error').textContent = 'Password must be at least 8 characters';
         isValid = false;
       }
-
+ 
       // Confirm password
       const confirmPasswordInput = document.querySelector('#reg-password-confirm');
       const confirmPassword = confirmPasswordInput ? confirmPasswordInput.value : '';
@@ -1054,39 +1417,95 @@ function setupAuthForm() {
         if (confirmPasswordInput) confirmPasswordInput.classList.add('input-error');
         isValid = false;
       }
-
+ 
       if (!isValid) return;
-
+ 
       // Format names
       const firstName = formatName(firstNameRaw);
-      const middleName = middleNameRaw ? formatName(middleNameRaw) : '';
       const lastName = formatName(lastNameRaw);
-      const fullName = `${firstName}${middleName ? ' ' + middleName : ''} ${lastName}${extensionRaw ? ' ' + extensionRaw : ''}`.trim();
-
-      // Check if email already registered
-      let users = JSON.parse(localStorage.getItem('gotsUianUsers') || '[]');
-      if (users.some(u => u.email.toLowerCase() === email)) {
-        emailInput.classList.add('input-error');
-        document.querySelector('#email-error').textContent = 'This email is already registered';
-        showAuthFeedback('error', 'Email Already Registered', 'This email is already being used. Try logging in instead!');
-        return;
+      const fullName = `${firstName} ${lastName}${extensionRaw ? ' ' + extensionRaw : ''}`.trim();
+ 
+      // Build the request for the correct backend endpoint depending on role.
+      // Note: the "email" field the user typed is stored as the "username"
+      // in the backend, since the database schema (based on the ERD) uses
+      // a username column rather than a separate email column.
+      const apiUrl = role === 'driver'
+        ? `${API_BASE_URL}/register/driver`
+        : `${API_BASE_URL}/register/student`;
+ 
+      const payload = role === 'driver'
+        ? {
+            username: email,
+            password: password,
+            first_name: firstName,
+            last_name: lastName,
+            driver_license_no: licenseNumber,
+            contact_number: contactNumber
+          }
+        : {
+            username: email,
+            password: password,
+            first_name: firstName,
+            last_name: lastName,
+            student_number: studentId,
+            contact_number: contactNumber
+          };
+ 
+      try {
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+ 
+        const data = await response.json();
+ 
+        if (!response.ok) {
+          if (response.status === 409 && /student id/i.test(data.error || '')) {
+            if (studentIdInput) studentIdInput.classList.add('input-error');
+            document.querySelector('#student-id-error').textContent = data.error;
+            showAuthFeedback('error', 'Student ID Already Registered', data.error);
+          } else if (response.status === 409) {
+            emailInput.classList.add('input-error');
+            document.querySelector('#email-error').textContent = 'This email is already registered';
+            showAuthFeedback('error', 'Email Already Registered', 'This email is already being used. Try logging in instead!');
+          } else {
+            showAuthFeedback('error', 'Registration Failed', data.error || 'Something went wrong. Please try again.');
+          }
+          return;
+        }
+ 
+        // Registered successfully in the database.
+        // Drivers aren't allowed to log in yet — their account starts as
+        // "Pending" until an admin verifies their license/MTOP/TODA
+        // registration — so send them to the login tab instead of a
+        // dashboard they can't actually use.
+        if (role === 'driver') {
+          showAuthFeedback(
+            'success',
+            `Thanks, ${firstName}!`,
+            'Your driver account was created and is pending admin approval. You can log in once it has been verified.'
+          );
+          setTimeout(() => {
+            hideAuthModal();
+            const loginTab = document.querySelector('.auth-tab[data-tab="login"]');
+            if (loginTab) loginTab.click();
+          }, 2500);
+        } else {
+          setStoredUser({ name: fullName, role, email, accountId: data.accountId });
+          showAuthFeedback('success', `Welcome, ${firstName}!`, `Your ${role} account is ready. Let's get you started!`);
+          setTimeout(() => {
+            redirectToDashboard(role);
+          }, 2500);
+        }
+ 
+      } catch (error) {
+        console.error('Registration request failed', error);
+        showAuthFeedback('error', 'Connection Error', 'Could not connect to the server. Please make sure the backend is running.');
       }
-
-      // Register user
-      users.push({ name: fullName, email, password, role });
-      localStorage.setItem('gotsUianUsers', JSON.stringify(users));
-      setStoredUser({ name: fullName, role, email });
-
-      // Show success feedback
-      showAuthFeedback('success', `Welcome, ${firstName}!`, `Your ${role} account is ready. Let's get you started!`);
-
-      // Redirect after feedback
-      setTimeout(() => {
-        redirectToDashboard(role);
-      }, 2500);
     });
   }
-
+ 
   // Attach login-password listener outside of registerForm block so it runs regardless
   const loginPasswordInputGlobal = document.querySelector('#login-password');
   if (loginPasswordInputGlobal) {
@@ -1095,26 +1514,26 @@ function setupAuthForm() {
       const strengthBar = document.querySelector('#strength-bar-login');
       const strengthText = document.querySelector('#strength-text-login');
       const checklist = document.querySelector('#password-checklist-login');
-
+ 
       const setClass = (id, ok) => {
         const el = document.querySelector(id);
         if (!el) return;
         el.className = ok ? 'check-item valid' : 'check-item';
       };
-
+ 
       setClass('#check-lower-login', checks.hasLower);
       setClass('#check-upper-login', checks.hasUpper);
       setClass('#check-number-login', checks.hasNumber);
       setClass('#check-special-login', checks.hasSpecial);
       setClass('#check-length-login', checks.isLongEnough);
-
+ 
       const passCount = Object.values(checks).filter(Boolean).length;
       const strengthPercentage = (passCount / 5) * 100;
       const colors = ['#e5e7eb', '#dc2626', '#f97316', '#eab308', '#22c55e'];
       const labels = ['', '⚠️ Weak password', '⚠️ Fair password', '✓ Good password', '✓ Strong password!'];
-
+ 
       if (!strengthBar || !strengthText) return;
-
+ 
       if (this.value.length === 0) {
         strengthBar.style.width = '0%';
         strengthText.textContent = '';
@@ -1131,7 +1550,7 @@ function setupAuthForm() {
       }
     });
   }
-
+ 
   // Attach register-password listener as well
   const regPasswordInput = document.querySelector('#reg-password');
   if (regPasswordInput) {
@@ -1140,25 +1559,25 @@ function setupAuthForm() {
       const strengthBar = document.querySelector('#strength-bar');
       const strengthText = document.querySelector('#strength-text');
       const checklist = document.querySelector('#password-checklist');
-
+ 
       const setClass = (id, ok) => {
         const el = document.querySelector(id);
         if (!el) return;
         el.className = ok ? 'check-item valid' : 'check-item';
       };
-
+ 
       setClass('#check-lower', checks.hasLower);
       setClass('#check-upper', checks.hasUpper);
       setClass('#check-number', checks.hasNumber);
       setClass('#check-special', checks.hasSpecial);
       setClass('#check-length', checks.isLongEnough);
-
+ 
       const passCount = Object.values(checks).filter(Boolean).length;
       const colors = ['#e5e7eb', '#dc2626', '#f97316', '#eab308', '#22c55e'];
       const labels = ['', '⚠️ Weak password', '⚠️ Fair password', '✓ Good password', '✓ Strong password!'];
-
+ 
       if (!strengthBar || !strengthText) return;
-
+ 
       if (this.value.length === 0) {
         strengthBar.style.width = '0%';
         strengthText.textContent = '';
@@ -1175,37 +1594,77 @@ function setupAuthForm() {
       }
     });
   }
-
+ 
     
-
+ 
     if (loginForm) {
-    loginForm.addEventListener('submit', function(event) {
+    loginForm.addEventListener('submit', async function(event) {
       event.preventDefault();
       const email = document.querySelector('#login-email').value.trim().toLowerCase();
       const password = document.querySelector('#login-password').value.trim();
-
+ 
       if (!email || !password) {
         alert('Please enter email and password');
         return;
       }
+ 
+      const payload = JSON.stringify({ username: email, password: password });
+      const headers = { 'Content-Type': 'application/json' };
+ 
+      try {
+        // We don't ask the user to pick a role on this form, so we try each
+        // role's login endpoint in turn: student first, then driver, then admin.
+        let response = await fetch(`${API_BASE_URL}/login/student`, {
+          method: 'POST', headers, body: payload
+        });
+        let data = await response.json();
+ 
+        // A 403 means the username/password matched a real account but it's
+        // blocked for another reason (e.g. a driver still pending admin
+        // approval) — that's the definitive answer, so stop trying the next
+        // role instead of masking it with the admin endpoint's 401 later.
+        if (!response.ok && response.status !== 403) {
+          response = await fetch(`${API_BASE_URL}/login/driver`, {
+            method: 'POST', headers, body: payload
+          });
+          data = await response.json();
+        }
 
-      let users = JSON.parse(localStorage.getItem('gotsUianUsers') || '[]');
-      const user = users.find(u => u.email.toLowerCase() === email && u.password === password);
-
-      if (!user) {
-        alert('Invalid email or password');
-        return;
+        if (!response.ok && response.status !== 403) {
+          response = await fetch(`${API_BASE_URL}/login/admin`, {
+            method: 'POST', headers, body: payload
+          });
+          data = await response.json();
+        }
+ 
+        if (!response.ok) {
+          alert(data.error || 'Invalid email or password');
+          return;
+        }
+ 
+        // The backend stores passenger accounts with role "student" (it matches
+        // the `student` table), but every dashboard/redirect check in this file
+        // uses "passenger" as the role name. Normalize it here, once, right
+        // where the server response comes in.
+        const role = data.user.role === 'student' ? 'passenger' : data.user.role;
+        setStoredUser({ name: data.user.name, role, email: data.user.username, accountId: data.user.accountId, accountStatus: data.user.accountStatus });
+        redirectToDashboard(role);
+ 
+      } catch (error) {
+        console.error('Login request failed', error);
+        alert('Could not connect to the server. Please make sure the backend is running.');
       }
-
-      setStoredUser({ name: user.name, role: user.role, email: user.email });
-      redirectToDashboard(user.role);
     });
 }
 }
-
+ 
 document.addEventListener('DOMContentLoaded', function() {
   enforceDashboardAccess();
+  redirectBookingIfAuthenticated();
   hideAdminLinkForNonAdmin();
+  updateDriverLinkVisibility();
+  showDriverApprovalBanner();
+  setupLoginNavLink();
   setupNavMenu();
   setupBackToTop();
   highlightActiveNav();
@@ -1220,3 +1679,4 @@ document.addEventListener('DOMContentLoaded', function() {
   renderDriverDashboardStats();
   showAdminDashboardIfLoggedIn();
 });
+ 

@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="passenger.css">
+  <link rel="stylesheet" href="../css/passenger.css">
 </head>
 <body data-page="passenger">
   <header>
@@ -37,22 +37,51 @@
     </section>
 
     <section class="section">
-      <div class="dashboard-grid">
+      <div class="request-status-grid">
         <article class="dashboard-card">
           <h3>Request a ride</h3>
           <form id="ride-request-form" class="auth-form">
-            <label for="pickup-location">Pickup location</label>
-            <input type="text" id="pickup-location" name="pickup" placeholder="e.g. TSU Main Gate" required>
+            <div class="form-row-2">
+              <div class="form-field">
+                <label for="pickup-location">Pickup location</label>
+                <select id="pickup-location" name="pickup" required>
+                  <option value="">Select pickup point</option>
+                  <option value="San Isidro Campus">San Isidro Campus</option>
+                  <option value="Main Campus (Tarlac State University)">Main Campus (Tarlac State University)</option>
+                </select>
+              </div>
+              <div class="form-field">
+                <label for="dropoff-location">Drop-off location</label>
+                <select id="dropoff-location" name="dropoff" required>
+                  <option value="">Select drop-off point</option>
+                  <option value="San Isidro Campus">San Isidro Campus</option>
+                  <option value="Main Campus (Tarlac State University)">Main Campus (Tarlac State University)</option>
+                </select>
+                <small class="error-msg" id="route-error"></small>
+              </div>
+            </div>
 
-            <label for="dropoff-location">Drop-off location</label>
-            <input type="text" id="dropoff-location" name="dropoff" placeholder="e.g. San Isidro Market" required>
-
-            <label for="ride-type">Ride type</label>
-            <select id="ride-type" name="rideType">
-              <option value="Standard">Standard</option>
-              <option value="Shared">Shared</option>
-              <option value="Priority">Priority</option>
-            </select>
+            <div class="form-row-2">
+              <div class="form-field">
+                <label for="ride-type">Ride type</label>
+                <select id="ride-type" name="rideType">
+                  <option value="Solo">Solo — ₱60</option>
+                  <option value="Shared">Shared — ₱20-30</option>
+                </select>
+              </div>
+              <div class="form-field">
+                <label for="ride-schedule">When</label>
+                <select id="ride-schedule" name="scheduledIn">
+                  <option value="0">Leave now</option>
+                  <option value="15">In 15 minutes</option>
+                  <option value="20">In 20 minutes</option>
+                  <option value="30">In 30 minutes</option>
+                  <option value="45">In 45 minutes</option>
+                  <option value="60">In 1 hour</option>
+                </select>
+              </div>
+            </div>
+            <small class="field-note">Solo leaves right away. Shared waits for more students — fare drops the more who join. "When" lets you time a ride for right after your class ends.</small>
 
             <label for="ride-notes">Notes</label>
             <textarea id="ride-notes" name="notes" rows="3" placeholder="Add any pickup instructions"></textarea>
@@ -88,66 +117,7 @@
       </article>
     </section>
 
-    <section class="section select-driver-section">
-      <div class="section-intro">
-        <h2>Select your driver</h2>
-        <p class="lead">View available drivers and pick the one that best matches your trip. Each driver profile shows availability, ratings, and estimated arrival.</p>
-      </div>
-
-      <div class="driver-grid">
-        <article class="driver-card">
-          <div class="driver-card-header">
-            <div>
-              <h3>Karen Santos</h3>
-              <p>Tricycle 18 • 4.9 rating</p>
-            </div>
-            <span class="badge badge-success">Available</span>
-          </div>
-          <div class="driver-card-meta">
-            <span>Arrives in 4 min</span>
-            <span>5 rides today</span>
-          </div>
-          <button class="btn-secondary-outline">Select driver</button>
-        </article>
-
-        <article class="driver-card">
-          <div class="driver-card-header">
-            <div>
-              <h3>Renato Mercado</h3>
-              <p>Tricycle 21 • 4.7 rating</p>
-            </div>
-            <span class="badge badge-success">Available</span>
-          </div>
-          <div class="driver-card-meta">
-            <span>Arrives in 6 min</span>
-            <span>8 rides today</span>
-          </div>
-          <button class="btn-secondary-outline">Select driver</button>
-        </article>
-
-        <article class="driver-card">
-          <div class="driver-card-header">
-            <div>
-              <h3>Leah Santos</h3>
-              <p>Tricycle 05 • 4.8 rating</p>
-            </div>
-            <span class="badge badge-success">Available</span>
-          </div>
-          <div class="driver-card-meta">
-            <span>Arrives in 7 min</span>
-            <span>3 rides today</span>
-          </div>
-          <button class="btn-secondary-outline">Select driver</button>
-        </article>
-      </div>
-    </section>
-
-    <section class="section dashboard-details">
-      <div class="dashboard-panel">
-        <h2>Ready to book?</h2>
-        <p>Tap the booking page to schedule your next campus trip. You will be matched with a verified driver immediately.</p>
-        <a class="btn-primary" href="booking.html">Book a ride</a>
-      </div>
+    <section class="section dashboard-details dashboard-details-single">
       <div class="dashboard-panel">
         <h2>Need help?</h2>
         <p>Contact support or review your ride details anytime from your dashboard. Safe campus travel starts here.</p>
@@ -169,6 +139,6 @@
     </div>
   </footer>
 
-  <script src="app.js"></script>
+  <script src="../js/app.js"></script>
 </body>
 </html>

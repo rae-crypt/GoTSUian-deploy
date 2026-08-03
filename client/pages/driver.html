@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="driver.css">
+  <link rel="stylesheet" href="../css/driver.css">
 </head>
 <body data-page="driver">
   <header>
@@ -35,6 +35,14 @@
         <p>Manage your upcoming trips, track earnings, and stay ready to accept requests from TSU passengers.</p>
       </div>
     </section>
+
+    <div id="driver-approval-banner" class="approval-banner hidden">
+      <span class="approval-banner-icon">⏳</span>
+      <div>
+        <strong>Your account is pending admin approval.</strong>
+        <p>You can browse ride requests below, but you won't be able to accept one until the TODA admin verifies your license and registration. This usually doesn't take long — check back soon.</p>
+      </div>
+    </div>
 
     <section class="section dashboard-grid">
       <article class="dashboard-card">
@@ -93,6 +101,6 @@
     </div>
   </footer>
 
-  <script src="app.js"></script>
+  <script src="../js/app.js"></script>
 </body>
 </html>

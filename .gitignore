@@ -1,2 +1,9 @@
 GoTSUian-UP-HERO.pdf
 todo.txt
+
+# Dependencies
+node_modules/
+
+# Secrets — never commit real DB credentials
+.env
+server/.env
