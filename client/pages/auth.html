@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="auth.css">
+  <link rel="stylesheet" href="../css/auth.css">
 </head>
 <body data-page="auth">
   <header>
@@ -55,35 +55,37 @@
           </div>
 
           <form id="register-form" class="auth-form auth-tab-content active">
-            <label for="reg-fname">First name <span class="required-star">*</span></label>
-            <input type="text" id="reg-fname" name="firstName" placeholder="Jane" required>
-            <small class="error-msg" id="fname-error"></small>
-
-            <label for="reg-mname">Middle name (optional)</label>
-            <input type="text" id="reg-mname" name="middleName" placeholder="Marie">
-            <small class="error-msg" id="mname-error"></small>
-
-            <label for="reg-lname">Last name <span class="required-star">*</span></label>
-            <input type="text" id="reg-lname" name="lastName" placeholder="Doe" required>
-            <small class="error-msg" id="lname-error"></small>
-
-            <label for="reg-ext">Name extension (optional)</label>
-            <select id="reg-ext" name="nameExtension">
-              <option value="">None</option>
-              <option value="Jr.">Jr.</option>
-              <option value="Sr.">Sr.</option>
-              <option value="II">II</option>
-              <option value="III">III</option>
-              <option value="IV">IV</option>
-              <option value="V">V</option>
-              <option value="Other">Other</option>
+            <label for="reg-role">I am a</label>
+            <select id="reg-role" name="role" required>
+              <option value="passenger">Passenger</option>
+              <option value="driver">Driver</option>
             </select>
-            <input type="text" id="reg-ext-other" name="nameExtensionOther" placeholder="Enter extension" style="display:none; margin-top:8px;">
-            <small class="error-msg" id="ext-error"></small>
 
-            <label for="reg-email">Email address <span class="required-star">*</span></label>
-            <input type="email" id="reg-email" name="email" placeholder="jane@example.com" required>
-            <small class="error-msg" id="email-error"></small>
+            <div class="form-row-2">
+              <div class="form-field">
+                <label for="reg-fname">First name <span class="required-star">*</span></label>
+                <input type="text" id="reg-fname" name="firstName" placeholder="Jane" required>
+                <small class="error-msg" id="fname-error"></small>
+              </div>
+              <div class="form-field">
+                <label for="reg-lname">Last name <span class="required-star">*</span></label>
+                <input type="text" id="reg-lname" name="lastName" placeholder="Doe" required>
+                <small class="error-msg" id="lname-error"></small>
+              </div>
+            </div>
+
+            <div class="form-row-2">
+              <div class="form-field">
+                <label for="reg-email">Email address <span class="required-star">*</span></label>
+                <input type="email" id="reg-email" name="email" placeholder="jane@example.com" required>
+                <small class="error-msg" id="email-error"></small>
+              </div>
+              <div class="form-field">
+                <label for="reg-contact">Contact number <span class="required-star">*</span></label>
+                <input type="tel" id="reg-contact" name="contactNumber" placeholder="09XXXXXXXXX" required>
+                <small class="error-msg" id="contact-error"></small>
+              </div>
+            </div>
 
             <div id="reg-student-section" style="display:none;">
               <label for="reg-student-id">Student ID <span class="required-star">*</span></label>
@@ -91,8 +93,26 @@
               <small class="error-msg" id="student-id-error"></small>
             </div>
 
-            <label for="reg-password">Password <span class="required-star">*</span></label>
-            <input type="password" id="reg-password" name="password" placeholder="Enter a password" required>
+            <div id="reg-driver-section" style="display:none;">
+              <label for="reg-license">Driver's license number <span class="required-star">*</span></label>
+              <input type="text" id="reg-license" name="driverLicenseNo" placeholder="Enter your driver's license number">
+              <small class="error-msg" id="license-error"></small>
+              <small class="field-note">Your account stays pending until the admin verifies your license, MTOP, and TODA registration.</small>
+            </div>
+
+            <div class="form-row-2">
+              <div class="form-field">
+                <label for="reg-password">Password <span class="required-star">*</span></label>
+                <input type="password" id="reg-password" name="password" placeholder="Enter a password" required>
+                <small class="error-msg" id="password-error"></small>
+              </div>
+              <div class="form-field">
+                <label for="reg-password-confirm">Confirm password <span class="required-star">*</span></label>
+                <input type="password" id="reg-password-confirm" name="passwordConfirm" placeholder="Re-enter your password" required>
+                <small class="error-msg" id="password-confirm-error"></small>
+              </div>
+            </div>
+
             <div class="password-feedback">
               <div class="strength-bar-container">
                 <div class="strength-bar" id="strength-bar"></div>
@@ -106,18 +126,6 @@
               <small><span class="check-item" id="check-special">✗</span> Has special character (!@#$%^&*)</small>
               <small><span class="check-item" id="check-length">✗</span> Is at least 8 characters long</small>
             </div>
-
-            <label for="reg-password-confirm">Confirm password <span class="required-star">*</span></label>
-            <input type="password" id="reg-password-confirm" name="passwordConfirm" placeholder="Re-enter your password" required>
-            <small class="error-msg" id="password-confirm-error"></small>
-
-            <small class="error-msg" id="password-error"></small>
-
-            <label for="reg-role">I am a</label>
-            <select id="reg-role" name="role" required>
-              <option value="passenger">Passenger</option>
-              <option value="driver">Driver</option>
-            </select>
 
             <button type="submit" class="btn-primary">Create account</button>
             <p class="admin-login-note">Are you an admin? <a href="admin.html">Use the admin login page</a>.</p>
@@ -184,6 +192,6 @@
     </div>
   </footer>
 
-  <script src="app.js"></script>
+  <script src="../js/app.js"></script>
 </body>
 </html>
