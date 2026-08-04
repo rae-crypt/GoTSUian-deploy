@@ -1228,6 +1228,40 @@ justify-content: center;
 gap: 12px;
 }
 
+/* Base form control styling — this page never had it, which is why labels
+   sat inline next to their field instead of stacked above it, and why
+   selects were only as wide as their longest option's text. */
+label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 16px;
+  padding: 12px 16px;
+  background: #fff;
+  color: #0f172a;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  margin-bottom: 16px;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: rgba(127, 29, 29, 0.45);
+  box-shadow: 0 0 0 4px rgba(127, 29, 29, 0.12);
+}
+
+select {
+  appearance: none;
+}
+
 /* Field grouping for the ride request form */
 .form-row-2 {
   display: grid;
@@ -1243,6 +1277,16 @@ gap: 12px;
 
 .form-field {
   min-width: 0;
+}
+
+.form-field-narrow {
+  max-width: 280px;
+}
+
+@media (max-width: 640px) {
+  .form-field-narrow {
+    max-width: none;
+  }
 }
 
 @media (max-width: 760px) {
@@ -1274,22 +1318,20 @@ gap: 12px;
   margin: -12px 0 18px;
 }
 
-/* Request a ride + Current ride status — a dedicated 2-card row.
-   (This used to reuse .dashboard-grid, a 4-column grid meant for the small
-   stat tiles, so each card only got 25% of the row width.) */
-.request-status-grid {
-  display: grid;
+/* Request a ride, then Current ride status below it — full width, stacked. */
+.request-status-stack {
+  display: flex;
+  flex-direction: column;
   gap: 28px;
-  grid-template-columns: 1.5fr 0.85fr;
 }
 
-.request-status-grid .dashboard-card {
+.request-status-stack .dashboard-card {
   padding: 32px 36px;
 }
 
-@media (max-width: 900px) {
-  .request-status-grid {
-    grid-template-columns: 1fr;
+@media (max-width: 640px) {
+  .request-status-stack .dashboard-card {
+    padding: 24px;
   }
 }
 
@@ -1427,5 +1469,19 @@ gap: 12px;
 
 .dashboard-details-single .dashboard-panel {
   max-width: 640px;
+}
+
+@media (max-width: 640px) {
+  .hero {
+    padding: 40px 0 24px;
+  }
+
+  .hero-simple {
+    margin-bottom: 20px;
+  }
+
+  .section {
+    padding: 36px 0;
+  }
 }
 

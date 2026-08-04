@@ -92,7 +92,8 @@ function getStoredUser() {
       role: '',
       email: '',
       accountId: null,
-      accountStatus: ''
+      accountStatus: '',
+      token: ''
     };
   }
 
@@ -103,7 +104,8 @@ function getStoredUser() {
       role: parsedUser.role || '',
       email: parsedUser.email || '',
       accountId: parsedUser.accountId || null,
-      accountStatus: parsedUser.accountStatus || ''
+      accountStatus: parsedUser.accountStatus || '',
+      token: parsedUser.token || ''
     };
   } catch (error) {
     console.warn('Unable to read stored session user', error);
@@ -112,7 +114,8 @@ function getStoredUser() {
       role: '',
       email: '',
       accountId: null,
-      accountStatus: ''
+      accountStatus: '',
+      token: ''
     };
   }
 }
@@ -123,7 +126,8 @@ function setStoredUser(user) {
     role: user.role || '',
     email: user.email || '',
     accountId: user.accountId || null,
-    accountStatus: user.accountStatus || ''
+    accountStatus: user.accountStatus || '',
+    token: user.token || ''
   };
 
   sessionStorage.setItem('authUser', JSON.stringify(payload));
@@ -134,6 +138,13 @@ function setStoredUser(user) {
   renderAuthStatus();
   updateLoginNavLinkLabel();
   updateDriverLinkVisibility();
+}
+
+function getAuthHeaders() {
+  const token = getStoredUser().token;
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  return headers;
 }
 
 function clearStoredUser() {
@@ -316,7 +327,7 @@ function setupAdminLoginForm() {
         return;
       }
 
-      setStoredUser({ name: data.user.name, role: data.user.role, email: data.user.username });
+      setStoredUser({ name: data.user.name, role: data.user.role, email: data.user.username, token: data.token });
       redirectToDashboard('admin');
     } catch (error) {
       console.error('Admin login request failed', error);
@@ -344,6 +355,81 @@ function showAdminDashboardIfLoggedIn() {
   }
 }
  
+async function fetchAdminDrivers() {
+  try {
+    const res = await fetch(`${ADMIN_API_URL}/drivers`, { headers: getAuthHeaders() });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.drivers || [];
+  } catch (error) {
+    console.warn('Unable to fetch drivers', error);
+    return [];
+  }
+}
+
+async function updateDriverStatusRemote(driverId, status) {
+  const res = await fetch(`${ADMIN_API_URL}/drivers/${driverId}/status`, {
+    method: 'PUT',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ status })
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Unable to update driver status');
+  return data;
+}
+
+async function renderAdminDriverManagement() {
+  const tbody = document.querySelector('#admin-drivers-tbody');
+  if (!tbody) return;
+
+  const drivers = await fetchAdminDrivers();
+
+  if (!drivers.length) {
+    tbody.innerHTML = '<tr><td colspan="4">No drivers registered yet.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = drivers.map(driver => {
+    const actions = driver.account_status === 'Pending'
+      ? `<button type="button" class="btn-primary" data-action="approve-driver" data-driver-id="${driver.driver_id}">Approve</button>
+         <button type="button" class="btn-secondary" data-action="reject-driver" data-driver-id="${driver.driver_id}">Reject</button>`
+      : '—';
+    return `
+      <tr>
+        <td>${escapeHtml(driver.first_name + ' ' + driver.last_name)}</td>
+        <td>${escapeHtml(driver.contact_number || '—')}</td>
+        <td>${escapeHtml(driver.account_status)}</td>
+        <td>${actions}</td>
+      </tr>
+    `;
+  }).join('');
+
+  tbody.querySelectorAll('[data-action="approve-driver"]').forEach(button => {
+    button.addEventListener('click', async function() {
+      const driverId = this.getAttribute('data-driver-id');
+      try {
+        await updateDriverStatusRemote(driverId, 'Active');
+        renderAdminDriverManagement();
+      } catch (error) {
+        alert(error.message || 'Could not approve driver');
+      }
+    });
+  });
+
+  tbody.querySelectorAll('[data-action="reject-driver"]').forEach(button => {
+    button.addEventListener('click', async function() {
+      const driverId = this.getAttribute('data-driver-id');
+      if (!confirm('Reject this driver application?')) return;
+      try {
+        await updateDriverStatusRemote(driverId, 'Rejected');
+        renderAdminDriverManagement();
+      } catch (error) {
+        alert(error.message || 'Could not reject driver');
+      }
+    });
+  });
+}
+
 function fillDashboardWelcome() {
   const welcomeName = document.querySelector('[data-dashboard-welcome]');
   if (!welcomeName) return;
@@ -410,6 +496,7 @@ function getRideLifecycleSteps(status) {
 }
  
 const RIDES_API_URL = 'http://localhost:3000/api/rides';
+const ADMIN_API_URL = 'http://localhost:3000/api/admin';
 
 // Formats a JS Date as 'YYYY-MM-DD HH:MM:SS' in local time, which is what
 // MySQL's DATETIME column expects — avoids timezone drift from ISO strings.
@@ -441,7 +528,7 @@ async function fetchMyRides() {
   const user = getStoredUser();
   if (!user.accountId) return [];
   try {
-    const res = await fetch(`${RIDES_API_URL}/mine/${user.accountId}`);
+    const res = await fetch(`${RIDES_API_URL}/mine`, { headers: getAuthHeaders() });
     if (!res.ok) return [];
     const data = await res.json();
     return data.rides || [];
@@ -453,7 +540,7 @@ async function fetchMyRides() {
 
 async function fetchPendingRides() {
   try {
-    const res = await fetch(`${RIDES_API_URL}/pending`);
+    const res = await fetch(`${RIDES_API_URL}/pending`, { headers: getAuthHeaders() });
     if (!res.ok) return [];
     const data = await res.json();
     return data.rides || [];
@@ -467,7 +554,7 @@ async function fetchDriverRides() {
   const user = getStoredUser();
   if (!user.accountId) return [];
   try {
-    const res = await fetch(`${RIDES_API_URL}/driver/${user.accountId}`);
+    const res = await fetch(`${RIDES_API_URL}/driver`, { headers: getAuthHeaders() });
     if (!res.ok) return [];
     const data = await res.json();
     return data.rides || [];
@@ -480,7 +567,7 @@ async function fetchDriverRides() {
 async function createRideRequest(payload) {
   const res = await fetch(RIDES_API_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getAuthHeaders(),
     body: JSON.stringify(payload)
   });
   const data = await res.json();
@@ -488,11 +575,10 @@ async function createRideRequest(payload) {
   return data;
 }
 
-async function acceptRideRemote(rideId, driverAccountId) {
+async function acceptRideRemote(rideId) {
   const res = await fetch(`${RIDES_API_URL}/${rideId}/accept`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ driver_account_id: driverAccountId })
+    headers: getAuthHeaders()
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Unable to accept this ride');
@@ -502,7 +588,7 @@ async function acceptRideRemote(rideId, driverAccountId) {
 async function updateRideStatusRemote(rideId, status) {
   const res = await fetch(`${RIDES_API_URL}/${rideId}/status`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getAuthHeaders(),
     body: JSON.stringify({ status })
   });
   const data = await res.json();
@@ -529,7 +615,6 @@ function setupPassengerRideRequestForm() {
     const scheduleSelect = document.querySelector('#ride-schedule');
     const scheduleMinutes = scheduleSelect ? parseInt(scheduleSelect.value, 10) : 0;
     const scheduledAt = scheduleMinutes > 0 ? toMySQLDateTime(new Date(Date.now() + scheduleMinutes * 60000)) : null;
-    const notes = document.querySelector('#ride-notes').value.trim();
     const routeError = document.querySelector('#route-error');
     if (routeError) routeError.textContent = '';
 
@@ -552,8 +637,7 @@ function setupPassengerRideRequestForm() {
         pickup_location: pickupLocation,
         dropoff_location: dropoffLocation,
         ride_type: rideType,
-        scheduled_at: scheduledAt,
-        notes
+        scheduled_at: scheduledAt
       });
 
       form.reset();
@@ -675,8 +759,6 @@ async function renderPassengerRideStatus() {
       <span class="ride-badge tone-${statusConfig.tone}">${escapeHtml(statusConfig.label)}</span>
     </div>
 
-    <p class="ride-notes">${escapeHtml(activeRide.notes || 'No notes added.')}</p>
-
     <div class="ride-status-detail">
       <p class="ride-description">${escapeHtml(statusConfig.description)}</p>
       <p class="ride-next-step">${escapeHtml(nextStepText)}</p>
@@ -724,7 +806,6 @@ function renderPendingRideCard(group) {
           <span>Fare: ₱${Number(ride.fare || 60).toFixed(0)}</span>
           <span>${new Date(ride.created_at).toLocaleString()}</span>
         </div>
-        <p>${escapeHtml(ride.notes || 'No notes provided.')}</p>
         <div class="driver-card-actions">
           <button type="button" class="btn-primary" data-action="accept-ride" data-ride-id="${ride.ride_id}">Accept</button>
           <button type="button" class="btn-secondary-outline" data-action="decline-ride" data-ride-id="${ride.ride_id}">Decline</button>
@@ -812,7 +893,7 @@ async function renderDriverRideRequests() {
     button.addEventListener('click', async function() {
       const rideId = this.getAttribute('data-ride-id');
       try {
-        const result = await acceptRideRemote(rideId, user.accountId);
+        const result = await acceptRideRemote(rideId);
         showRideFeedback('success', 'Ride accepted', result.fare ? `Trip assigned to you — fare locked at ₱${result.fare}/student.` : 'The trip is now assigned to you.');
         renderPassengerRideStatus();
         renderDriverRideRequests();
@@ -1492,7 +1573,7 @@ function setupAuthForm() {
             if (loginTab) loginTab.click();
           }, 2500);
         } else {
-          setStoredUser({ name: fullName, role, email, accountId: data.accountId });
+          setStoredUser({ name: fullName, role, email, accountId: data.accountId, token: data.token });
           showAuthFeedback('success', `Welcome, ${firstName}!`, `Your ${role} account is ready. Let's get you started!`);
           setTimeout(() => {
             redirectToDashboard(role);
@@ -1647,7 +1728,7 @@ function setupAuthForm() {
         // uses "passenger" as the role name. Normalize it here, once, right
         // where the server response comes in.
         const role = data.user.role === 'student' ? 'passenger' : data.user.role;
-        setStoredUser({ name: data.user.name, role, email: data.user.username, accountId: data.user.accountId, accountStatus: data.user.accountStatus });
+        setStoredUser({ name: data.user.name, role, email: data.user.username, accountId: data.user.accountId, accountStatus: data.user.accountStatus, token: data.token });
         redirectToDashboard(role);
  
       } catch (error) {
@@ -1658,12 +1739,28 @@ function setupAuthForm() {
 }
 }
  
-document.addEventListener('DOMContentLoaded', function() {
+// Bundles every function whose only job is to reflect the current
+// sessionStorage auth state onto the page (nav links, banners, dashboards).
+// Re-running these is always safe (they just re-check state and re-render),
+// unlike the setup* functions below which attach event listeners and would
+// double-fire if called twice on the same static elements.
+function refreshAuthState() {
   enforceDashboardAccess();
   redirectBookingIfAuthenticated();
   hideAdminLinkForNonAdmin();
   updateDriverLinkVisibility();
   showDriverApprovalBanner();
+  renderAuthStatus();
+  fillDashboardWelcome();
+  renderPassengerRideStatus();
+  renderDriverRideRequests();
+  renderDriverDashboardStats();
+  showAdminDashboardIfLoggedIn();
+  renderAdminDriverManagement();
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  refreshAuthState();
   setupLoginNavLink();
   setupNavMenu();
   setupBackToTop();
@@ -1671,12 +1768,18 @@ document.addEventListener('DOMContentLoaded', function() {
   setupAuthForm();
   setupAdminLoginForm();
   setupLogoutButtons();
-  renderAuthStatus();
-  fillDashboardWelcome();
   setupPassengerRideRequestForm();
-  renderPassengerRideStatus();
-  renderDriverRideRequests();
-  renderDriverDashboardStats();
-  showAdminDashboardIfLoggedIn();
 });
- 
+
+// Chrome/Edge can restore a page from the "back/forward cache" (a frozen
+// snapshot) instead of re-running the whole page load — when that happens,
+// DOMContentLoaded does NOT fire again, so nav links/dashboards can go
+// stale if the user logged in/out on another page and then hit Back.
+// `pageshow` fires in both cases; `event.persisted` tells us it was a
+// bfcache restore, so we only need to refresh state, not re-attach listeners.
+window.addEventListener('pageshow', function(event) {
+  if (event.persisted) {
+    refreshAuthState();
+  }
+});
+

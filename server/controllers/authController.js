@@ -1,5 +1,6 @@
 const db = require('../config/db');
 const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 
 // REGISTER STUDENT (Passenger)
 exports.registerStudent = async (req, res) => {
@@ -41,10 +42,16 @@ exports.registerStudent = async (req, res) => {
             if (err) {
               return db.rollback(() => res.status(500).json({ error: err.message }));
             }
+            const token = jwt.sign(
+              { accountId, role: 'student' },
+              process.env.JWT_SECRET,
+              { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+            );
             res.status(201).json({
               message: 'Student registered successfully',
               accountId,
-              studentId: studentResult.insertId
+              studentId: studentResult.insertId,
+              token
             });
           });
         });
@@ -83,9 +90,15 @@ exports.loginStudent = async (req, res) => {
     if (!passwordMatch) {
       return res.status(401).json({ error: 'Invalid username or password' });
     }
+    const token = jwt.sign(
+      { accountId: user.account_id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+    );
 
     res.status(200).json({
       message: 'Login successful',
+      token,
       user: {
         accountId: user.account_id,
         studentId: user.student_id,
@@ -189,8 +202,15 @@ exports.loginDriver = async (req, res) => {
       return res.status(403).json({ error: 'Your driver application was not approved. Please contact the TODA admin.' });
     }
 
+        const token = jwt.sign(
+      { accountId: user.account_id, role: user.role, accountStatus: user.account_status },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+    );
+
     res.status(200).json({
       message: 'Login successful',
+      token,
       user: {
         accountId: user.account_id,
         driverId: user.driver_id,
@@ -201,57 +221,6 @@ exports.loginDriver = async (req, res) => {
       }
     });
   });
-};
-
-// REGISTER ADMIN
-exports.registerAdmin = async (req, res) => {
-  const {
-    username, password,
-    first_name, middle_name, last_name, contact_number
-  } = req.body;
-
-  if (!username || !password || !first_name || !last_name) {
-    return res.status(400).json({ error: 'Missing required fields' });
-  }
-
-  try {
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    db.beginTransaction((err) => {
-      if (err) return res.status(500).json({ error: err.message });
-
-      const adminSql = `INSERT INTO administrator (username, password, account_status) VALUES (?, ?, 'active')`;
-      db.query(adminSql, [username, hashedPassword], (err, adminResult) => {
-        if (err) {
-          return db.rollback(() => res.status(err.code === 'ER_DUP_ENTRY' ? 409 : 500).json({ error: err.sqlMessage || err.message }));
-        }
-
-        const adminId = adminResult.insertId;
-
-        const profileSql = `
-          INSERT INTO administrator_profile (admin_id, first_name, middle_name, last_name, contact_number)
-          VALUES (?, ?, ?, ?, ?)
-        `;
-        db.query(profileSql, [adminId, first_name, middle_name || null, last_name, contact_number || null], (err) => {
-          if (err) {
-            return db.rollback(() => res.status(500).json({ error: err.message }));
-          }
-
-          db.commit((err) => {
-            if (err) {
-              return db.rollback(() => res.status(500).json({ error: err.message }));
-            }
-            res.status(201).json({
-              message: 'Admin registered successfully',
-              adminId
-            });
-          });
-        });
-      });
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
 };
 
 // LOGIN ADMIN
@@ -288,8 +257,15 @@ exports.loginAdmin = async (req, res) => {
       return res.status(401).json({ error: 'Invalid username or password' });
     }
 
+    const token = jwt.sign(
+      { adminId: admin.admin_id, role: 'admin' },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+    );
+
     res.status(200).json({
       message: 'Login successful',
+      token,
       user: {
         adminId: admin.admin_id,
         name: `${admin.first_name} ${admin.last_name}`,

@@ -32,88 +32,62 @@
       <div class="hero-copy">
         <span class="hero-badge"><span></span> Passenger Dashboard</span>
         <h1>Welcome back, <span data-dashboard-welcome>Passenger</span></h1>
-        <p>Your trips, saved locations, and booking tools are ready. Book a ride or manage your upcoming campus trip now.</p>
+        <p>Your trips and booking tools are ready. Book a ride or check your current trip status below.</p>
       </div>
     </section>
 
-    <section class="section">
-      <div class="request-status-grid">
-        <article class="dashboard-card">
-          <h3>Request a ride</h3>
-          <form id="ride-request-form" class="auth-form">
-            <div class="form-row-2">
-              <div class="form-field">
-                <label for="pickup-location">Pickup location</label>
-                <select id="pickup-location" name="pickup" required>
-                  <option value="">Select pickup point</option>
-                  <option value="San Isidro Campus">San Isidro Campus</option>
-                  <option value="Main Campus (Tarlac State University)">Main Campus (Tarlac State University)</option>
-                </select>
-              </div>
-              <div class="form-field">
-                <label for="dropoff-location">Drop-off location</label>
-                <select id="dropoff-location" name="dropoff" required>
-                  <option value="">Select drop-off point</option>
-                  <option value="San Isidro Campus">San Isidro Campus</option>
-                  <option value="Main Campus (Tarlac State University)">Main Campus (Tarlac State University)</option>
-                </select>
-                <small class="error-msg" id="route-error"></small>
-              </div>
+    <section class="section request-status-stack">
+      <article class="dashboard-card">
+        <h3>Request a ride</h3>
+        <form id="ride-request-form" class="auth-form">
+          <div class="form-row-3">
+            <div class="form-field">
+              <label for="pickup-location">Pickup location</label>
+              <select id="pickup-location" name="pickup" required>
+                <option value="">Select pickup point</option>
+                <option value="San Isidro Campus (Tarlac State University)">San Isidro Campus (Tarlac State University)</option>
+                <option value="Main Campus (Tarlac State University)">Main Campus (Tarlac State University)</option>
+              </select>
             </div>
-
-            <div class="form-row-2">
-              <div class="form-field">
-                <label for="ride-type">Ride type</label>
-                <select id="ride-type" name="rideType">
-                  <option value="Solo">Solo — ₱60</option>
-                  <option value="Shared">Shared — ₱20-30</option>
-                </select>
-              </div>
-              <div class="form-field">
-                <label for="ride-schedule">When</label>
-                <select id="ride-schedule" name="scheduledIn">
-                  <option value="0">Leave now</option>
-                  <option value="15">In 15 minutes</option>
-                  <option value="20">In 20 minutes</option>
-                  <option value="30">In 30 minutes</option>
-                  <option value="45">In 45 minutes</option>
-                  <option value="60">In 1 hour</option>
-                </select>
-              </div>
+            <div class="form-field">
+              <label for="dropoff-location">Drop-off location</label>
+              <select id="dropoff-location" name="dropoff" required>
+                <option value="">Select drop-off point</option>
+                <option value="San Isidro Campus (Tarlac State University)">San Isidro Campus (Tarlac State University)</option>
+                <option value="Main Campus (Tarlac State University)">Main Campus (Tarlac State University)</option>
+              </select>
+              <small class="error-msg" id="route-error"></small>
             </div>
-            <small class="field-note">Solo leaves right away. Shared waits for more students — fare drops the more who join. "When" lets you time a ride for right after your class ends.</small>
+            <div class="form-field">
+              <label for="ride-type">Ride type</label>
+              <select id="ride-type" name="rideType">
+                <option value="Solo">Solo — ₱60</option>
+                <option value="Shared">Shared — ₱20-30</option>
+              </select>
+            </div>
+          </div>
 
-            <label for="ride-notes">Notes</label>
-            <textarea id="ride-notes" name="notes" rows="3" placeholder="Add any pickup instructions"></textarea>
+          <div class="form-field form-field-narrow">
+            <label for="ride-schedule">When</label>
+            <select id="ride-schedule" name="scheduledIn">
+              <option value="0">Leave now</option>
+              <option value="15">In 15 minutes</option>
+              <option value="20">In 20 minutes</option>
+              <option value="30">In 30 minutes</option>
+              <option value="45">In 45 minutes</option>
+              <option value="60">In 1 hour</option>
+            </select>
+          </div>
+          <small class="field-note">Solo leaves right away. Shared waits for more students — fare drops the more who join. "When" lets you time a ride for right after your class ends.</small>
 
-            <button type="submit" class="btn-primary">Request ride</button>
-          </form>
-        </article>
-
-        <article id="ride-status-panel" class="dashboard-card">
-          <h3>Current ride status</h3>
-          <p id="ride-status-empty">No active ride request yet.</p>
-          <div id="ride-status-details" style="display:none;"></div>
-        </article>
-      </div>
-    </section>
-
-    <section class="section dashboard-grid">
-      <article class="dashboard-card">
-        <h3>Upcoming ride</h3>
-        <p>No active ride yet</p>
+          <button type="submit" class="btn-primary">Request ride</button>
+        </form>
       </article>
-      <article class="dashboard-card">
-        <h3>Saved locations</h3>
-        <p>3 places</p>
-      </article>
-      <article class="dashboard-card">
-        <h3>Ride credits</h3>
-        <p>₱120</p>
-      </article>
-      <article class="dashboard-card">
-        <h3>Booking history</h3>
-        <p>8 rides</p>
+
+      <article id="ride-status-panel" class="dashboard-card">
+        <h3>Current ride status</h3>
+        <p id="ride-status-empty">No active ride request yet.</p>
+        <div id="ride-status-details" style="display:none;"></div>
       </article>
     </section>
 

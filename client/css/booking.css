@@ -1029,3 +1029,19 @@ justify-content: center;
 gap: 12px;
 }
 
+
+
+@media (max-width: 640px) {
+  .hero {
+    padding: 40px 0 24px;
+  }
+
+  .hero-simple {
+    margin-bottom: 20px;
+  }
+
+  .section {
+    padding: 36px 0;
+  }
+}
+

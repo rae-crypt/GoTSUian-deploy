@@ -8,8 +8,8 @@ const MAX_POOL_SIZE = 4;
 
 // CREATE A RIDE REQUEST
 exports.createRide = (req, res) => {
+  const passenger_account_id = req.user.accountId;
   const {
-    passenger_account_id,
     pickup_location,
     dropoff_location,
     ride_type,
@@ -160,7 +160,7 @@ exports.listPendingRides = (req, res) => {
 
 // GET A PASSENGER'S OWN RIDE HISTORY / ACTIVE RIDE
 exports.getMyRides = (req, res) => {
-  const { accountId } = req.params;
+  const accountId = req.user.accountId;
   const sql = `
     SELECT r.*, CONCAT(td.first_name, ' ', td.last_name) AS driver_name
     FROM rides r
@@ -176,7 +176,7 @@ exports.getMyRides = (req, res) => {
 
 // GET A DRIVER'S OWN ACCEPTED/COMPLETED RIDES
 exports.getDriverRides = (req, res) => {
-  const { accountId } = req.params;
+  const accountId = req.user.accountId;
   const sql = `
     SELECT r.*, CONCAT(s.first_name, ' ', s.last_name) AS passenger_name
     FROM rides r
@@ -194,9 +194,7 @@ exports.getDriverRides = (req, res) => {
 // locking the fare in at whatever headcount it has right now)
 exports.acceptRide = (req, res) => {
   const { rideId } = req.params;
-  const { driver_account_id } = req.body;
-
-  if (!driver_account_id) return res.status(400).json({ error: 'driver_account_id is required' });
+  const driver_account_id = req.user.accountId;
 
   // A driver can log in and browse ride requests while "Pending" (the admin
   // isn't watching the system 24/7) — but accepting an actual ride is where
