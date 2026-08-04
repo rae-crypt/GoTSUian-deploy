@@ -3,6 +3,7 @@ const cors = require('cors');
 const db = require('./config/db');
 const authRoutes = require('./routes/authRoutes');
 const rideRoutes = require('./routes/rideRoutes');
+const adminRoutes = require('./routes/adminRoutes');
 
 const app = express();
 const PORT = 3000;
@@ -24,6 +25,10 @@ app.use('/api/auth', authRoutes);
 
 // Ride booking routes
 app.use('/api/rides', rideRoutes);
+
+// Admin routes
+app.use('/api/admin', adminRoutes);
+
 
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
