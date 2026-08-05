@@ -3,16 +3,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>GoTSUian | Admin Dashboard</title>
+  <title>GoTSUian | My Profile</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="../css/admin.css?v=4">
+  <link rel="stylesheet" href="../css/passenger.css?v=4">
 </head>
-<body data-page="admin">
+<body data-page="passenger">
   <header>
     <div class="site-shell navbar">
-      <a class="brand" href="index.html"><svg class="brand-icon" viewBox="0 0 160 190" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M80 186 C50 146 22 112 22 76 C22 39 47 12 80 12 C113 12 138 39 138 76 C138 112 110 146 80 186 Z" fill="currentColor"/></svg><span class="brand-text"><span class="brand-word">Go<span class="brand-accent">TSU</span>ian</span><small>Your Ride, Our Priority</small></span></a>
+      <a class="brand" href="index.html">
+        <svg class="brand-icon" viewBox="0 0 160 190" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M80 186 C50 146 22 112 22 76 C22 39 47 12 80 12 C113 12 138 39 138 76 C138 112 110 146 80 186 Z" fill="currentColor"/></svg>
+        <span class="brand-text"><span class="brand-word">Go<span class="brand-accent">TSU</span>ian</span><small>Your Ride, Our Priority</small></span>
+      </a>
       <nav class="nav-links">
         <a href="#" class="nav-drawer-profile">
           <span class="nav-drawer-avatar"></span>
@@ -37,109 +40,99 @@
   </header>
 
   <main class="site-shell dashboard-page">
-    <section class="hero hero-simple admin-hero">
+    <section class="hero hero-simple">
       <div class="hero-copy">
-        <span class="hero-badge"><span></span> Admin Panel</span>
-        <h1>Welcome back, <span data-dashboard-welcome>Admin</span></h1>
-        <p>Monitor rides, manage passenger and driver accounts, and keep campus transport running smoothly.</p>
+        <span class="hero-badge"><span></span> My Profile</span>
+        <h1>Your account, your progress</h1>
+        <p>Update your details and track your loyalty progress in one place.</p>
       </div>
     </section>
 
-    <section id="admin-login-section" class="section section-card admin-login-section">
-      <div class="section-intro">
-        <h2>Admin login</h2>
-        <p class="lead">Enter your name and password to open the admin dashboard for monitoring and management.</p>
-      </div>
-      <div class="auth-form-card admin-login-card">
-        <form id="admin-login-form" class="auth-form">
-          <label for="admin-name">Name</label>
-          <input type="text" id="admin-name" name="admin-name" placeholder="Admin Name" required>
-
-          <label for="admin-password">Password</label>
-          <div class="password-input-group">
-            <input type="password" id="admin-password" name="admin-password" placeholder="Enter your password" required>
+    <section class="section request-status-stack">
+      <article class="dashboard-card">
+        <h3>Profile details</h3>
+        <p id="profile-loading">Loading your profile...</p>
+        <form id="profile-form" class="auth-form" style="display:none;">
+          <div class="form-row-2">
+            <div class="form-field">
+              <label for="profile-fname">First name</label>
+              <input type="text" id="profile-fname" name="firstName" required>
+            </div>
+            <div class="form-field">
+              <label for="profile-lname">Last name</label>
+              <input type="text" id="profile-lname" name="lastName" required>
+            </div>
           </div>
 
-          <button type="submit" class="btn-primary">Go to admin dashboard</button>
-          <small class="error-msg" id="admin-login-error"></small>
+          <div class="form-field">
+            <label for="profile-mname">Middle name</label>
+            <input type="text" id="profile-mname" name="middleName">
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-field">
+              <label for="profile-contact">Contact number</label>
+              <input type="tel" id="profile-contact" name="contactNumber" placeholder="09XXXXXXXXX">
+            </div>
+            <div class="form-field">
+              <label for="profile-birthdate">Birth date</label>
+              <input type="date" id="profile-birthdate" name="birthDate">
+            </div>
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-field">
+              <label for="profile-age">Age</label>
+              <input type="number" id="profile-age" name="age" min="1" max="120">
+            </div>
+            <div class="form-field">
+              <label for="profile-sex">Sex</label>
+              <select id="profile-sex" name="sex">
+                <option value="">Prefer not to say</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-field">
+            <label for="profile-address">Current address</label>
+            <input type="text" id="profile-address" name="currentAddress">
+          </div>
+
+          <small class="field-note" id="profile-readonly-note"></small>
+
+          <button type="submit" class="btn-primary">Save changes</button>
+          <small class="error-msg" id="profile-error"></small>
         </form>
-      </div>
+      </article>
+
+      <article id="loyalty-card" class="dashboard-card">
+        <h3>Loyalty progress</h3>
+        <p id="loyalty-loading">Loading your ride history...</p>
+        <div id="loyalty-details" style="display:none;">
+          <p class="loyalty-count"><span id="loyalty-current">0</span> / <span id="loyalty-threshold">5</span> completed rides</p>
+          <div class="loyalty-progress-track">
+            <div id="loyalty-progress-fill" class="loyalty-progress-fill"></div>
+          </div>
+          <div id="loyalty-message" class="loyalty-message"></div>
+          <div id="loyalty-certificate" class="loyalty-certificate" style="display:none;">
+            <div class="certificate-seal">🏅</div>
+            <p class="certificate-eyebrow">Certificate of Recognition</p>
+            <h4 id="certificate-name" class="certificate-name"></h4>
+            <p class="certificate-body">has completed <strong id="certificate-count"></strong> rides with GoTSUian and is recognized as a <span id="certificate-title"></span>.</p>
+            <p class="certificate-date" id="certificate-date"></p>
+          </div>
+        </div>
+      </article>
     </section>
 
-    <section id="admin-dashboard-section" class="section admin-dashboard-section hidden">
-      <div class="dashboard-grid">
-        <article class="dashboard-card">
-          <h3>Total bookings</h3>
-          <p>1,256</p>
-        </article>
-        <a href="#driver-management-panel" class="dashboard-card dashboard-card-link">
-          <h3>Registered drivers</h3>
-          <p>84</p>
-        </a>
-        <article class="dashboard-card">
-          <h3>Active passengers</h3>
-          <p>1,032</p>
-        </article>
-        <article class="dashboard-card">
-          <h3>Pending requests</h3>
-          <p>18</p>
-        </article>
-      </div>
-
-      <div class="dashboard-details">
-        <div class="dashboard-panel" id="driver-management-panel">
-          <h2>Driver management</h2>
-          <p>Review, approve, and monitor active drivers in the system. Update driver status or remove accounts when needed.</p>
-          <div class="table-card">
-            <table>
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Contact number</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody id="admin-drivers-tbody">
-                <tr><td colspan="4">Loading drivers...</td></tr>
-              </tbody>
-            </table>
-          </div>
-
-        </div>
-        <div class="dashboard-panel">
-          <h2>Passenger management</h2>
-          <p>Monitor active riders, verify accounts, and review passenger booking status.</p>
-          <div class="table-card">
-            <table>
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Last booking</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>Joy Ramos</td>
-                  <td>Today</td>
-                  <td>Active</td>
-                </tr>
-                <tr>
-                  <td>Carlo Dela Cruz</td>
-                  <td>Yesterday</td>
-                  <td>Active</td>
-                </tr>
-                <tr>
-                  <td>Mia Velasco</td>
-                  <td>2 days ago</td>
-                  <td>Inactive</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
+    <section class="section dashboard-details dashboard-details-single">
+      <a href="passenger-bookings.html" class="dashboard-panel dashboard-panel-link">
+        <h2>My Bookings →</h2>
+        <p>View your full ride history and past trips.</p>
+      </a>
     </section>
   </main>
 

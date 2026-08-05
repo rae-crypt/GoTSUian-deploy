@@ -4,6 +4,8 @@ const db = require('./config/db');
 const authRoutes = require('./routes/authRoutes');
 const rideRoutes = require('./routes/rideRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const profileRoutes = require('./routes/profileRoutes');
+
 
 const app = express();
 const PORT = 3000;
@@ -28,6 +30,10 @@ app.use('/api/rides', rideRoutes);
 
 // Admin routes
 app.use('/api/admin', adminRoutes);
+
+// Profile routes
+app.use('/api/profile', profileRoutes);
+
 
 
 app.listen(PORT, () => {

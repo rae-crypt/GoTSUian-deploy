@@ -9,5 +9,7 @@ router.get('/mine', authMiddleware, rideController.getMyRides);
 router.get('/driver', authMiddleware, rideController.getDriverRides);
 router.put('/:rideId/accept', authMiddleware, rideController.acceptRide);
 router.put('/:rideId/status', authMiddleware, rideController.updateRideStatus);
+router.get('/loyalty', authMiddleware, rideController.getLoyaltyStatus);
+router.get('/driver-loyalty', authMiddleware, rideController.getDriverLoyaltyStatus);
 
 module.exports = router;
