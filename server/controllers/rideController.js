@@ -287,3 +287,46 @@ exports.updateRideStatus = (req, res) => {
     });
   });
 };
+
+// LOYALTY / REWARDS — counts a passenger's completed rides against a fixed
+// threshold. No new table: completed rides are already tracked in `rides`,
+// so this is a pure read, no schema change needed.
+const LOYALTY_THRESHOLD = 5;
+
+exports.getLoyaltyStatus = (req, res) => {
+  const accountId = req.user.accountId;
+
+  db.query(
+    `SELECT COUNT(*) AS completedRides FROM rides WHERE passenger_account_id = ? AND status = 'Completed'`,
+    [accountId],
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      const completedRides = rows[0].completedRides;
+      res.status(200).json({
+        completedRides,
+        threshold: LOYALTY_THRESHOLD,
+        eligible: completedRides >= LOYALTY_THRESHOLD
+      });
+    }
+  );
+};
+
+// Same milestone, counted against rides a driver has completed instead of
+// requested — lets a driver earn the same in-app recognition passengers do.
+exports.getDriverLoyaltyStatus = (req, res) => {
+  const accountId = req.user.accountId;
+
+  db.query(
+    `SELECT COUNT(*) AS completedRides FROM rides WHERE driver_account_id = ? AND status = 'Completed'`,
+    [accountId],
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      const completedRides = rows[0].completedRides;
+      res.status(200).json({
+        completedRides,
+        threshold: LOYALTY_THRESHOLD,
+        eligible: completedRides >= LOYALTY_THRESHOLD
+      });
+    }
+  );
+};

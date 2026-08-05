@@ -135,9 +135,7 @@ function setStoredUser(user) {
   localStorage.removeItem('userName');
   localStorage.removeItem('userRole');
   localStorage.removeItem('userEmail');
-  renderAuthStatus();
-  updateLoginNavLinkLabel();
-  updateDriverLinkVisibility();
+  refreshAuthState();
 }
 
 function getAuthHeaders() {
@@ -153,36 +151,56 @@ function clearStoredUser() {
   localStorage.removeItem('userName');
   localStorage.removeItem('userRole');
   localStorage.removeItem('userEmail');
-  renderAuthStatus();
-  updateLoginNavLinkLabel();
-  updateDriverLinkVisibility();
+  refreshAuthState();
 }
  
 function renderAuthStatus() {
   const navCta = document.querySelector('.nav-cta');
-  if (!navCta) return;
- 
+  const navToggle = document.querySelector('.nav-toggle');
+  const navToggleAvatar = navToggle ? navToggle.querySelector('.nav-toggle-avatar') : null;
+
   const user = getStoredUser();
   const authenticated = isAuthenticated();
+  const initial = authenticated && user.name ? (user.name.trim().charAt(0).toUpperCase() || '?') : '';
+
+  if (navToggle && navToggleAvatar) {
+    if (initial) {
+      navToggleAvatar.textContent = initial;
+      navToggle.classList.add('has-avatar');
+    } else {
+      navToggleAvatar.textContent = '';
+      navToggle.classList.remove('has-avatar');
+    }
+  }
+
+  const drawerProfile = document.querySelector('.nav-drawer-profile');
+  if (drawerProfile) {
+    if (initial) {
+      const avatar = drawerProfile.querySelector('.nav-drawer-avatar');
+      const name = drawerProfile.querySelector('.nav-drawer-name');
+      const role = drawerProfile.querySelector('.nav-drawer-role');
+      if (avatar) avatar.textContent = initial;
+      if (name) name.textContent = user.name;
+      if (role) role.textContent = user.role || '';
+      drawerProfile.href = user.role === 'driver' ? 'driver-profile.html'
+        : user.role === 'passenger' ? 'passenger-profile.html'
+        : '#';
+      drawerProfile.classList.add('is-visible');
+    } else {
+      drawerProfile.classList.remove('is-visible');
+    }
+  }
+
+  if (!navCta) return;
   let badge = navCta.querySelector('.nav-user-badge');
- 
+
   if (authenticated && user.name) {
     if (!badge) {
       badge = document.createElement('span');
       badge.className = 'nav-user-badge';
-      badge.style.display = 'inline-flex';
-      badge.style.alignItems = 'center';
-      badge.style.marginRight = '0.75rem';
-      badge.style.padding = '0.45rem 0.75rem';
-      badge.style.borderRadius = '999px';
-      badge.style.background = 'rgba(34, 197, 84, 0.14)';
-      badge.style.color = '#166534';
-      badge.style.fontSize = '0.9rem';
-      badge.style.fontWeight = '600';
-      badge.style.whiteSpace = 'nowrap';
       navCta.insertBefore(badge, navCta.firstChild);
     }
-    badge.textContent = `Signed in as ${user.name}`;
+    badge.innerHTML = `<span class="nav-user-avatar">${initial}</span><span class="nav-user-name">${escapeHtml(user.name)}</span>`;
     badge.style.display = 'inline-flex';
   } else if (badge) {
     badge.remove();
@@ -274,6 +292,60 @@ function updateDriverLinkVisibility() {
   }
 }
 
+// booking.html redirects an already-authenticated visitor straight back to
+// their own dashboard (see redirectBookingIfAuthenticated), so once logged
+// in, "Booking" just points to the same place "Driver"/"Passenger" already
+// do — hide it to avoid a link that visibly goes nowhere new.
+function updateBookingLinkVisibility() {
+  const bookingLink = document.querySelector('.nav-links a[data-page="booking"]');
+  if (!bookingLink) return;
+  if (isAuthenticated()) {
+    bookingLink.classList.add('hidden');
+  } else {
+    bookingLink.classList.remove('hidden');
+  }
+}
+
+// Same pattern, the passenger-side equivalent of the Driver link — takes a
+// logged-in passenger back to their own dashboard (passenger.html) from
+// anywhere else in the app, e.g. the Profile page.
+function updatePassengerLinkVisibility() {
+  const passengerLink = document.querySelector('.nav-links a[data-page="passenger"]');
+  if (!passengerLink) return;
+  const user = getStoredUser();
+  if (isAuthenticated() && user.role === 'passenger') {
+    passengerLink.classList.remove('hidden');
+  } else {
+    passengerLink.classList.add('hidden');
+  }
+}
+
+// Profile.html is only meaningful for passengers right now (no
+// driver/admin profile page exists yet) — same hide-unless-relevant-role
+// pattern as the Driver/Admin links.
+function updatePassengerProfileLinkVisibility() {
+  const profileLink = document.querySelector('.nav-links a[data-page="passenger-profile"]');
+  if (!profileLink) return;
+  const user = getStoredUser();
+  if (isAuthenticated() && user.role === 'passenger') {
+    profileLink.classList.remove('hidden');
+  } else {
+    profileLink.classList.add('hidden');
+  }
+}
+
+// Same pattern, for the driver-only equivalent of the Profile link.
+function updateDriverProfileLinkVisibility() {
+  const profileLink = document.querySelector('.nav-links a[data-page="driver-profile"]');
+  if (!profileLink) return;
+  const user = getStoredUser();
+  if (isAuthenticated() && user.role === 'driver') {
+    profileLink.classList.remove('hidden');
+  } else {
+    profileLink.classList.add('hidden');
+  }
+}
+
 // The nav-cta button (the real Logout button) is hidden entirely on mobile
 // (.nav-cta { display: none } in the hamburger breakpoint), so it's this
 // "Login" nav-links item that has to double as "Logout" once signed in —
@@ -281,7 +353,12 @@ function updateDriverLinkVisibility() {
 function updateLoginNavLinkLabel() {
   const loginLink = document.querySelector('.nav-links a[data-page="auth"]');
   if (!loginLink) return;
-  loginLink.textContent = isAuthenticated() ? 'Logout' : 'Login';
+  const label = loginLink.querySelector('span');
+  if (label) {
+    label.textContent = isAuthenticated() ? 'Logout' : 'Login';
+  } else {
+    loginLink.textContent = isAuthenticated() ? 'Logout' : 'Login';
+  }
 }
 
 function setupLoginNavLink() {
@@ -308,9 +385,11 @@ function setupAdminLoginForm() {
     event.preventDefault();
     const username = document.querySelector('#admin-name').value.trim();
     const password = document.querySelector('#admin-password').value.trim();
+    const errorEl = document.querySelector('#admin-login-error');
+    if (errorEl) errorEl.textContent = '';
 
     if (!username || !password) {
-      alert('Please enter both name and password');
+      if (errorEl) errorEl.textContent = 'Please enter both name and password.';
       return;
     }
 
@@ -323,7 +402,7 @@ function setupAdminLoginForm() {
       const data = await response.json();
 
       if (!response.ok) {
-        alert(data.error || 'Invalid admin credentials');
+        if (errorEl) errorEl.textContent = data.error || 'Invalid admin credentials.';
         return;
       }
 
@@ -331,7 +410,7 @@ function setupAdminLoginForm() {
       redirectToDashboard('admin');
     } catch (error) {
       console.error('Admin login request failed', error);
-      alert('Could not connect to the server. Please make sure the backend is running.');
+      if (errorEl) errorEl.textContent = 'Could not connect to the server. Please make sure the backend is running.';
     }
   });
 }
@@ -353,6 +432,188 @@ function showAdminDashboardIfLoggedIn() {
     loginSection.classList.remove('hidden');
     dashboardSection.classList.add('hidden');
   }
+}
+
+// index.html's nav-cta is a static "Sign up" link (unlike the dashboard
+// pages, which already require login to be reached and so always show
+// Logout) — this keeps it in sync since a logged-in user can still browse
+// back to the home page. Safe no-op on every page without #cta-signup.
+function updateHomeCtaVisibility() {
+  const signupLink = document.querySelector('#cta-signup');
+  const logoutButton = document.querySelector('.nav-cta [data-action="logout"]');
+  if (!signupLink || !logoutButton) return;
+
+  if (isAuthenticated()) {
+    signupLink.style.display = 'none';
+    logoutButton.style.display = '';
+  } else {
+    signupLink.style.display = '';
+    logoutButton.style.display = 'none';
+  }
+}
+
+// LOYALTY / REWARDS — only present on passenger-rewards.html, so this is a
+// safe no-op on every other page (all the elements it looks for won't exist).
+async function fetchLoyaltyStatus() {
+  const role = getStoredUser().role;
+  const endpoint = role === 'driver' ? 'driver-loyalty' : 'loyalty';
+  try {
+    const res = await fetch(`${RIDES_API_URL}/${endpoint}`, { headers: getAuthHeaders() });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (error) {
+    console.warn('Unable to fetch loyalty status', error);
+    return null;
+  }
+}
+
+async function renderLoyaltyStatus() {
+  const loadingEl = document.querySelector('#loyalty-loading');
+  const detailsEl = document.querySelector('#loyalty-details');
+  if (!loadingEl || !detailsEl) return;
+
+  const data = await fetchLoyaltyStatus();
+  if (!data) {
+    loadingEl.textContent = 'Unable to load your loyalty status right now.';
+    return;
+  }
+
+  const { completedRides, threshold, eligible } = data;
+  const percent = Math.min(100, Math.round((completedRides / threshold) * 100));
+  const role = getStoredUser().role;
+  const title = role === 'driver' ? 'Loyal Driver' : 'Loyal Passenger';
+
+  document.querySelector('#loyalty-current').textContent = completedRides;
+  document.querySelector('#loyalty-threshold').textContent = threshold;
+  document.querySelector('#loyalty-progress-fill').style.width = `${percent}%`;
+
+  const messageEl = document.querySelector('#loyalty-message');
+  messageEl.classList.remove('eligible', 'in-progress');
+  if (eligible) {
+    messageEl.textContent = `🏆 Congratulations! You are now a ${title}.`;
+    messageEl.classList.add('eligible');
+  } else {
+    const remaining = threshold - completedRides;
+    messageEl.textContent = `${remaining} more completed ride${remaining === 1 ? '' : 's'} to become a ${title}.`;
+    messageEl.classList.add('in-progress');
+  }
+
+  const certificateEl = document.querySelector('#loyalty-certificate');
+  if (certificateEl) {
+    if (eligible) {
+      const user = getStoredUser();
+      const nameEl = certificateEl.querySelector('#certificate-name');
+      const countEl = certificateEl.querySelector('#certificate-count');
+      const titleEl = certificateEl.querySelector('#certificate-title');
+      const dateEl = certificateEl.querySelector('#certificate-date');
+      if (nameEl) nameEl.textContent = user.name || 'GoTSUian Member';
+      if (countEl) countEl.textContent = completedRides;
+      if (titleEl) titleEl.textContent = title;
+      if (dateEl) dateEl.textContent = `Awarded ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`;
+      certificateEl.style.display = 'block';
+    } else {
+      certificateEl.style.display = 'none';
+    }
+  }
+
+  loadingEl.style.display = 'none';
+  detailsEl.style.display = 'block';
+}
+
+// PROFILE — only present on passenger-profile.html, so this is a safe
+// no-op on every other page.
+async function fetchProfile() {
+  try {
+    const res = await fetch(PROFILE_API_URL, { headers: getAuthHeaders() });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.profile || null;
+  } catch (error) {
+    console.warn('Unable to fetch profile', error);
+    return null;
+  }
+}
+
+async function updateProfileRemote(payload) {
+  const res = await fetch(PROFILE_API_URL, {
+    method: 'PUT',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload)
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Unable to update profile');
+  return data;
+}
+
+async function renderProfile() {
+  const loadingEl = document.querySelector('#profile-loading');
+  const formEl = document.querySelector('#profile-form');
+  if (!loadingEl || !formEl) return;
+
+  const profile = await fetchProfile();
+  if (!profile) {
+    loadingEl.textContent = 'Unable to load your profile right now.';
+    return;
+  }
+
+  document.querySelector('#profile-fname').value = profile.first_name || '';
+  document.querySelector('#profile-mname').value = profile.middle_name || '';
+  document.querySelector('#profile-lname').value = profile.last_name || '';
+  document.querySelector('#profile-contact').value = profile.contact_number || '';
+  document.querySelector('#profile-birthdate').value = profile.birth_date ? profile.birth_date.slice(0, 10) : '';
+  document.querySelector('#profile-age').value = profile.age || '';
+  document.querySelector('#profile-sex').value = profile.sex || '';
+  document.querySelector('#profile-address').value = profile.current_address || '';
+
+  const noteEl = document.querySelector('#profile-readonly-note');
+  if (noteEl) {
+    if (profile.student_number) {
+      noteEl.textContent = `Student number: ${profile.student_number} (not editable here)`;
+    } else if (profile.driver_license_no) {
+      noteEl.textContent = `Driver's license no: ${profile.driver_license_no} (not editable here)`;
+    }
+  }
+
+  loadingEl.style.display = 'none';
+  formEl.style.display = '';
+}
+
+function setupProfileForm() {
+  const form = document.querySelector('#profile-form');
+  if (!form) return;
+
+  form.addEventListener('submit', async function(event) {
+    event.preventDefault();
+    const errorEl = document.querySelector('#profile-error');
+    if (errorEl) errorEl.textContent = '';
+
+    const payload = {
+      first_name: document.querySelector('#profile-fname').value.trim(),
+      middle_name: document.querySelector('#profile-mname').value.trim(),
+      last_name: document.querySelector('#profile-lname').value.trim(),
+      contact_number: document.querySelector('#profile-contact').value.trim(),
+      birth_date: document.querySelector('#profile-birthdate').value || null,
+      age: document.querySelector('#profile-age').value || null,
+      sex: document.querySelector('#profile-sex').value || null,
+      current_address: document.querySelector('#profile-address').value.trim()
+    };
+
+    const submitButton = form.querySelector('button[type="submit"]');
+    if (submitButton) submitButton.disabled = true;
+
+    try {
+      await updateProfileRemote(payload);
+      if (submitButton) {
+        const originalText = submitButton.textContent;
+        submitButton.textContent = 'Saved!';
+        setTimeout(() => { submitButton.textContent = originalText; }, 2000);
+      }
+    } catch (error) {
+      if (errorEl) errorEl.textContent = error.message || 'Could not save your changes.';
+    } finally {
+      if (submitButton) submitButton.disabled = false;
+    }
+  });
 }
  
 async function fetchAdminDrivers() {
@@ -497,6 +758,7 @@ function getRideLifecycleSteps(status) {
  
 const RIDES_API_URL = 'http://localhost:3000/api/rides';
 const ADMIN_API_URL = 'http://localhost:3000/api/admin';
+const PROFILE_API_URL = 'http://localhost:3000/api/profile';
 
 // Formats a JS Date as 'YYYY-MM-DD HH:MM:SS' in local time, which is what
 // MySQL's DATETIME column expects — avoids timezone drift from ISO strings.
@@ -787,6 +1049,53 @@ async function renderPassengerRideStatus() {
       }
     });
   }
+}
+
+async function renderBookingsList() {
+  const loading = document.querySelector('#bookings-loading');
+  const emptyState = document.querySelector('#bookings-empty');
+  const list = document.querySelector('#bookings-list');
+  if (!loading || !emptyState || !list) return;
+
+  const user = getStoredUser();
+  if (!isAuthenticated() || (user.role !== 'passenger' && user.role !== 'driver')) return;
+
+  const isDriver = user.role === 'driver';
+  const rides = await (isDriver ? fetchDriverRides() : fetchMyRides());
+  loading.style.display = 'none';
+
+  if (!rides.length) {
+    emptyState.style.display = 'flex';
+    list.style.display = 'none';
+    list.innerHTML = '';
+    return;
+  }
+
+  emptyState.style.display = 'none';
+  list.style.display = 'flex';
+  list.innerHTML = rides.map(ride => {
+    const statusConfig = getRideStatusConfig(ride.status);
+    const fareText = ride.fare != null ? `₱${Number(ride.fare).toFixed(0)}` : 'Calculating';
+    const otherPartyLabel = isDriver ? 'Passenger' : 'Driver';
+    const otherPartyName = (isDriver ? ride.passenger_name : ride.driver_name) || 'Not yet assigned';
+    const requestedAt = new Date(ride.created_at).toLocaleString();
+    return `
+      <article class="booking-item">
+        <div>
+          <p class="booking-route">${escapeHtml(ride.pickup_location)} <span class="ride-route-arrow">→</span> ${escapeHtml(ride.dropoff_location)}</p>
+          <div class="booking-meta">
+            <span>${escapeHtml(ride.ride_type)}</span>
+            <span>${escapeHtml(otherPartyLabel)}: ${escapeHtml(otherPartyName)}</span>
+            <span>Requested ${escapeHtml(requestedAt)}</span>
+          </div>
+        </div>
+        <div class="booking-meta" style="align-items:center; gap:14px;">
+          <span class="booking-fare">${escapeHtml(fareText)}</span>
+          <span class="ride-badge tone-${statusConfig.tone}">${escapeHtml(statusConfig.label)}</span>
+        </div>
+      </article>
+    `;
+  }).join('');
 }
 
 function renderPendingRideCard(group) {
@@ -1683,12 +1992,14 @@ function setupAuthForm() {
       event.preventDefault();
       const email = document.querySelector('#login-email').value.trim().toLowerCase();
       const password = document.querySelector('#login-password').value.trim();
- 
+      const errorEl = document.querySelector('#login-error');
+      if (errorEl) errorEl.textContent = '';
+
       if (!email || !password) {
-        alert('Please enter email and password');
+        if (errorEl) errorEl.textContent = 'Please enter email and password.';
         return;
       }
- 
+
       const payload = JSON.stringify({ username: email, password: password });
       const headers = { 'Content-Type': 'application/json' };
  
@@ -1719,10 +2030,10 @@ function setupAuthForm() {
         }
  
         if (!response.ok) {
-          alert(data.error || 'Invalid email or password');
+          if (errorEl) errorEl.textContent = data.error || 'Invalid email or password.';
           return;
         }
- 
+
         // The backend stores passenger accounts with role "student" (it matches
         // the `student` table), but every dashboard/redirect check in this file
         // uses "passenger" as the role name. Normalize it here, once, right
@@ -1730,10 +2041,10 @@ function setupAuthForm() {
         const role = data.user.role === 'student' ? 'passenger' : data.user.role;
         setStoredUser({ name: data.user.name, role, email: data.user.username, accountId: data.user.accountId, accountStatus: data.user.accountStatus, token: data.token });
         redirectToDashboard(role);
- 
+
       } catch (error) {
         console.error('Login request failed', error);
-        alert('Could not connect to the server. Please make sure the backend is running.');
+        if (errorEl) errorEl.textContent = 'Could not connect to the server. Please make sure the backend is running.';
       }
     });
 }
@@ -1749,6 +2060,11 @@ function refreshAuthState() {
   redirectBookingIfAuthenticated();
   hideAdminLinkForNonAdmin();
   updateDriverLinkVisibility();
+  updateBookingLinkVisibility();
+  updatePassengerLinkVisibility();
+  updatePassengerProfileLinkVisibility();
+  updateDriverProfileLinkVisibility();
+  updateHomeCtaVisibility();
   showDriverApprovalBanner();
   renderAuthStatus();
   fillDashboardWelcome();
@@ -1757,6 +2073,9 @@ function refreshAuthState() {
   renderDriverDashboardStats();
   showAdminDashboardIfLoggedIn();
   renderAdminDriverManagement();
+  renderLoyaltyStatus();
+  renderProfile();
+  renderBookingsList();
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -1769,6 +2088,7 @@ document.addEventListener('DOMContentLoaded', function() {
   setupAdminLoginForm();
   setupLogoutButtons();
   setupPassengerRideRequestForm();
+  setupProfileForm();
 });
 
 // Chrome/Edge can restore a page from the "back/forward cache" (a frozen
