@@ -5,6 +5,7 @@ const authRoutes = require('./routes/authRoutes');
 const rideRoutes = require('./routes/rideRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const profileRoutes = require('./routes/profileRoutes');
+const reviewRoutes = require('./routes/reviewRoutes');
 
 
 const app = express();
@@ -33,6 +34,9 @@ app.use('/api/admin', adminRoutes);
 
 // Profile routes
 app.use('/api/profile', profileRoutes);
+
+// Review routes
+app.use('/api/reviews', reviewRoutes);
 
 
 

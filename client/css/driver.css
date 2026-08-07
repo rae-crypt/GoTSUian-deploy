@@ -1264,6 +1264,16 @@ background: #fff;
   border: 1px solid rgba(27, 94, 32, 0.18);
 }
 
+.btn-secondary-outline {
+  background: transparent;
+  color: var(--primary);
+  border: 1px solid var(--primary);
+}
+
+.btn-secondary-outline:hover {
+  background: rgba(127, 29, 29, 0.08);
+}
+
 
 
 .hero-visual  {
@@ -1345,6 +1355,78 @@ display: none !important;
   line-height: 1;
 }
 
+.availability-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  background: var(--white);
+  border: 1px solid rgba(27, 94, 32, 0.08);
+  border-radius: 20px;
+  box-shadow: var(--shadow);
+  padding: 18px 24px;
+  margin-top: 24px;
+}
+
+.availability-toggle strong {
+  color: var(--primary);
+  font-size: 1rem;
+}
+
+.availability-toggle p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+  max-width: 46ch;
+}
+
+.availability-switch {
+  flex-shrink: 0;
+  width: 52px;
+  height: 30px;
+  border-radius: 999px;
+  border: none;
+  background: #d1d5db;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.availability-switch.is-on {
+  background: #16a34a;
+}
+
+.availability-switch-knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--white);
+  transition: transform 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.availability-switch.is-on .availability-switch-knob {
+  transform: translateX(22px);
+}
+
+.location-sharing-label {
+  margin: 8px 0 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+@media (max-width: 640px) {
+  .availability-toggle {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+  }
+}
+
 .approval-banner strong {
   display: block;
   color: #92400e;
@@ -1401,11 +1483,17 @@ gap: 12px;
   }
 }
 
-.nav-user-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
+.nav-user-menu {
+  position: relative;
   margin-right: 0.75rem;
+}
+
+.nav-user-trigger {
+  display: inline-flex;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
 }
 
 .nav-user-avatar {
@@ -1421,10 +1509,67 @@ gap: 12px;
   flex-shrink: 0;
 }
 
-.nav-user-name {
+.nav-user-dropdown {
+  display: none;
+  flex-direction: column;
+  gap: 2px;
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  min-width: 190px;
+  background: var(--white);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  padding: 10px;
+  z-index: 70;
+}
+
+.nav-user-menu.is-open .nav-user-dropdown {
+  display: flex;
+}
+
+/* Resets the `.nav-cta a` / `.nav-cta button` pill-button styling (maroon
+   background + white text) that would otherwise bleed into every dropdown
+   row, since these links/buttons live inside .nav-cta too. */
+.nav-user-dropdown a,
+.nav-user-dropdown button {
+  display: block;
+  width: 100%;
+  background: none;
+  border: none;
+  border-radius: 10px;
+  text-align: left;
+  padding: 9px 10px;
+  color: var(--muted);
+  font-family: inherit;
   font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.nav-user-dropdown a:hover,
+.nav-user-dropdown button:hover {
+  background: var(--light);
+  color: var(--primary);
+}
+
+.nav-user-dropdown-header {
+  padding-bottom: 12px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--light);
+}
+
+.nav-user-dropdown-header strong {
+  display: block;
   color: var(--text);
-  white-space: nowrap;
+  font-size: 0.95rem;
+}
+
+.nav-user-dropdown-header small {
+  color: var(--muted);
+  font-weight: 500;
+  text-transform: capitalize;
 }
 
 .form-row-2 {
@@ -1584,5 +1729,102 @@ gap: 12px;
   font-size: 0.78rem;
   color: var(--muted);
   margin: 0;
+}
+
+.rating-summary {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--accent-gold);
+  margin: 12px 0;
+}
+
+.rating-summary small {
+  font-size: 0.85rem;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.rating-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rating-item {
+  padding: 10px 14px;
+  border: 1px solid var(--light);
+  border-radius: 12px;
+}
+
+.rating-item-stars {
+  margin: 0 0 4px;
+  color: var(--accent-gold);
+  font-weight: 700;
+}
+
+.rating-item-stars span {
+  color: var(--text);
+  font-weight: 600;
+  font-size: 0.85rem;
+  margin-left: 8px;
+}
+
+.rating-item-comment {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.rating-empty {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.profile-logout-row {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--light);
+}
+
+.map-stack {
+  position: relative;
+  margin-top: 24px;
+}
+
+/* Same stacking-context fix as the passenger map: Leaflet's internal panes
+   use z-index values up to 700, which would otherwise escape and render on
+   top of the sticky header / mobile nav drawer (z-index 100). */
+.driver-map {
+  position: relative;
+  z-index: 1;
+  height: 380px;
+  border-radius: 24px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
+@media (max-width: 640px) {
+  .driver-map {
+    height: 280px;
+  }
+}
+
+.driver-location-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--white);
+  border: 3px solid var(--primary);
+  font-size: 1.2rem;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
+  animation: driver-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes driver-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
 }
 

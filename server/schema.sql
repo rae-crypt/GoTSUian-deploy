@@ -43,6 +43,10 @@ CREATE TABLE IF NOT EXISTS tricycle_driver (
   last_name VARCHAR(100) NOT NULL,
   driver_license_no VARCHAR(50) NOT NULL,
   account_status ENUM('Pending', 'Active', 'Rejected') NOT NULL DEFAULT 'Pending',
+  is_online BOOLEAN NOT NULL DEFAULT FALSE,
+  current_lat DECIMAL(10,7) NULL,
+  current_lng DECIMAL(10,7) NULL,
+  location_updated_at DATETIME NULL,
   birth_date DATE,
   age INT,
   sex ENUM('male', 'female', 'other'),
@@ -105,4 +109,20 @@ CREATE TABLE IF NOT EXISTS rides (
   FOREIGN KEY (passenger_account_id) REFERENCES user_account(account_id),
   FOREIGN KEY (driver_account_id) REFERENCES user_account(account_id),
   FOREIGN KEY (pool_id) REFERENCES ride_pools(pool_id)
+);
+
+-- One review per completed ride, left by the passenger for the driver who
+-- served it. UNIQUE(ride_id) is what stops a ride from being reviewed twice.
+CREATE TABLE IF NOT EXISTS reviews (
+  review_id INT AUTO_INCREMENT PRIMARY KEY,
+  ride_id INT NOT NULL UNIQUE,
+  passenger_account_id INT NOT NULL,
+  driver_account_id INT NOT NULL,
+  rating TINYINT NOT NULL,
+  comment TEXT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (ride_id) REFERENCES rides(ride_id),
+  FOREIGN KEY (passenger_account_id) REFERENCES user_account(account_id),
+  FOREIGN KEY (driver_account_id) REFERENCES user_account(account_id),
+  CHECK (rating BETWEEN 1 AND 5)
 );

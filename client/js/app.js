@@ -173,6 +173,14 @@ function renderAuthStatus() {
     }
   }
 
+  const profileHref = user.role === 'driver' ? 'driver-profile.html'
+    : user.role === 'passenger' ? 'passenger-profile.html'
+    : '#';
+  const dashboardHref = user.role === 'driver' ? 'driver.html'
+    : user.role === 'passenger' ? 'passenger.html'
+    : user.role === 'admin' ? 'admin.html'
+    : '#';
+
   const drawerProfile = document.querySelector('.nav-drawer-profile');
   if (drawerProfile) {
     if (initial) {
@@ -182,9 +190,7 @@ function renderAuthStatus() {
       if (avatar) avatar.textContent = initial;
       if (name) name.textContent = user.name;
       if (role) role.textContent = user.role || '';
-      drawerProfile.href = user.role === 'driver' ? 'driver-profile.html'
-        : user.role === 'passenger' ? 'passenger-profile.html'
-        : '#';
+      drawerProfile.href = profileHref;
       drawerProfile.classList.add('is-visible');
     } else {
       drawerProfile.classList.remove('is-visible');
@@ -192,18 +198,69 @@ function renderAuthStatus() {
   }
 
   if (!navCta) return;
-  let badge = navCta.querySelector('.nav-user-badge');
+  let menu = navCta.querySelector('.nav-user-menu');
 
   if (authenticated && user.name) {
-    if (!badge) {
-      badge = document.createElement('span');
-      badge.className = 'nav-user-badge';
-      navCta.insertBefore(badge, navCta.firstChild);
+    // Built once and updated in place on later refreshes (not rebuilt every
+    // time) — refreshAuthState runs on a poll timer, and rebuilding the DOM
+    // each time would force-close the dropdown mid-interaction and require
+    // re-attaching its listeners every few seconds.
+    if (!menu) {
+      menu = document.createElement('div');
+      menu.className = 'nav-user-menu';
+      menu.innerHTML = `
+        <button type="button" class="nav-user-trigger" aria-haspopup="true" aria-expanded="false">
+          <span class="nav-user-avatar"></span>
+        </button>
+        <div class="nav-user-dropdown">
+          <a class="nav-user-dropdown-header" href="#">
+            <strong class="nav-user-dropdown-name"></strong>
+            <small class="nav-user-dropdown-role"></small>
+          </a>
+          <a class="nav-user-dropdown-dashboard" href="#">Booking</a>
+          <a href="index.html">Home</a>
+          <button type="button" data-action="logout">Logout</button>
+        </div>
+      `;
+      navCta.insertBefore(menu, navCta.firstChild);
+
+      const trigger = menu.querySelector('.nav-user-trigger');
+      trigger.addEventListener('click', function(event) {
+        event.stopPropagation();
+        const isOpen = menu.classList.toggle('is-open');
+        trigger.setAttribute('aria-expanded', String(isOpen));
+      });
+      document.addEventListener('click', function(event) {
+        if (!menu.contains(event.target)) {
+          menu.classList.remove('is-open');
+          trigger.setAttribute('aria-expanded', 'false');
+        }
+      });
+      // Belt-and-suspenders: close on any dropdown item click too, in case
+      // navigation doesn't immediately tear down the page (e.g. logout).
+      menu.querySelectorAll('.nav-user-dropdown a, .nav-user-dropdown button').forEach(el => {
+        el.addEventListener('click', () => menu.classList.remove('is-open'));
+      });
     }
-    badge.innerHTML = `<span class="nav-user-avatar">${initial}</span><span class="nav-user-name">${escapeHtml(user.name)}</span>`;
-    badge.style.display = 'inline-flex';
-  } else if (badge) {
-    badge.remove();
+
+    menu.querySelector('.nav-user-avatar').textContent = initial;
+    menu.querySelector('.nav-user-dropdown-name').textContent = user.name;
+    menu.querySelector('.nav-user-dropdown-role').textContent = user.role || '';
+
+    // Admin has no profile page — leave the header un-clickable for them.
+    const headerLink = menu.querySelector('.nav-user-dropdown-header');
+    if (profileHref !== '#') {
+      headerLink.href = profileHref;
+    } else {
+      headerLink.removeAttribute('href');
+    }
+
+    const dashboardLink = menu.querySelector('.nav-user-dropdown-dashboard');
+    dashboardLink.href = dashboardHref;
+    dashboardLink.textContent = user.role === 'admin' ? 'Dashboard' : 'Booking';
+    dashboardLink.style.display = dashboardHref !== '#' ? '' : 'none';
+  } else if (menu) {
+    menu.remove();
   }
 }
  
@@ -320,44 +377,42 @@ function updatePassengerLinkVisibility() {
   }
 }
 
-// Profile.html is only meaningful for passengers right now (no
-// driver/admin profile page exists yet) — same hide-unless-relevant-role
-// pattern as the Driver/Admin links.
-function updatePassengerProfileLinkVisibility() {
-  const profileLink = document.querySelector('.nav-links a[data-page="passenger-profile"]');
-  if (!profileLink) return;
-  const user = getStoredUser();
-  if (isAuthenticated() && user.role === 'passenger') {
-    profileLink.classList.remove('hidden');
-  } else {
-    profileLink.classList.add('hidden');
-  }
-}
-
-// Same pattern, for the driver-only equivalent of the Profile link.
-function updateDriverProfileLinkVisibility() {
-  const profileLink = document.querySelector('.nav-links a[data-page="driver-profile"]');
-  if (!profileLink) return;
-  const user = getStoredUser();
-  if (isAuthenticated() && user.role === 'driver') {
-    profileLink.classList.remove('hidden');
-  } else {
-    profileLink.classList.add('hidden');
-  }
-}
-
-// The nav-cta button (the real Logout button) is hidden entirely on mobile
-// (.nav-cta { display: none } in the hamburger breakpoint), so it's this
-// "Login" nav-links item that has to double as "Logout" once signed in —
-// otherwise the mobile menu shows "Login" forever, even while logged in.
+// Driver/passenger logout now lives on their Profile page (reached via the
+// clickable nav-cta avatar badge — see renderAuthStatus), so this nav-links
+// item is hidden entirely for them once signed in. Admin has no profile
+// page, so it keeps the old relabel-to-"Logout" behavior — otherwise admin
+// would have no way to log out on mobile, where nav-cta (and its Logout
+// button) is hidden below the hamburger breakpoint.
 function updateLoginNavLinkLabel() {
+  const user = getStoredUser();
+  const authenticated = isAuthenticated();
+  const isDriverOrPassenger = user.role === 'driver' || user.role === 'passenger';
+
+  // Driver/passenger logout lives on desktop-only surfaces now (the nav-cta
+  // avatar dropdown, or the Profile page) — .nav-cta itself is hidden below
+  // the drawer breakpoint, so mobile needs its own dedicated Logout row
+  // inside the drawer. This button (unused until now) was already styled
+  // for exactly this in every page's CSS — see .nav-row-logout.
+  const mobileLogoutBtn = document.querySelector('.nav-links .nav-row-logout');
+  if (mobileLogoutBtn) {
+    mobileLogoutBtn.classList.toggle('hidden', !(authenticated && isDriverOrPassenger));
+  }
+
   const loginLink = document.querySelector('.nav-links a[data-page="auth"]');
   if (!loginLink) return;
+
+  if (authenticated && isDriverOrPassenger) {
+    loginLink.classList.add('hidden');
+    return;
+  }
+  loginLink.classList.remove('hidden');
+
   const label = loginLink.querySelector('span');
+  const text = authenticated ? 'Logout' : 'Login';
   if (label) {
-    label.textContent = isAuthenticated() ? 'Logout' : 'Login';
+    label.textContent = text;
   } else {
-    loginLink.textContent = isAuthenticated() ? 'Logout' : 'Login';
+    loginLink.textContent = text;
   }
 }
 
@@ -434,22 +489,14 @@ function showAdminDashboardIfLoggedIn() {
   }
 }
 
-// index.html's nav-cta is a static "Sign up" link (unlike the dashboard
-// pages, which already require login to be reached and so always show
-// Logout) — this keeps it in sync since a logged-in user can still browse
-// back to the home page. Safe no-op on every page without #cta-signup.
+// index.html's nav-cta has a static "Sign up" link — hide it once someone
+// browses back to the home page already logged in (the avatar badge next to
+// it covers account access instead). Safe no-op on every page without
+// #cta-signup.
 function updateHomeCtaVisibility() {
   const signupLink = document.querySelector('#cta-signup');
-  const logoutButton = document.querySelector('.nav-cta [data-action="logout"]');
-  if (!signupLink || !logoutButton) return;
-
-  if (isAuthenticated()) {
-    signupLink.style.display = 'none';
-    logoutButton.style.display = '';
-  } else {
-    signupLink.style.display = '';
-    logoutButton.style.display = 'none';
-  }
+  if (!signupLink) return;
+  signupLink.style.display = isAuthenticated() ? 'none' : '';
 }
 
 // LOYALTY / REWARDS — only present on passenger-rewards.html, so this is a
@@ -518,6 +565,39 @@ async function renderLoyaltyStatus() {
 
   loadingEl.style.display = 'none';
   detailsEl.style.display = 'block';
+}
+
+// DRIVER RATING — only present on driver-profile.html, so this is a safe
+// no-op on every other page.
+async function renderDriverRating() {
+  const loadingEl = document.querySelector('#rating-loading');
+  const detailsEl = document.querySelector('#rating-details');
+  if (!loadingEl || !detailsEl) return;
+
+  const user = getStoredUser();
+  if (!isAuthenticated() || user.role !== 'driver') return;
+
+  try {
+    const res = await fetch(`${REVIEWS_API_URL}/mine`, { headers: getAuthHeaders() });
+    if (!res.ok) return;
+    const data = await res.json();
+
+    document.querySelector('#rating-average').textContent = data.average.toFixed(1);
+    document.querySelector('#rating-count').textContent = `(${data.count} review${data.count === 1 ? '' : 's'})`;
+
+    const listEl = document.querySelector('#rating-list');
+    listEl.innerHTML = data.reviews.slice(0, 5).map(r => `
+      <div class="rating-item">
+        <p class="rating-item-stars">${'★'.repeat(r.rating)}${'☆'.repeat(5 - r.rating)} <span>${escapeHtml(r.passenger_name)}</span></p>
+        ${r.comment ? `<p class="rating-item-comment">${escapeHtml(r.comment)}</p>` : ''}
+      </div>
+    `).join('') || '<p class="rating-empty">No reviews yet.</p>';
+
+    loadingEl.style.display = 'none';
+    detailsEl.style.display = 'block';
+  } catch (error) {
+    console.warn('Unable to fetch driver rating', error);
+  }
 }
 
 // PROFILE — only present on passenger-profile.html, so this is a safe
@@ -616,6 +696,224 @@ function setupProfileForm() {
   });
 }
  
+// PASSENGER MAP — only present on passenger.html, so this is a safe no-op
+// everywhere else. Static markers for now (the two fixed campus points);
+// GPS tracking gets layered on top of this once the map itself works.
+let passengerMapInstance = null;
+let driverLocationMarker = null;
+
+// Keeps both maps locked to the Tarlac area — without this, a user can
+// zoom/pan all the way out to a world view, which is disorienting for a
+// system that only ever serves two fixed points a few km apart.
+const TARLAC_BOUNDS = [[15.35, 120.45], [15.65, 120.75]];
+
+function setupPassengerMap() {
+  const mapEl = document.querySelector('#map');
+  if (!mapEl || typeof L === 'undefined') return;
+
+  passengerMapInstance = L.map('map', {
+    minZoom: 12,
+    maxBounds: TARLAC_BOUNDS,
+    maxBoundsViscosity: 1.0
+  }).setView([15.494, 120.583], 14);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+  }).addTo(passengerMapInstance);
+
+  L.marker([15.485196, 120.587386]).addTo(passengerMapInstance).bindPopup('Main Campus');
+  L.marker([15.502741, 120.578814]).addTo(passengerMapInstance).bindPopup('San Isidro Campus');
+}
+
+// Polls for the assigned driver's live position while there's an active
+// ride, and moves (or creates/removes) a marker on top of the static campus
+// pins. Only present on passenger.html — safe no-op everywhere else.
+let driverRouteLine = null;
+let driverTrackedRideId = null;
+
+function clearDriverTracking() {
+  if (driverLocationMarker) {
+    passengerMapInstance.removeLayer(driverLocationMarker);
+    driverLocationMarker = null;
+  }
+  if (driverRouteLine) {
+    passengerMapInstance.removeLayer(driverRouteLine);
+    driverRouteLine = null;
+  }
+  driverRouteFull = null;
+  driverTrackedRideId = null;
+}
+
+// Both of our routes only ever run between the same two fixed points, so we
+// can tell direction from the ride's own pickup/dropoff text instead of
+// asking a routing API which way to go.
+function getRouteForRide(ride) {
+  const pickupIsSanIsidro = (ride.pickup_location || '').includes('San Isidro');
+  return pickupIsSanIsidro ? ROUTE_SAN_ISIDRO_TO_MAIN : ROUTE_MAIN_TO_SAN_ISIDRO;
+}
+
+// Finds which point in the route array the driver's current GPS is closest
+// to, so we can draw only the REMAINING stretch of road ahead of them (the
+// "consumed" portion behind them disappears) instead of always showing the
+// whole route end-to-end. Plain squared-difference is fine here — we only
+// need to compare distances relative to each other, not true meters, and
+// the route points are close enough together that this never picks the
+// wrong one in practice.
+function findNearestRouteIndex(route, point) {
+  let nearestIndex = 0;
+  let nearestDist = Infinity;
+  route.forEach((routePoint, index) => {
+    const dLat = routePoint[0] - point[0];
+    const dLng = routePoint[1] - point[1];
+    const dist = dLat * dLat + dLng * dLng;
+    if (dist < nearestDist) {
+      nearestDist = dist;
+      nearestIndex = index;
+    }
+  });
+  return nearestIndex;
+}
+
+let driverRouteFull = null;
+
+async function pollDriverLocation() {
+  if (!passengerMapInstance) return;
+  const user = getStoredUser();
+  if (!isAuthenticated() || user.role !== 'passenger') return;
+
+  const rides = await fetchMyRides();
+  const activeRide = rides.find(r => ['Accepted', 'Picked Up', 'In Progress'].includes(r.status));
+
+  if (!activeRide) {
+    if (driverTrackedRideId !== null) clearDriverTracking();
+    return;
+  }
+
+  // A new ride (different ride_id) means a fresh trip — wipe any leftover
+  // marker/route from a previous ride instead of leaving it on the map.
+  if (driverTrackedRideId !== null && driverTrackedRideId !== activeRide.ride_id) {
+    clearDriverTracking();
+  }
+
+  if (driverTrackedRideId !== activeRide.ride_id) {
+    driverTrackedRideId = activeRide.ride_id;
+    driverRouteFull = getRouteForRide(activeRide);
+    driverRouteLine = L.polyline(driverRouteFull, {
+      color: '#7f1d1d', weight: 5, opacity: 0.75, lineCap: 'round', lineJoin: 'round'
+    }).addTo(passengerMapInstance);
+  }
+
+  try {
+    const res = await fetch(`${RIDES_API_URL}/${activeRide.ride_id}/driver-location`, { headers: getAuthHeaders() });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data.lat == null || data.lng == null) return;
+
+    const point = [data.lat, data.lng];
+
+    if (driverRouteFull && driverRouteLine) {
+      const nearestIndex = findNearestRouteIndex(driverRouteFull, point);
+      driverRouteLine.setLatLngs(driverRouteFull.slice(nearestIndex));
+    }
+
+    if (!driverLocationMarker) {
+      const driverIcon = L.divIcon({ className: 'driver-location-icon', html: '<span class="driver-location-badge">🛺</span>', iconSize: [36, 36], iconAnchor: [18, 18] });
+      driverLocationMarker = L.marker(point, { icon: driverIcon, zIndexOffset: 1000 }).addTo(passengerMapInstance).bindPopup('Your driver');
+    } else {
+      driverLocationMarker.setLatLng(point);
+    }
+  } catch (error) {
+    console.warn('Unable to fetch driver location', error);
+  }
+}
+
+// DRIVER'S OWN MAP — mirrors the passenger-side map: static campus markers
+// plus, while there's an active ride, the same shrinking route line and a
+// marker for the driver's own live GPS fix. Only present on driver.html —
+// safe no-op everywhere else.
+let driverMapInstance = null;
+let driverMapMarker = null;
+let driverMapRouteLine = null;
+let driverMapRouteFull = null;
+let driverMapTrackedRideId = null;
+let lastKnownDriverPosition = null;
+
+function setupDriverMap() {
+  const mapEl = document.querySelector('#driver-map');
+  if (!mapEl || typeof L === 'undefined') return;
+
+  driverMapInstance = L.map('driver-map', {
+    minZoom: 12,
+    maxBounds: TARLAC_BOUNDS,
+    maxBoundsViscosity: 1.0
+  }).setView([15.494, 120.583], 14);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+  }).addTo(driverMapInstance);
+
+  L.marker([15.485196, 120.587386]).addTo(driverMapInstance).bindPopup('Main Campus');
+  L.marker([15.502741, 120.578814]).addTo(driverMapInstance).bindPopup('San Isidro Campus');
+}
+
+function clearDriverMapTracking() {
+  if (driverMapMarker) {
+    driverMapInstance.removeLayer(driverMapMarker);
+    driverMapMarker = null;
+  }
+  if (driverMapRouteLine) {
+    driverMapInstance.removeLayer(driverMapRouteLine);
+    driverMapRouteLine = null;
+  }
+  driverMapRouteFull = null;
+  driverMapTrackedRideId = null;
+}
+
+// Draws the driver's progress on their own map: while an active ride
+// exists, shows the route line (shrinking as they advance, same as what
+// the passenger sees) plus a marker at the driver's last known GPS fix.
+// Runs on the same polling cadence as the location-sharing sync.
+async function renderDriverMapTracking() {
+  if (!driverMapInstance) return;
+  const user = getStoredUser();
+  if (!isAuthenticated() || user.role !== 'driver') return;
+
+  const rides = await fetchDriverRides();
+  const activeRide = rides.find(r => ['Accepted', 'Picked Up', 'In Progress'].includes(r.status));
+
+  if (!activeRide) {
+    if (driverMapTrackedRideId !== null) clearDriverMapTracking();
+    return;
+  }
+
+  if (driverMapTrackedRideId !== null && driverMapTrackedRideId !== activeRide.ride_id) {
+    clearDriverMapTracking();
+  }
+
+  if (driverMapTrackedRideId !== activeRide.ride_id) {
+    driverMapTrackedRideId = activeRide.ride_id;
+    driverMapRouteFull = getRouteForRide(activeRide);
+    driverMapRouteLine = L.polyline(driverMapRouteFull, {
+      color: '#7f1d1d', weight: 5, opacity: 0.75, lineCap: 'round', lineJoin: 'round'
+    }).addTo(driverMapInstance);
+  }
+
+  if (!lastKnownDriverPosition) return;
+  const point = lastKnownDriverPosition;
+
+  if (driverMapRouteFull && driverMapRouteLine) {
+    const nearestIndex = findNearestRouteIndex(driverMapRouteFull, point);
+    driverMapRouteLine.setLatLngs(driverMapRouteFull.slice(nearestIndex));
+  }
+
+  if (!driverMapMarker) {
+    const driverIcon = L.divIcon({ className: 'driver-location-icon', html: '<span class="driver-location-badge">🛺</span>', iconSize: [36, 36], iconAnchor: [18, 18] });
+    driverMapMarker = L.marker(point, { icon: driverIcon, zIndexOffset: 1000 }).addTo(driverMapInstance).bindPopup('You');
+  } else {
+    driverMapMarker.setLatLng(point);
+  }
+}
+
 async function fetchAdminDrivers() {
   try {
     const res = await fetch(`${ADMIN_API_URL}/drivers`, { headers: getAuthHeaders() });
@@ -625,6 +923,29 @@ async function fetchAdminDrivers() {
   } catch (error) {
     console.warn('Unable to fetch drivers', error);
     return [];
+  }
+}
+
+// ADMIN DASHBOARD STATS — only present on admin.html, so this is a safe
+// no-op on every other page.
+async function renderAdminStats() {
+  const bookingsEl = document.querySelector('#admin-stat-bookings');
+  if (!bookingsEl) return;
+
+  const user = getStoredUser();
+  if (!isAuthenticated() || user.role !== 'admin') return;
+
+  try {
+    const res = await fetch(`${ADMIN_API_URL}/stats`, { headers: getAuthHeaders() });
+    if (!res.ok) return;
+    const stats = await res.json();
+
+    bookingsEl.textContent = stats.totalBookings.toLocaleString();
+    document.querySelector('#admin-stat-drivers').textContent = stats.registeredDrivers.toLocaleString();
+    document.querySelector('#admin-stat-passengers').textContent = stats.activePassengers.toLocaleString();
+    document.querySelector('#admin-stat-pending').textContent = stats.pendingRequests.toLocaleString();
+  } catch (error) {
+    console.warn('Unable to fetch admin stats', error);
   }
 }
 
@@ -689,6 +1010,75 @@ async function renderAdminDriverManagement() {
       }
     });
   });
+}
+
+// ADMIN — passenger management table, only present on admin.html.
+async function renderAdminPassengerManagement() {
+  const tbody = document.querySelector('#admin-passengers-tbody');
+  if (!tbody) return;
+
+  try {
+    const res = await fetch(`${ADMIN_API_URL}/passengers`, { headers: getAuthHeaders() });
+    if (!res.ok) return;
+    const data = await res.json();
+    const passengers = data.passengers || [];
+
+    if (!passengers.length) {
+      tbody.innerHTML = '<tr><td colspan="4">No passengers registered yet.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = passengers.map(p => {
+      const lastBooking = p.last_booking ? new Date(p.last_booking).toLocaleDateString() : '—';
+      const status = p.ride_count > 0 ? 'Active' : 'No bookings yet';
+      return `
+        <tr>
+          <td>${escapeHtml(p.name)}</td>
+          <td>${p.ride_count}</td>
+          <td>${escapeHtml(lastBooking)}</td>
+          <td>${escapeHtml(status)}</td>
+        </tr>
+      `;
+    }).join('');
+  } catch (error) {
+    console.warn('Unable to fetch passengers', error);
+  }
+}
+
+// ADMIN — all-bookings audit table, only present on admin.html.
+async function renderAdminBookings() {
+  const tbody = document.querySelector('#admin-bookings-tbody');
+  if (!tbody) return;
+
+  try {
+    const res = await fetch(`${ADMIN_API_URL}/bookings`, { headers: getAuthHeaders() });
+    if (!res.ok) return;
+    const data = await res.json();
+    const bookings = data.bookings || [];
+
+    if (!bookings.length) {
+      tbody.innerHTML = '<tr><td colspan="7">No bookings yet.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = bookings.map(b => {
+      const statusConfig = getRideStatusConfig(b.status);
+      const fareText = b.fare != null ? `₱${Number(b.fare).toFixed(0)}` : '—';
+      return `
+        <tr>
+          <td>${escapeHtml(b.passenger_name)}</td>
+          <td>${escapeHtml(b.driver_name || '—')}</td>
+          <td>${escapeHtml(b.pickup_location)} → ${escapeHtml(b.dropoff_location)}</td>
+          <td>${escapeHtml(b.ride_type)}</td>
+          <td>${fareText}</td>
+          <td><span class="ride-badge tone-${statusConfig.tone}">${escapeHtml(statusConfig.label)}</span></td>
+          <td>${new Date(b.created_at).toLocaleDateString()}</td>
+        </tr>
+      `;
+    }).join('');
+  } catch (error) {
+    console.warn('Unable to fetch bookings', error);
+  }
 }
 
 function fillDashboardWelcome() {
@@ -756,9 +1146,18 @@ function getRideLifecycleSteps(status) {
   }));
 }
  
+// Road-snapped paths for our two fixed campus routes, fetched once from
+// OSRM (router.project-osrm.org) and hardcoded here — since there are only
+// ever two possible routes in this system, there's no need to call a
+// routing API live on every ride; these are the actual road geometry.
+const ROUTE_SAN_ISIDRO_TO_MAIN = [[15.502749, 120.578693], [15.502711, 120.57869], [15.502646, 120.578686], [15.502546, 120.578722], [15.502463, 120.578762], [15.501538, 120.579205], [15.501465, 120.579232], [15.501377, 120.579232], [15.501273, 120.579205], [15.500987, 120.579112], [15.499926, 120.578773], [15.499765, 120.578717], [15.499075, 120.578494], [15.498456, 120.578293], [15.498699, 120.578124], [15.49865, 120.578054], [15.49836, 120.578262], [15.498313, 120.578296], [15.497141, 120.579117], [15.496965, 120.579245], [15.496579, 120.579518], [15.496432, 120.579615], [15.496244, 120.579747], [15.496038, 120.579892], [15.495946, 120.579962], [15.495824, 120.580045], [15.495801, 120.58006], [15.495316, 120.580393], [15.495178, 120.580492], [15.494699, 120.580841], [15.494433, 120.581034], [15.494102, 120.581266], [15.493598, 120.581618], [15.493447, 120.581729], [15.493087, 120.581996], [15.492933, 120.582108], [15.492767, 120.582224], [15.492617, 120.58233], [15.492238, 120.582613], [15.492018, 120.582793], [15.491637, 120.583097], [15.491407, 120.583297], [15.491314, 120.583382], [15.491123, 120.583556], [15.490749, 120.583926], [15.490708, 120.583969], [15.490691, 120.584042], [15.490675, 120.584059], [15.490578, 120.584154], [15.490544, 120.584188], [15.490057, 120.584763], [15.490023, 120.584808], [15.488324, 120.5869], [15.4883, 120.586929], [15.488251, 120.58694], [15.488175, 120.587014], [15.488154, 120.587015], [15.488135, 120.587022], [15.488044, 120.586977], [15.487957, 120.58693], [15.487317, 120.586584], [15.486787, 120.586273], [15.486598, 120.58614], [15.486456, 120.586036], [15.486441, 120.586008], [15.48642, 120.585986], [15.486394, 120.58597], [15.486364, 120.585962], [15.486334, 120.585964], [15.486305, 120.585974], [15.48628, 120.585992], [15.48626, 120.586016], [15.486248, 120.586046], [15.486245, 120.586077], [15.48625, 120.586108], [15.486179, 120.586357], [15.48598, 120.58707], [15.485915, 120.587013], [15.48579, 120.586997], [15.48542, 120.586949], [15.485206, 120.586913], [15.485166, 120.586906], [15.485025, 120.586901], [15.484896, 120.586913], [15.484739, 120.586938], [15.484223, 120.58707], [15.484033, 120.587118], [15.484042, 120.587183], [15.484548, 120.587052], [15.484751, 120.58701], [15.485029, 120.586976], [15.485135, 120.586981], [15.485195, 120.586982], [15.485175, 120.587098], [15.485127, 120.587373]];
+
+const ROUTE_MAIN_TO_SAN_ISIDRO = [[15.485127, 120.587373], [15.485175, 120.587098], [15.485195, 120.586982], [15.485406, 120.587016], [15.48579, 120.587079], [15.485909, 120.587099], [15.48598, 120.58707], [15.48611, 120.587077], [15.486338, 120.587107], [15.486364, 120.587108], [15.486451, 120.587129], [15.486662, 120.58718], [15.486787, 120.587238], [15.486897, 120.587301], [15.486993, 120.587365], [15.487003, 120.587371], [15.487138, 120.587465], [15.487345, 120.587621], [15.487516, 120.587758], [15.487825, 120.587502], [15.488009, 120.587303], [15.488041, 120.587265], [15.488065, 120.587238], [15.488139, 120.587161], [15.488164, 120.587168], [15.488189, 120.587165], [15.488212, 120.587153], [15.48823, 120.587134], [15.488241, 120.58711], [15.488243, 120.587084], [15.48824, 120.587067], [15.488233, 120.58705], [15.488292, 120.586981], [15.4883, 120.586929], [15.488324, 120.5869], [15.490023, 120.584808], [15.490057, 120.584763], [15.490544, 120.584188], [15.490578, 120.584154], [15.490675, 120.584059], [15.490691, 120.584042], [15.490753, 120.58402], [15.49079, 120.583975], [15.49107, 120.58369], [15.491216, 120.583549], [15.491431, 120.583359], [15.49153, 120.583272], [15.492051, 120.582844], [15.492144, 120.58277], [15.492466, 120.582514], [15.492795, 120.582274], [15.493115, 120.582043], [15.493635, 120.581669], [15.494132, 120.581319], [15.494278, 120.581216], [15.494473, 120.581078], [15.494528, 120.58104], [15.495214, 120.580539], [15.495324, 120.580459], [15.495353, 120.58044], [15.495859, 120.580102], [15.495979, 120.580019], [15.496069, 120.579956], [15.49647, 120.579675], [15.496611, 120.579576], [15.496759, 120.579476], [15.497007, 120.5793], [15.497192, 120.579176], [15.498357, 120.578363], [15.498456, 120.578293], [15.499075, 120.578494], [15.499765, 120.578717], [15.499926, 120.578773], [15.500987, 120.579112], [15.501273, 120.579205], [15.501377, 120.579232], [15.501465, 120.579232], [15.501538, 120.579205], [15.502463, 120.578762], [15.502546, 120.578722], [15.502646, 120.578686], [15.502711, 120.57869], [15.502749, 120.578693]];
+
 const RIDES_API_URL = 'http://localhost:3000/api/rides';
 const ADMIN_API_URL = 'http://localhost:3000/api/admin';
 const PROFILE_API_URL = 'http://localhost:3000/api/profile';
+const REVIEWS_API_URL = 'http://localhost:3000/api/reviews';
 
 // Formats a JS Date as 'YYYY-MM-DD HH:MM:SS' in local time, which is what
 // MySQL's DATETIME column expects — avoids timezone drift from ISO strings.
@@ -835,6 +1234,129 @@ async function createRideRequest(payload) {
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Unable to request a ride');
   return data;
+}
+
+// DRIVER's own "I'm on shift" switch — only present on driver.html, and
+// only wired up if the driver role is logged in, so this is a safe no-op
+// everywhere else.
+function setupAvailabilityToggle() {
+  const toggleBtn = document.querySelector('#availability-switch');
+  const label = document.querySelector('#availability-label');
+  if (!toggleBtn || !label) return;
+
+  const user = getStoredUser();
+  if (!isAuthenticated() || user.role !== 'driver') return;
+
+  function updateUI(isOnline) {
+    toggleBtn.classList.toggle('is-on', isOnline);
+    toggleBtn.setAttribute('aria-pressed', String(isOnline));
+    label.textContent = isOnline ? 'Online — accepting rides' : 'Offline';
+  }
+
+  toggleBtn.addEventListener('click', async () => {
+    const nextState = !toggleBtn.classList.contains('is-on');
+    toggleBtn.disabled = true;
+    try {
+      const res = await fetch(`${RIDES_API_URL}/driver/availability`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ is_online: nextState })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Unable to update availability');
+      updateUI(data.is_online);
+    } catch (error) {
+      showRideFeedback('error', 'Could not update', error.message || 'Please try again.');
+    } finally {
+      toggleBtn.disabled = false;
+    }
+  });
+
+  fetch(`${RIDES_API_URL}/driver/availability`, { headers: getAuthHeaders() })
+    .then(res => res.ok ? res.json() : null)
+    .then(data => { if (data) updateUI(data.is_online); })
+    .catch(error => console.warn('Unable to fetch availability', error));
+}
+
+// DRIVER GPS SHARING — automatically starts sending location while the
+// driver has an active ride (Accepted/Picked Up/In Progress), and stops the
+// moment it isn't, so a driver is never tracked while idle. Only present on
+// driver.html; safe no-op everywhere else.
+let driverWatchId = null;
+let lastLocationSentAt = 0;
+
+async function syncDriverLocationSharing() {
+  const label = document.querySelector('#location-sharing-label');
+  if (!label) return;
+
+  const user = getStoredUser();
+  if (!isAuthenticated() || user.role !== 'driver') return;
+
+  const rides = await fetchDriverRides();
+  const hasActiveRide = rides.some(r => ['Accepted', 'Picked Up', 'In Progress'].includes(r.status));
+
+  if (hasActiveRide && driverWatchId === null) {
+    startDriverLocationSharing(label);
+  } else if (!hasActiveRide && driverWatchId !== null) {
+    stopDriverLocationSharing(label);
+  }
+}
+
+function startDriverLocationSharing(label) {
+  if (!navigator.geolocation) {
+    label.textContent = 'Location sharing not supported on this device.';
+    return;
+  }
+
+  driverWatchId = navigator.geolocation.watchPosition(
+    (position) => {
+      label.textContent = '📍 Sharing your location with your passenger';
+      lastKnownDriverPosition = [position.coords.latitude, position.coords.longitude];
+      const now = Date.now();
+      if (now - lastLocationSentAt < 7000) return;
+      lastLocationSentAt = now;
+      fetch(`${RIDES_API_URL}/driver/location`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ lat: position.coords.latitude, lng: position.coords.longitude })
+      }).catch(error => console.warn('Unable to send location', error));
+    },
+    (error) => {
+      console.warn('Geolocation error', error);
+      label.textContent = 'Could not access your location — check location permissions.';
+    },
+    { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
+  );
+}
+
+function stopDriverLocationSharing(label) {
+  if (driverWatchId !== null) {
+    navigator.geolocation.clearWatch(driverWatchId);
+    driverWatchId = null;
+  }
+  label.textContent = '';
+}
+
+// PASSENGER-facing reassurance indicator — only present on passenger.html.
+async function renderAvailableDriversIndicator() {
+  const dot = document.querySelector('#availability-dot');
+  const text = document.querySelector('#availability-text');
+  if (!dot || !text) return;
+
+  try {
+    const res = await fetch(`${RIDES_API_URL}/available-drivers-count`, { headers: getAuthHeaders() });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data.count > 0) {
+      dot.classList.add('is-available');
+      text.textContent = `${data.count} driver${data.count === 1 ? '' : 's'} available right now`;
+    } else {
+      dot.classList.remove('is-available');
+      text.textContent = 'No drivers online right now — requests may take a bit longer.';
+    }
+  } catch (error) {
+    console.warn('Unable to fetch available drivers count', error);
+  }
 }
 
 async function acceptRideRemote(rideId) {
@@ -1010,6 +1532,7 @@ async function renderPassengerRideStatus() {
         <div class="ride-meta">
           <span><strong>Ride type:</strong> ${escapeHtml(activeRide.ride_type)}</span>
           <span><strong>Driver:</strong> ${escapeHtml(driverName)}</span>
+          ${activeRide.driver_contact ? `<span><strong>Driver contact:</strong> ${escapeHtml(activeRide.driver_contact)}</span>` : ''}
           <span><strong>Fare:</strong> ${escapeHtml(fareText)}</span>
         </div>
         <div class="ride-timestamps">
@@ -1051,6 +1574,126 @@ async function renderPassengerRideStatus() {
   }
 }
 
+// RIDE MILESTONE POPUPS — surfaces a full-screen moment when the passenger's
+// ride hits a key transition (driver on the way, picked up, arrived at
+// destination), instead of the ride silently vanishing from the dashboard
+// the moment it's marked Completed. Each milestone only shows once per
+// ride+status, tracked in sessionStorage so it doesn't reappear on every
+// refresh or poll.
+const RIDE_MILESTONES = {
+  Accepted: {
+    icon: '🛺',
+    title: 'Your driver is on the way!',
+    message: 'Be sure to be at your pickup point — this helps your driver find you.'
+  },
+  'Picked Up': {
+    icon: '🙋',
+    title: "You're on board!",
+    message: "Enjoy your ride — you're on the way to your destination."
+  },
+  Completed: {
+    icon: '🏁',
+    title: 'You have arrived at your destination!',
+    message: "See you on your next trip. Don't forget to pay your driver."
+  }
+};
+
+async function checkRideMilestones() {
+  const user = getStoredUser();
+  if (!isAuthenticated() || user.role !== 'passenger') return;
+  if (document.querySelector('.ride-milestone-overlay')) return;
+
+  const rides = await fetchMyRides();
+  if (!rides.length) return;
+  const latest = rides[0];
+  const milestone = RIDE_MILESTONES[latest.status];
+  if (!milestone) return;
+
+  const seenKey = `ride-milestone-${latest.ride_id}-${latest.status}`;
+  if (sessionStorage.getItem(seenKey)) return;
+  sessionStorage.setItem(seenKey, 'shown');
+
+  showRideMilestoneModal(milestone, latest);
+}
+
+function showRideMilestoneModal(milestone, ride) {
+  const isCompleted = ride.status === 'Completed';
+  const showReviewLink = isCompleted && !ride.has_review;
+
+  const overlay = document.createElement('div');
+  overlay.className = 'ride-milestone-overlay';
+  overlay.innerHTML = `
+    <div class="ride-milestone-modal">
+      <div class="ride-milestone-icon">${milestone.icon}</div>
+      <h2 class="ride-milestone-title">${escapeHtml(milestone.title)}</h2>
+      <p class="ride-milestone-message">${escapeHtml(milestone.message)}</p>
+      <button type="button" class="btn-primary ride-milestone-ok">OK!</button>
+      ${showReviewLink ? `
+        <button type="button" class="ride-milestone-review-link">★ Rate your driver</button>
+        <div class="ride-milestone-review" style="display:none;">
+          <div class="star-rating">
+            ${[1, 2, 3, 4, 5].map(n => `<button type="button" class="star-btn" data-star="${n}">★</button>`).join('')}
+          </div>
+          <textarea class="review-comment" rows="2" placeholder="Optional comment..."></textarea>
+          <button type="button" class="btn-secondary-outline milestone-review-submit">Submit review</button>
+          <small class="error-msg milestone-review-error"></small>
+        </div>
+      ` : ''}
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+  document.body.style.overflow = 'hidden';
+
+  function closeModal() {
+    overlay.remove();
+    document.body.style.overflow = '';
+  }
+
+  overlay.querySelector('.ride-milestone-ok').addEventListener('click', closeModal);
+
+  const reviewLink = overlay.querySelector('.ride-milestone-review-link');
+  const reviewSection = overlay.querySelector('.ride-milestone-review');
+  if (reviewLink && reviewSection) {
+    let selectedRating = 0;
+    const starButtons = Array.from(overlay.querySelectorAll('.star-btn'));
+
+    reviewLink.addEventListener('click', () => {
+      reviewSection.style.display = reviewSection.style.display === 'none' ? 'flex' : 'none';
+    });
+
+    starButtons.forEach(star => {
+      star.addEventListener('click', () => {
+        selectedRating = Number(star.getAttribute('data-star'));
+        starButtons.forEach(s => s.classList.toggle('is-selected', Number(s.getAttribute('data-star')) <= selectedRating));
+      });
+    });
+
+    overlay.querySelector('.milestone-review-submit').addEventListener('click', async () => {
+      const errorEl = overlay.querySelector('.milestone-review-error');
+      const commentEl = overlay.querySelector('.review-comment');
+      errorEl.textContent = '';
+      if (!selectedRating) {
+        errorEl.textContent = 'Please select a star rating.';
+        return;
+      }
+      try {
+        const res = await fetch(REVIEWS_API_URL, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ ride_id: ride.ride_id, rating: selectedRating, comment: commentEl.value.trim() })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Unable to submit review');
+        closeModal();
+        showRideFeedback('success', 'Thanks!', 'Your review has been submitted.');
+      } catch (error) {
+        errorEl.textContent = error.message || 'Please try again.';
+      }
+    });
+  }
+}
+
 async function renderBookingsList() {
   const loading = document.querySelector('#bookings-loading');
   const emptyState = document.querySelector('#bookings-empty');
@@ -1079,6 +1722,20 @@ async function renderBookingsList() {
     const otherPartyLabel = isDriver ? 'Passenger' : 'Driver';
     const otherPartyName = (isDriver ? ride.passenger_name : ride.driver_name) || 'Not yet assigned';
     const requestedAt = new Date(ride.created_at).toLocaleString();
+    const canReview = !isDriver && ride.status === 'Completed';
+    const reviewBlock = !canReview ? '' : ride.has_review
+      ? `<p class="review-existing">${'★'.repeat(ride.my_rating)}${'☆'.repeat(5 - ride.my_rating)} You rated this ride</p>`
+      : `<div class="review-prompt" data-ride-id="${ride.ride_id}">
+          <button type="button" class="btn-secondary-outline review-toggle">Rate this ride</button>
+          <div class="review-form" style="display:none;">
+            <div class="star-rating">
+              ${[1, 2, 3, 4, 5].map(n => `<button type="button" class="star-btn" data-star="${n}">★</button>`).join('')}
+            </div>
+            <textarea class="review-comment" rows="2" placeholder="Optional comment..."></textarea>
+            <button type="button" class="btn-primary review-submit">Submit review</button>
+            <small class="error-msg review-error"></small>
+          </div>
+        </div>`;
     return `
       <article class="booking-item">
         <div>
@@ -1088,6 +1745,7 @@ async function renderBookingsList() {
             <span>${escapeHtml(otherPartyLabel)}: ${escapeHtml(otherPartyName)}</span>
             <span>Requested ${escapeHtml(requestedAt)}</span>
           </div>
+          ${reviewBlock}
         </div>
         <div class="booking-meta" style="align-items:center; gap:14px;">
           <span class="booking-fare">${escapeHtml(fareText)}</span>
@@ -1096,6 +1754,55 @@ async function renderBookingsList() {
       </article>
     `;
   }).join('');
+
+  setupReviewPrompts(list);
+}
+
+function setupReviewPrompts(container) {
+  container.querySelectorAll('.review-prompt').forEach(prompt => {
+    const rideId = prompt.getAttribute('data-ride-id');
+    const toggleBtn = prompt.querySelector('.review-toggle');
+    const form = prompt.querySelector('.review-form');
+    const starButtons = Array.from(prompt.querySelectorAll('.star-btn'));
+    const commentEl = prompt.querySelector('.review-comment');
+    const submitBtn = prompt.querySelector('.review-submit');
+    const errorEl = prompt.querySelector('.review-error');
+    let selectedRating = 0;
+
+    toggleBtn.addEventListener('click', () => {
+      form.style.display = form.style.display === 'none' ? 'block' : 'none';
+    });
+
+    starButtons.forEach(star => {
+      star.addEventListener('click', () => {
+        selectedRating = Number(star.getAttribute('data-star'));
+        starButtons.forEach(s => s.classList.toggle('is-selected', Number(s.getAttribute('data-star')) <= selectedRating));
+      });
+    });
+
+    submitBtn.addEventListener('click', async () => {
+      errorEl.textContent = '';
+      if (!selectedRating) {
+        errorEl.textContent = 'Please select a star rating.';
+        return;
+      }
+      submitBtn.disabled = true;
+      try {
+        const res = await fetch(REVIEWS_API_URL, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ ride_id: rideId, rating: selectedRating, comment: commentEl.value.trim() })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Unable to submit review');
+        showRideFeedback('success', 'Thanks!', 'Your review has been submitted.');
+        renderBookingsList();
+      } catch (error) {
+        errorEl.textContent = error.message || 'Please try again.';
+        submitBtn.disabled = false;
+      }
+    });
+  });
 }
 
 function renderPendingRideCard(group) {
@@ -1209,6 +1916,9 @@ async function renderDriverRideRequests() {
         renderDriverDashboardStats();
       } catch (error) {
         showRideFeedback('error', 'Could not accept', error.message || 'Please try again.');
+        // The ride may have just been taken by another driver, or this driver
+        // may already have an active trip — refresh so the list reflects it.
+        renderDriverRideRequests();
       }
     });
   });
@@ -1258,7 +1968,7 @@ async function renderDriverDashboardStats() {
   const [driverRides, pendingGroups] = await Promise.all([fetchDriverRides(), fetchPendingRides()]);
   const activeRides = driverRides.filter(r => ['Accepted', 'Picked Up', 'In Progress'].includes(r.status));
   const completedRides = driverRides.filter(r => r.status === 'Completed');
-  const pendingRideCount = pendingGroups.reduce((sum, g) => sum + g.riders.length, 0);
+  const pendingRideCount = pendingGroups.reduce((sum, g) => sum + (g.type === 'shared' ? g.riders.length : 1), 0);
   const earnings = completedRides.reduce((sum, r) => sum + Number(r.fare || 0), 0);
 
   if (todayCount) todayCount.textContent = String(activeRides.length + completedRides.length);
@@ -1272,6 +1982,16 @@ function setupLogoutButtons() {
   logoutButtons.forEach(button => {
     button.addEventListener('click', function(event) {
       event.preventDefault();
+      // Best-effort: take a driver off the "available" count as soon as they
+      // log out, so passengers don't see a stale online driver who's gone.
+      // Fired before clearStoredUser() wipes the token this call needs.
+      if (getStoredUser().role === 'driver') {
+        fetch(`${RIDES_API_URL}/driver/availability`, {
+          method: 'PUT',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ is_online: false })
+        }).catch(() => {});
+      }
       clearStoredUser();
       window.location.href = 'auth.html';
     });
@@ -2062,8 +2782,6 @@ function refreshAuthState() {
   updateDriverLinkVisibility();
   updateBookingLinkVisibility();
   updatePassengerLinkVisibility();
-  updatePassengerProfileLinkVisibility();
-  updateDriverProfileLinkVisibility();
   updateHomeCtaVisibility();
   showDriverApprovalBanner();
   renderAuthStatus();
@@ -2073,9 +2791,18 @@ function refreshAuthState() {
   renderDriverDashboardStats();
   showAdminDashboardIfLoggedIn();
   renderAdminDriverManagement();
+  renderAdminPassengerManagement();
+  renderAdminBookings();
+  renderAdminStats();
   renderLoyaltyStatus();
+  renderDriverRating();
   renderProfile();
   renderBookingsList();
+  renderAvailableDriversIndicator();
+  checkRideMilestones();
+  syncDriverLocationSharing();
+  pollDriverLocation();
+  renderDriverMapTracking();
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -2089,6 +2816,25 @@ document.addEventListener('DOMContentLoaded', function() {
   setupLogoutButtons();
   setupPassengerRideRequestForm();
   setupProfileForm();
+  setupAvailabilityToggle();
+  setupPassengerMap();
+  setupDriverMap();
+
+  // A passenger's ride status can change (driver accepts / arrives /
+  // completes) while they're just sitting on the dashboard — poll every 15s
+  // so the milestone popup shows up without needing a manual refresh.
+  if (getStoredUser().role === 'passenger') {
+    setInterval(checkRideMilestones, 15000);
+    setInterval(pollDriverLocation, 7000);
+  }
+
+  // A driver's ride can go from "no active ride" to "just accepted one"
+  // without a page reload — recheck periodically so location sharing turns
+  // on/off promptly instead of only at the next full refresh.
+  if (getStoredUser().role === 'driver') {
+    setInterval(syncDriverLocationSharing, 10000);
+    setInterval(renderDriverMapTracking, 7000);
+  }
 });
 
 // Chrome/Edge can restore a page from the "back/forward cache" (a frozen

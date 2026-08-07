@@ -162,9 +162,12 @@ exports.listPendingRides = (req, res) => {
 exports.getMyRides = (req, res) => {
   const accountId = req.user.accountId;
   const sql = `
-    SELECT r.*, CONCAT(td.first_name, ' ', td.last_name) AS driver_name
+    SELECT r.*, CONCAT(td.first_name, ' ', td.last_name) AS driver_name,
+           td.contact_number AS driver_contact,
+           rv.review_id IS NOT NULL AS has_review, rv.rating AS my_rating
     FROM rides r
     LEFT JOIN tricycle_driver td ON td.account_id = r.driver_account_id
+    LEFT JOIN reviews rv ON rv.ride_id = r.ride_id
     WHERE r.passenger_account_id = ?
     ORDER BY r.created_at DESC
   `;
@@ -190,6 +193,96 @@ exports.getDriverRides = (req, res) => {
   });
 };
 
+// DRIVER checks their own current on-shift state (e.g. on dashboard load).
+exports.getDriverAvailability = (req, res) => {
+  const accountId = req.user.accountId;
+  db.query(`SELECT is_online FROM tricycle_driver WHERE account_id = ?`, [accountId], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!rows.length) return res.status(404).json({ error: 'Driver not found' });
+    res.status(200).json({ is_online: Boolean(rows[0].is_online) });
+  });
+};
+
+// DRIVER pushes their current GPS position. Called repeatedly (via
+// watchPosition) only while they have an active ride — see
+// setupDriverLocationSharing() on the frontend for when this actually fires.
+exports.updateDriverLocation = (req, res) => {
+  const accountId = req.user.accountId;
+  const { lat, lng } = req.body;
+
+  if (lat == null || lng == null) {
+    return res.status(400).json({ error: 'lat and lng are required' });
+  }
+
+  db.query(
+    `UPDATE tricycle_driver SET current_lat = ?, current_lng = ?, location_updated_at = NOW() WHERE account_id = ?`,
+    [lat, lng, accountId],
+    (err, result) => {
+      if (err) return res.status(500).json({ error: err.message });
+      if (result.affectedRows === 0) return res.status(404).json({ error: 'Driver not found' });
+      res.status(200).json({ message: 'Location updated' });
+    }
+  );
+};
+
+// PASSENGER reads the location of the driver assigned to ONE of their own
+// rides — scoped by ride_id + passenger_account_id so a passenger can never
+// see a driver they aren't actually riding with.
+exports.getDriverLocationForRide = (req, res) => {
+  const { rideId } = req.params;
+  const passengerAccountId = req.user.accountId;
+
+  db.query(
+    `SELECT td.current_lat, td.current_lng, td.location_updated_at
+     FROM rides r
+     JOIN tricycle_driver td ON td.account_id = r.driver_account_id
+     WHERE r.ride_id = ? AND r.passenger_account_id = ?`,
+    [rideId, passengerAccountId],
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      if (!rows.length) return res.status(404).json({ error: 'No assigned driver found for this ride.' });
+      const row = rows[0];
+      res.status(200).json({ lat: row.current_lat, lng: row.current_lng, updated_at: row.location_updated_at });
+    }
+  );
+};
+
+// DRIVER toggles whether they're currently on shift and open to new
+// requests. This is separate from account_status (admin-approval, permanent)
+// — is_online is the driver's own "I'm working right now" switch.
+exports.updateDriverAvailability = (req, res) => {
+  const accountId = req.user.accountId;
+  const isOnline = Boolean(req.body.is_online);
+
+  db.query(
+    `UPDATE tricycle_driver SET is_online = ? WHERE account_id = ?`,
+    [isOnline, accountId],
+    (err, result) => {
+      if (err) return res.status(500).json({ error: err.message });
+      if (result.affectedRows === 0) return res.status(404).json({ error: 'Driver not found' });
+      res.status(200).json({ is_online: isOnline });
+    }
+  );
+};
+
+// PASSENGER-FACING reassurance count — how many approved drivers are
+// currently on shift AND not already in the middle of a trip. Doesn't name
+// anyone (no driver-picking), just answers "is anyone around right now?".
+exports.getAvailableDriversCount = (req, res) => {
+  const sql = `
+    SELECT COUNT(*) AS count FROM tricycle_driver
+    WHERE account_status = 'Active' AND is_online = TRUE
+      AND account_id NOT IN (
+        SELECT driver_account_id FROM rides
+        WHERE driver_account_id IS NOT NULL AND status IN ('Accepted', 'Picked Up', 'In Progress')
+      )
+  `;
+  db.query(sql, (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.status(200).json({ count: rows[0].count });
+  });
+};
+
 // ACCEPT A RIDE (solo) OR A POOL (shared — closes it early if not yet full,
 // locking the fare in at whatever headcount it has right now)
 exports.acceptRide = (req, res) => {
@@ -206,7 +299,21 @@ exports.acceptRide = (req, res) => {
       return res.status(403).json({ error: 'Your account is still pending admin approval — you can browse requests but cannot accept rides yet.' });
     }
 
-    acceptRideInternal(rideId, driver_account_id, res);
+    // A tricycle can only carry one trip at a time — a driver already mid-ride
+    // (Accepted/Picked Up/In Progress) can't pick up a second, unrelated one
+    // until the current trip is completed or cancelled.
+    db.query(
+      `SELECT COUNT(*) AS c FROM rides WHERE driver_account_id = ? AND status IN ('Accepted', 'Picked Up', 'In Progress')`,
+      [driver_account_id],
+      (err, activeRows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (activeRows[0].c > 0) {
+          return res.status(409).json({ error: 'You already have an active ride — finish or cancel it before accepting another.' });
+        }
+
+        acceptRideInternal(rideId, driver_account_id, res);
+      }
+    );
   });
 };
 
@@ -217,11 +324,20 @@ function acceptRideInternal(rideId, driver_account_id, res) {
     const ride = rows[0];
 
     if (ride.ride_type === 'Solo' || !ride.pool_id) {
+      // The WHERE clause only matches while the ride is still "Pending" — if
+      // two drivers tap Accept on the same request at the same instant,
+      // MySQL serializes the two UPDATEs against this row, so only the first
+      // one actually finds status = 'Pending' and changes anything. The
+      // loser's affectedRows comes back 0, telling them someone beat them to it
+      // instead of both drivers being told "Ride accepted" for the same trip.
       db.query(
-        `UPDATE rides SET status = 'Accepted', driver_account_id = ? WHERE ride_id = ?`,
+        `UPDATE rides SET status = 'Accepted', driver_account_id = ? WHERE ride_id = ? AND status = 'Pending'`,
         [driver_account_id, rideId],
-        (err) => {
+        (err, result) => {
           if (err) return res.status(500).json({ error: err.message });
+          if (result.affectedRows === 0) {
+            return res.status(409).json({ error: 'Another driver already accepted this ride.' });
+          }
           res.status(200).json({ message: 'Ride accepted' });
         }
       );
@@ -236,11 +352,17 @@ function acceptRideInternal(rideId, driver_account_id, res) {
         const count = countRows[0].c;
         const fare = FARE_BY_HEADCOUNT[count] || FARE_BY_HEADCOUNT[1];
 
+        // Same guard as the Solo path, applied to the pool: only succeeds if
+        // the pool is still "Open" at the moment this UPDATE runs, so two
+        // drivers racing to accept the same shared pool can't both close it.
         db.query(
-          `UPDATE ride_pools SET status = 'Closed', fare_per_rider = ?, driver_account_id = ?, closed_at = NOW() WHERE pool_id = ?`,
+          `UPDATE ride_pools SET status = 'Closed', fare_per_rider = ?, driver_account_id = ?, closed_at = NOW() WHERE pool_id = ? AND status = 'Open'`,
           [fare, driver_account_id, ride.pool_id],
-          (err) => {
+          (err, poolResult) => {
             if (err) return res.status(500).json({ error: err.message });
+            if (poolResult.affectedRows === 0) {
+              return res.status(409).json({ error: 'Another driver already accepted this shared ride.' });
+            }
             db.query(
               `UPDATE rides SET status = 'Accepted', driver_account_id = ?, fare = ? WHERE pool_id = ? AND status != 'Cancelled'`,
               [driver_account_id, fare, ride.pool_id],
