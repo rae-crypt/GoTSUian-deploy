@@ -12,7 +12,10 @@ function requireAdmin(req, res, next) {
   next();
 }
 
+router.get('/stats', authMiddleware, requireAdmin, adminController.getStats);
 router.get('/drivers', authMiddleware, requireAdmin, adminController.listDrivers);
+router.get('/passengers', authMiddleware, requireAdmin, adminController.listPassengers);
+router.get('/bookings', authMiddleware, requireAdmin, adminController.listBookings);
 router.put('/drivers/:driverId/status', authMiddleware, requireAdmin, adminController.updateDriverStatus);
 
 module.exports = router;

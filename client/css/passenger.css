@@ -250,11 +250,17 @@ display: inline-block;
   letter-spacing: 0.02em;
 }
 
-.nav-user-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
+.nav-user-menu {
+  position: relative;
   margin-right: 0.75rem;
+}
+
+.nav-user-trigger {
+  display: inline-flex;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
 }
 
 .nav-user-avatar {
@@ -270,10 +276,67 @@ display: inline-block;
   flex-shrink: 0;
 }
 
-.nav-user-name {
+.nav-user-dropdown {
+  display: none;
+  flex-direction: column;
+  gap: 2px;
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  min-width: 190px;
+  background: var(--white);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  padding: 10px;
+  z-index: 70;
+}
+
+.nav-user-menu.is-open .nav-user-dropdown {
+  display: flex;
+}
+
+/* Resets the `.nav-cta a` / `.nav-cta button` pill-button styling (maroon
+   background + white text) that would otherwise bleed into every dropdown
+   row, since these links/buttons live inside .nav-cta too. */
+.nav-user-dropdown a,
+.nav-user-dropdown button {
+  display: block;
+  width: 100%;
+  background: none;
+  border: none;
+  border-radius: 10px;
+  text-align: left;
+  padding: 9px 10px;
+  color: var(--muted);
+  font-family: inherit;
   font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.nav-user-dropdown a:hover,
+.nav-user-dropdown button:hover {
+  background: var(--light);
+  color: var(--primary);
+}
+
+.nav-user-dropdown-header {
+  padding-bottom: 12px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--light);
+}
+
+.nav-user-dropdown-header strong {
+  display: block;
   color: var(--text);
-  white-space: nowrap;
+  font-size: 0.95rem;
+}
+
+.nav-user-dropdown-header small {
+  color: var(--muted);
+  font-weight: 500;
+  text-transform: capitalize;
 }
 
 
@@ -1790,6 +1853,54 @@ select {
   margin: 0;
 }
 
+.review-prompt {
+  margin-top: 10px;
+}
+
+.review-toggle {
+  padding: 6px 14px;
+  font-size: 0.8rem;
+  min-width: 0;
+}
+
+.review-form {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 320px;
+}
+
+.star-rating {
+  display: flex;
+  gap: 4px;
+}
+
+.star-btn {
+  background: none;
+  border: none;
+  font-size: 1.4rem;
+  color: #d1d5db;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+.star-btn.is-selected {
+  color: var(--accent-gold);
+}
+
+.review-comment {
+  resize: vertical;
+  font-family: inherit;
+}
+
+.review-existing {
+  margin: 6px 0 0;
+  font-size: 0.85rem;
+  color: var(--accent-gold);
+}
+
 .dashboard-panel-link {
   display: block;
   text-decoration: none;
@@ -1826,9 +1937,169 @@ select {
   text-align: center;
 }
 
+.availability-indicator {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--white);
+  border: 1px solid var(--light);
+  border-radius: 999px;
+  padding: 10px 18px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.availability-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #d1d5db;
+  flex-shrink: 0;
+}
+
+.availability-dot.is-available {
+  background: #16a34a;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.15);
+}
+
+.driver-location-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--white);
+  border: 3px solid var(--primary);
+  font-size: 1.2rem;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
+  animation: driver-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes driver-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+
+.ride-milestone-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 10, 10, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.ride-milestone-modal {
+  background: var(--white);
+  border-radius: 28px;
+  padding: 40px 32px;
+  max-width: 380px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.3);
+  animation: milestone-pop 0.25s ease;
+}
+
+@keyframes milestone-pop {
+  from { transform: scale(0.92); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.ride-milestone-icon {
+  width: 84px;
+  height: 84px;
+  margin: 0 auto 20px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary), var(--primary-soft));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.4rem;
+}
+
+.ride-milestone-title {
+  font-family: 'Poppins', sans-serif;
+  font-size: 1.4rem;
+  color: var(--primary);
+  margin: 0 0 10px;
+}
+
+.ride-milestone-message {
+  color: var(--muted);
+  font-size: 0.95rem;
+  margin: 0 0 24px;
+  line-height: 1.5;
+}
+
+.ride-milestone-ok {
+  width: 100%;
+}
+
+.ride-milestone-review-link {
+  display: block;
+  margin: 14px auto 0;
+  background: none;
+  border: none;
+  color: var(--accent-gold);
+  font-weight: 700;
+  font-size: 0.88rem;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.ride-milestone-review {
+  margin-top: 16px;
+  flex-direction: column;
+  gap: 10px;
+  text-align: left;
+}
+
+.ride-milestone-review .star-rating {
+  justify-content: center;
+}
+
 .map-placeholder-card {
   padding: 0;
   overflow: hidden;
+}
+
+.map-stack {
+  position: relative;
+}
+
+/* Leaflet's internal panes (markers, popups) use z-index values up to 700 —
+   without this container establishing its OWN stacking context, those
+   values escape and can render on top of the sticky header / mobile nav
+   drawer (which only need z-index 100). `position: relative` + an explicit
+   z-index here contains Leaflet's layers so they can never leak out. */
+.passenger-map {
+  position: relative;
+  z-index: 1;
+  height: 420px;
+  border-radius: 24px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
+.ride-status-floating {
+  position: relative;
+  z-index: 2;
+  margin: 16px 0 0;
+  border-radius: 22px;
+}
+
+@media (max-width: 640px) {
+  .passenger-map {
+    height: 320px;
+  }
+
+  .ride-status-floating {
+    margin: 12px 0 0;
+  }
 }
 
 .map-placeholder {
@@ -1876,5 +2147,11 @@ select {
   .section {
     padding: 36px 0;
   }
+}
+
+.profile-logout-row {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--light);
 }
 
