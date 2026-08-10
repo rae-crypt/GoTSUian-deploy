@@ -12,6 +12,8 @@ exports.createRide = (req, res) => {
   const {
     pickup_location,
     dropoff_location,
+    pickup_lat,
+    pickup_lng,
     ride_type,
     scheduled_at,
     notes
@@ -25,92 +27,123 @@ exports.createRide = (req, res) => {
     return res.status(400).json({ error: 'Pickup and drop-off must be different' });
   }
 
-  if (ride_type === 'Solo') {
-    const sql = `
-      INSERT INTO rides (passenger_account_id, pickup_location, dropoff_location, ride_type, fare, status, scheduled_at, notes)
-      VALUES (?, ?, ?, 'Solo', ?, 'Pending', ?, ?)
-    `;
-    db.query(
-      sql,
-      [passenger_account_id, pickup_location, dropoff_location, FARE_BY_HEADCOUNT[1], scheduled_at || null, notes || null],
-      (err, result) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.status(201).json({ message: 'Ride requested', rideId: result.insertId, fare: FARE_BY_HEADCOUNT[1] });
+  // A passenger can only have one active (not yet finished) ride at a
+  // time — stops accidental double-booking from tapping "Request ride"
+  // more than once while an earlier request is still Pending/Accepted/etc.
+  db.query(
+    `SELECT ride_id FROM rides WHERE passenger_account_id = ? AND status NOT IN ('Completed', 'Cancelled', 'Failed', 'Declined') LIMIT 1`,
+    [passenger_account_id],
+    (err, activeRows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      if (activeRows.length > 0) {
+        return res.status(409).json({ error: 'You already have an active ride request. Please wait for it to be accepted, declined, or completed before booking another.' });
       }
-    );
-    return;
-  }
 
-  if (ride_type !== 'Shared') {
-    return res.status(400).json({ error: 'ride_type must be "Solo" or "Shared"' });
-  }
+      if (ride_type === 'Solo') {
+        const sql = `
+          INSERT INTO rides (passenger_account_id, pickup_location, dropoff_location, pickup_lat, pickup_lng, ride_type, fare, status, scheduled_at, notes)
+          VALUES (?, ?, ?, ?, ?, 'Solo', ?, 'Pending', ?, ?)
+        `;
+        db.query(
+          sql,
+          [passenger_account_id, pickup_location, dropoff_location, pickup_lat || null, pickup_lng || null, FARE_BY_HEADCOUNT[1], scheduled_at || null, notes || null],
+          (err, result) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.status(201).json({ message: 'Ride requested', rideId: result.insertId, fare: FARE_BY_HEADCOUNT[1] });
+          }
+        );
+        return;
+      }
 
-  // Find the oldest still-open pool for this exact route with room left.
-  const findPoolSql = `
-    SELECT rp.pool_id, COUNT(r.ride_id) AS rider_count
-    FROM ride_pools rp
-    LEFT JOIN rides r ON r.pool_id = rp.pool_id AND r.status != 'Cancelled'
-    WHERE rp.status = 'Open' AND rp.pickup_location = ? AND rp.dropoff_location = ?
-    GROUP BY rp.pool_id
-    HAVING rider_count < ?
-    ORDER BY rp.created_at ASC
-    LIMIT 1
-  `;
+      if (ride_type !== 'Shared') {
+        return res.status(400).json({ error: 'ride_type must be "Solo" or "Shared"' });
+      }
 
-  db.query(findPoolSql, [pickup_location, dropoff_location, MAX_POOL_SIZE], (err, pools) => {
-    if (err) return res.status(500).json({ error: err.message });
-
-    const joinPool = (poolId) => {
-      const insertRideSql = `
-        INSERT INTO rides (passenger_account_id, pickup_location, dropoff_location, ride_type, pool_id, status, scheduled_at, notes)
-        VALUES (?, ?, ?, 'Shared', ?, 'Pending', ?, ?)
+      // Find the oldest still-open pool for this exact route with room left.
+      // A pool stays "Open" even after a driver has already accepted it early
+      // (see acceptRideInternal) — a new student can still join an in-progress
+      // pool right up until it fills to 4 or the driver actually departs.
+      const findPoolSql = `
+        SELECT rp.pool_id, rp.driver_account_id, COUNT(r.ride_id) AS rider_count
+        FROM ride_pools rp
+        LEFT JOIN rides r ON r.pool_id = rp.pool_id AND r.status != 'Cancelled'
+        WHERE rp.status = 'Open' AND rp.pickup_location = ? AND rp.dropoff_location = ?
+        GROUP BY rp.pool_id
+        HAVING rider_count < ?
+        ORDER BY rp.created_at ASC
+        LIMIT 1
       `;
-      db.query(
-        insertRideSql,
-        [passenger_account_id, pickup_location, dropoff_location, poolId, scheduled_at || null, notes || null],
-        (err, result) => {
-          if (err) return res.status(500).json({ error: err.message });
 
+      db.query(findPoolSql, [pickup_location, dropoff_location, MAX_POOL_SIZE], (err, pools) => {
+        if (err) return res.status(500).json({ error: err.message });
+
+        const joinPool = (poolId, poolDriverId) => {
+          // If a driver is already assigned to this pool (accepted it early
+          // while under 4 riders), a newly-joining student slots straight in
+          // as "Accepted" under that same driver instead of going through a
+          // separate Pending/Accept step.
+          const initialStatus = poolDriverId ? 'Accepted' : 'Pending';
+          const insertRideSql = `
+            INSERT INTO rides (passenger_account_id, pickup_location, dropoff_location, pickup_lat, pickup_lng, ride_type, pool_id, driver_account_id, status, scheduled_at, notes)
+            VALUES (?, ?, ?, ?, ?, 'Shared', ?, ?, ?, ?, ?)
+          `;
           db.query(
-            `SELECT COUNT(*) AS c FROM rides WHERE pool_id = ? AND status != 'Cancelled'`,
-            [poolId],
-            (err, countRows) => {
+            insertRideSql,
+            [passenger_account_id, pickup_location, dropoff_location, pickup_lat || null, pickup_lng || null, poolId, poolDriverId || null, initialStatus, scheduled_at || null, notes || null],
+            (err, result) => {
               if (err) return res.status(500).json({ error: err.message });
-              const count = countRows[0].c;
 
-              const respond = () => res.status(201).json({ message: 'Ride requested', rideId: result.insertId, poolId, riderCount: count });
-
-              if (count >= MAX_POOL_SIZE) {
-                const fare = FARE_BY_HEADCOUNT[MAX_POOL_SIZE];
-                db.query(`UPDATE ride_pools SET status = 'Closed', fare_per_rider = ?, closed_at = NOW() WHERE pool_id = ?`, [fare, poolId], (err) => {
+              db.query(
+                `SELECT COUNT(*) AS c FROM rides WHERE pool_id = ? AND status != 'Cancelled'`,
+                [poolId],
+                (err, countRows) => {
                   if (err) return res.status(500).json({ error: err.message });
-                  db.query(`UPDATE rides SET fare = ? WHERE pool_id = ? AND status != 'Cancelled'`, [fare, poolId], (err) => {
-                    if (err) return res.status(500).json({ error: err.message });
+                  const count = countRows[0].c;
+
+                  const respond = () => res.status(201).json({ message: 'Ride requested', rideId: result.insertId, poolId, riderCount: count });
+
+                  // Fare re-settles across every rider already in the pool
+                  // whenever the headcount changes, either because a driver
+                  // is already committed to this trip (so the tier they'll
+                  // actually pay should track reality as more join) or the
+                  // pool has now filled to capacity.
+                  if (poolDriverId || count >= MAX_POOL_SIZE) {
+                    const fare = FARE_BY_HEADCOUNT[count] || FARE_BY_HEADCOUNT[MAX_POOL_SIZE];
+                    const isFull = count >= MAX_POOL_SIZE;
+                    const poolUpdateSql = isFull
+                      ? `UPDATE ride_pools SET status = 'Closed', fare_per_rider = ?, closed_at = NOW() WHERE pool_id = ?`
+                      : `UPDATE ride_pools SET fare_per_rider = ? WHERE pool_id = ?`;
+                    db.query(poolUpdateSql, [fare, poolId], (err) => {
+                      if (err) return res.status(500).json({ error: err.message });
+                      db.query(`UPDATE rides SET fare = ? WHERE pool_id = ? AND status != 'Cancelled'`, [fare, poolId], (err) => {
+                        if (err) return res.status(500).json({ error: err.message });
+                        respond();
+                      });
+                    });
+                  } else {
                     respond();
-                  });
-                });
-              } else {
-                respond();
-              }
+                  }
+                }
+              );
+            }
+          );
+        };
+
+        if (pools.length > 0) {
+          joinPool(pools[0].pool_id, pools[0].driver_account_id);
+        } else {
+          db.query(
+            `INSERT INTO ride_pools (pickup_location, dropoff_location, status) VALUES (?, ?, 'Open')`,
+            [pickup_location, dropoff_location],
+            (err, poolResult) => {
+              if (err) return res.status(500).json({ error: err.message });
+              joinPool(poolResult.insertId, null);
             }
           );
         }
-      );
-    };
-
-    if (pools.length > 0) {
-      joinPool(pools[0].pool_id);
-    } else {
-      db.query(
-        `INSERT INTO ride_pools (pickup_location, dropoff_location, status) VALUES (?, ?, 'Open')`,
-        [pickup_location, dropoff_location],
-        (err, poolResult) => {
-          if (err) return res.status(500).json({ error: err.message });
-          joinPool(poolResult.insertId);
-        }
-      );
+      });
     }
-  });
+  );
 };
 
 // LIST PENDING RIDES — for the driver dashboard. Shared rides are grouped
@@ -163,15 +196,21 @@ exports.getMyRides = (req, res) => {
   const accountId = req.user.accountId;
   const sql = `
     SELECT r.*, CONCAT(td.first_name, ' ', td.last_name) AS driver_name,
-           td.contact_number AS driver_contact,
-           rv.review_id IS NOT NULL AS has_review, rv.rating AS my_rating
+           td.plate_number AS driver_plate,
+           rv.review_id IS NOT NULL AS has_review, rv.rating AS my_rating,
+           rp.status AS pool_status,
+           (SELECT COUNT(*) FROM messages m WHERE m.ride_id = r.ride_id
+              AND m.sender_account_id != ? AND m.is_read = 0) AS unread_message_count,
+           (SELECT COUNT(*) FROM rides r2 WHERE r2.pool_id = r.pool_id
+              AND r2.status != 'Cancelled') AS pool_rider_count
     FROM rides r
     LEFT JOIN tricycle_driver td ON td.account_id = r.driver_account_id
     LEFT JOIN reviews rv ON rv.ride_id = r.ride_id
+    LEFT JOIN ride_pools rp ON rp.pool_id = r.pool_id
     WHERE r.passenger_account_id = ?
     ORDER BY r.created_at DESC
   `;
-  db.query(sql, [accountId], (err, rows) => {
+  db.query(sql, [accountId, accountId], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     res.status(200).json({ rides: rows });
   });
@@ -181,13 +220,17 @@ exports.getMyRides = (req, res) => {
 exports.getDriverRides = (req, res) => {
   const accountId = req.user.accountId;
   const sql = `
-    SELECT r.*, CONCAT(s.first_name, ' ', s.last_name) AS passenger_name
+    SELECT r.*, CONCAT(s.first_name, ' ', s.last_name) AS passenger_name,
+           rp.status AS pool_status,
+           (SELECT COUNT(*) FROM messages m WHERE m.ride_id = r.ride_id
+              AND m.sender_account_id != ? AND m.is_read = 0) AS unread_message_count
     FROM rides r
     JOIN student s ON s.account_id = r.passenger_account_id
+    LEFT JOIN ride_pools rp ON rp.pool_id = r.pool_id
     WHERE r.driver_account_id = ?
     ORDER BY r.created_at DESC
   `;
-  db.query(sql, [accountId], (err, rows) => {
+  db.query(sql, [accountId, accountId], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     res.status(200).json({ rides: rows });
   });
@@ -247,6 +290,50 @@ exports.getDriverLocationForRide = (req, res) => {
   );
 };
 
+// DRIVER reads the pickup-spot GPS snapshot the passenger's browser captured
+// when they requested this ride (may be null if they denied/lacked GPS) —
+// scoped by ride_id + driver_account_id so a driver can only see this for a
+// ride actually assigned to them.
+exports.getPassengerLocationForRide = (req, res) => {
+  const { rideId } = req.params;
+  const driverAccountId = req.user.accountId;
+
+  db.query(
+    `SELECT pickup_lat, pickup_lng FROM rides WHERE ride_id = ? AND driver_account_id = ?`,
+    [rideId, driverAccountId],
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      if (!rows.length) return res.status(404).json({ error: 'Ride not found or not assigned to you.' });
+      const row = rows[0];
+      res.status(200).json({ lat: row.pickup_lat, lng: row.pickup_lng });
+    }
+  );
+};
+
+// PASSENGER attaches their GPS snapshot to a ride they just created. Split
+// out from createRide so a slow/denied GPS lock never delays the "Ride
+// requested" confirmation — the frontend fires this in the background right
+// after the ride is created, once (if ever) the coordinates resolve.
+exports.updateRidePickupLocation = (req, res) => {
+  const { rideId } = req.params;
+  const { lat, lng } = req.body;
+  const passengerAccountId = req.user.accountId;
+
+  if (lat == null || lng == null) {
+    return res.status(400).json({ error: 'lat and lng are required' });
+  }
+
+  db.query(
+    `UPDATE rides SET pickup_lat = ?, pickup_lng = ? WHERE ride_id = ? AND passenger_account_id = ?`,
+    [lat, lng, rideId, passengerAccountId],
+    (err, result) => {
+      if (err) return res.status(500).json({ error: err.message });
+      if (result.affectedRows === 0) return res.status(404).json({ error: 'Ride not found' });
+      res.status(200).json({ message: 'Pickup location updated' });
+    }
+  );
+};
+
 // DRIVER toggles whether they're currently on shift and open to new
 // requests. This is separate from account_status (admin-approval, permanent)
 // — is_online is the driver's own "I'm working right now" switch.
@@ -268,18 +355,46 @@ exports.updateDriverAvailability = (req, res) => {
 // PASSENGER-FACING reassurance count — how many approved drivers are
 // currently on shift AND not already in the middle of a trip. Doesn't name
 // anyone (no driver-picking), just answers "is anyone around right now?".
+// Also returns the total online count (busy or not) so the frontend can
+// tell "nobody's online at all" apart from "drivers are online but all
+// currently on a trip" — those read very differently to a waiting passenger.
 exports.getAvailableDriversCount = (req, res) => {
   const sql = `
-    SELECT COUNT(*) AS count FROM tricycle_driver
+    SELECT
+      COUNT(*) AS onlineCount,
+      SUM(CASE WHEN account_id NOT IN (
+        SELECT driver_account_id FROM rides
+        WHERE driver_account_id IS NOT NULL AND status IN ('Accepted', 'Picked Up', 'In Progress')
+      ) THEN 1 ELSE 0 END) AS count
+    FROM tricycle_driver
+    WHERE account_status = 'Active' AND is_online = TRUE
+  `;
+  db.query(sql, (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.status(200).json({ count: Number(rows[0].count) || 0, onlineCount: rows[0].onlineCount });
+  });
+};
+
+// PASSENGER-FACING safety list — same "available now" filter as the count
+// above, but returns just enough to let a passenger confirm the tricycle
+// that shows up is legit (name + plate number). Deliberately excludes
+// contact number and live GPS — those stay scoped to a passenger's own
+// assigned driver only (see getDriverLocationForRide), not exposed for
+// every driver currently online.
+exports.getAvailableDrivers = (req, res) => {
+  const sql = `
+    SELECT CONCAT(first_name, ' ', last_name) AS name, plate_number, body_number
+    FROM tricycle_driver
     WHERE account_status = 'Active' AND is_online = TRUE
       AND account_id NOT IN (
         SELECT driver_account_id FROM rides
         WHERE driver_account_id IS NOT NULL AND status IN ('Accepted', 'Picked Up', 'In Progress')
       )
+    ORDER BY first_name ASC
   `;
   db.query(sql, (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
-    res.status(200).json({ count: rows[0].count });
+    res.status(200).json({ drivers: rows });
   });
 };
 
@@ -352,11 +467,28 @@ function acceptRideInternal(rideId, driver_account_id, res) {
         const count = countRows[0].c;
         const fare = FARE_BY_HEADCOUNT[count] || FARE_BY_HEADCOUNT[1];
 
+        // A 1-rider "Shared" pool is functionally just a Solo ride at the
+        // same fare — accepting it defeats the point of the Shared option,
+        // so require at least 2 riders before a driver can lock it in.
+        if (count < 2) {
+          return res.status(400).json({ error: 'This shared ride needs at least 2 riders before it can be accepted.' });
+        }
+
+        // Accepting early (fewer than 4 riders) does NOT close the pool —
+        // other students can still join this exact trip, under this same
+        // driver, right up until it fills to 4 or the driver actually
+        // departs (see updateRideStatus's 'Picked Up' handling below). Only
+        // a full pool closes for good here.
+        const isFull = count >= MAX_POOL_SIZE;
+        const poolUpdateSql = isFull
+          ? `UPDATE ride_pools SET status = 'Closed', fare_per_rider = ?, driver_account_id = ?, closed_at = NOW() WHERE pool_id = ? AND status = 'Open'`
+          : `UPDATE ride_pools SET fare_per_rider = ?, driver_account_id = ? WHERE pool_id = ? AND status = 'Open'`;
+
         // Same guard as the Solo path, applied to the pool: only succeeds if
         // the pool is still "Open" at the moment this UPDATE runs, so two
-        // drivers racing to accept the same shared pool can't both close it.
+        // drivers racing to accept the same shared pool can't both claim it.
         db.query(
-          `UPDATE ride_pools SET status = 'Closed', fare_per_rider = ?, driver_account_id = ?, closed_at = NOW() WHERE pool_id = ? AND status = 'Open'`,
+          poolUpdateSql,
           [fare, driver_account_id, ride.pool_id],
           (err, poolResult) => {
             if (err) return res.status(500).json({ error: err.message });
@@ -368,13 +500,48 @@ function acceptRideInternal(rideId, driver_account_id, res) {
               [driver_account_id, fare, ride.pool_id],
               (err) => {
                 if (err) return res.status(500).json({ error: err.message });
-                res.status(200).json({ message: 'Shared ride accepted', riderCount: count, fare });
+                res.status(200).json({ message: 'Shared ride accepted', riderCount: count, fare, poolStillOpen: !isFull });
               }
             );
           }
         );
       }
     );
+  });
+};
+
+// PASSENGER escape hatch — if they're still the only rider in a Shared pool
+// after waiting a while, let them switch that same request to Solo instead
+// of waiting indefinitely for someone else to pick the same route.
+exports.convertRideToSolo = (req, res) => {
+  const { rideId } = req.params;
+  const passengerAccountId = req.user.accountId;
+
+  db.query(`SELECT * FROM rides WHERE ride_id = ? AND passenger_account_id = ?`, [rideId, passengerAccountId], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!rows.length) return res.status(404).json({ error: 'Ride not found' });
+    const ride = rows[0];
+
+    if (ride.status !== 'Pending' || ride.ride_type !== 'Shared') {
+      return res.status(400).json({ error: 'This ride can no longer be converted.' });
+    }
+
+    db.query(`SELECT COUNT(*) AS c FROM rides WHERE pool_id = ? AND status != 'Cancelled'`, [ride.pool_id], (err, countRows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      if (countRows[0].c > 1) {
+        return res.status(400).json({ error: 'Other students have already joined this shared ride — it can no longer switch to Solo.' });
+      }
+
+      db.query(
+        `UPDATE rides SET ride_type = 'Solo', pool_id = NULL, fare = ? WHERE ride_id = ? AND passenger_account_id = ? AND status = 'Pending'`,
+        [FARE_BY_HEADCOUNT[1], rideId, passengerAccountId],
+        (err, result) => {
+          if (err) return res.status(500).json({ error: err.message });
+          if (result.affectedRows === 0) return res.status(409).json({ error: 'Could not convert this ride.' });
+          res.status(200).json({ message: 'Switched to Solo', fare: FARE_BY_HEADCOUNT[1] });
+        }
+      );
+    });
   });
 };
 
@@ -387,7 +554,7 @@ exports.updateRideStatus = (req, res) => {
   const { rideId } = req.params;
   const { status } = req.body;
 
-  const validStatuses = ['Picked Up', 'In Progress', 'Completed', 'Cancelled', 'Failed'];
+  const validStatuses = ['Picked Up', 'In Progress', 'Completed', 'Cancelled', 'Failed', 'Declined'];
   if (!validStatuses.includes(status)) {
     return res.status(400).json({ error: 'Invalid status' });
   }
@@ -397,7 +564,12 @@ exports.updateRideStatus = (req, res) => {
     if (!rows.length) return res.status(404).json({ error: 'Ride not found' });
     const ride = rows[0];
 
-    const cascadeToPool = status !== 'Cancelled' && ride.pool_id;
+    // 'Declined' behaves like 'Cancelled' for cascade purposes — it only
+    // ever applies to a single still-Pending ride (or, for a Shared pool
+    // decline, every rider's ride_id is targeted individually by the
+    // frontend's own loop — see the decline-pool handler in app.js), never
+    // the whole-tricycle-moves-together cascade that Picked Up/Completed use.
+    const cascadeToPool = !['Cancelled', 'Declined'].includes(status) && ride.pool_id;
     const sql = cascadeToPool
       ? `UPDATE rides SET status = ? WHERE pool_id = ?`
       : `UPDATE rides SET status = ? WHERE ride_id = ?`;
@@ -405,6 +577,23 @@ exports.updateRideStatus = (req, res) => {
 
     db.query(sql, params, (err) => {
       if (err) return res.status(500).json({ error: err.message });
+
+      // A Shared pool accepted early (under 4 riders) stays open to new
+      // joiners until this exact moment — the driver actually departing.
+      // From here on nobody new can join this trip, whatever headcount it
+      // settled at.
+      if (cascadeToPool && status === 'Picked Up') {
+        db.query(
+          `UPDATE ride_pools SET status = 'Closed', closed_at = COALESCE(closed_at, NOW()) WHERE pool_id = ?`,
+          [ride.pool_id],
+          (err2) => {
+            if (err2) return res.status(500).json({ error: err2.message });
+            res.status(200).json({ message: `Ride marked as ${status}` });
+          }
+        );
+        return;
+      }
+
       res.status(200).json({ message: `Ride marked as ${status}` });
     });
   });

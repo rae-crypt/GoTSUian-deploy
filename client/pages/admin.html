@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="../css/admin.css?v=21">
+  <link rel="stylesheet" href="../css/admin.css?v=32">
 </head>
 <body data-page="admin">
   <header>
@@ -40,7 +40,7 @@
     <section class="hero hero-simple admin-hero">
       <div class="hero-copy">
         <span class="hero-badge"><span></span> Admin Panel</span>
-        <h1>Welcome back, <span data-dashboard-welcome>Admin</span></h1>
+        <h1>Welcome, <span data-dashboard-welcome>Admin</span></h1>
         <p>Monitor rides, manage passenger and driver accounts, and keep campus transport running smoothly.</p>
       </div>
     </section>
@@ -96,12 +96,13 @@
                 <tr>
                   <th>Name</th>
                   <th>Contact number</th>
+                  <th>License</th>
                   <th>Status</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody id="admin-drivers-tbody">
-                <tr><td colspan="4">Loading drivers...</td></tr>
+                <tr><td colspan="5">Loading drivers...</td></tr>
               </tbody>
             </table>
           </div>
@@ -109,7 +110,7 @@
         </div>
         <div class="dashboard-panel" id="passenger-management-panel">
           <h2>Passenger management</h2>
-          <p>Monitor riders and how often they've booked a ride.</p>
+          <p>Monitor students and how often they've booked a ride.</p>
           <div class="table-card">
             <table>
               <thead>
@@ -118,10 +119,11 @@
                   <th>Rides booked</th>
                   <th>Last booking</th>
                   <th>Status</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody id="admin-passengers-tbody">
-                <tr><td colspan="4">Loading passengers...</td></tr>
+                <tr><td colspan="5">Loading passengers...</td></tr>
               </tbody>
             </table>
           </div>
@@ -150,8 +152,54 @@
           </table>
         </div>
       </div>
+
+      <div class="dashboard-panel" id="complaints-panel">
+        <h2>Complaints</h2>
+        <p>Reports filed by passengers and drivers against each other. Review and resolve, optionally issuing a warning or violation.</p>
+        <div class="table-card">
+          <table>
+            <thead>
+              <tr>
+                <th>Filed by</th>
+                <th>Against</th>
+                <th>Category</th>
+                <th>Route</th>
+                <th>Status</th>
+                <th>Filed</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="admin-complaints-tbody">
+              <tr><td colspan="7">Loading complaints...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </section>
   </main>
+
+  <div id="violation-modal" class="violation-modal-overlay hidden">
+    <div class="violation-modal-content">
+      <h3 id="violation-modal-title">Issue Warning / Violation</h3>
+      <p id="violation-modal-target"></p>
+      <div class="form-field">
+        <label for="violation-severity">Severity</label>
+        <select id="violation-severity">
+          <option value="Warning">Warning</option>
+          <option value="Violation">Violation</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label for="violation-reason">Reason</label>
+        <textarea id="violation-reason" rows="3" placeholder="Explain why this is being issued..."></textarea>
+      </div>
+      <small class="error-msg" id="violation-modal-error"></small>
+      <div class="driver-card-actions">
+        <button type="button" class="btn-primary" id="violation-modal-submit">Issue</button>
+        <button type="button" class="btn-secondary-outline" id="violation-modal-cancel">Cancel</button>
+      </div>
+    </div>
+  </div>
 
   <footer class="site-shell footer">
     <div class="footer-grid">
@@ -162,11 +210,11 @@
       </div>
       <div>
         <h4>Quick Links</h4>
-        <p><a href="index.html">Home</a> · <a href="booking.html">Booking</a> · <a href="auth.html">Login</a></p>
+        <p><a href="index.html">Home</a> · <a href="booking.html">Booking</a> · <a href="rules.html">Rules</a> · <a href="auth.html">Login</a></p>
       </div>
     </div>
   </footer>
 
-  <script src="../js/app.js?v=21"></script>
+  <script src="../js/app.js?v=67"></script>
 </body>
 </html>

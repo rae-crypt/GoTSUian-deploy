@@ -17,5 +17,6 @@ router.get('/drivers', authMiddleware, requireAdmin, adminController.listDrivers
 router.get('/passengers', authMiddleware, requireAdmin, adminController.listPassengers);
 router.get('/bookings', authMiddleware, requireAdmin, adminController.listBookings);
 router.put('/drivers/:driverId/status', authMiddleware, requireAdmin, adminController.updateDriverStatus);
+router.get('/drivers/:driverId/license', authMiddleware, requireAdmin, adminController.getDriverLicenseFile);
 
 module.exports = router;

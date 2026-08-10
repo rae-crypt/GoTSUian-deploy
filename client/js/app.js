@@ -34,6 +34,13 @@ function setupNavMenu() {
       closeNav();
     }
   });
+
+  // In-page anchor links (e.g. the Home page's "About Us" / "How it works"
+  // jump links) don't trigger a full page navigation, so the drawer would
+  // otherwise stay open covering the section the user just jumped to.
+  navLinks.querySelectorAll('a[href^="#"]').forEach(link => {
+    link.addEventListener('click', closeNav);
+  });
 }
  
 function setupBackToTop() {
@@ -55,7 +62,46 @@ function setupBackToTop() {
     });
   });
 }
- 
+
+// HOW IT WORKS page — the Student/Driver step toggle and FAQ accordion.
+// Safe no-op everywhere else (only how-it-works.html has these elements).
+function setupHowItWorksPage() {
+  const roleButtons = document.querySelectorAll('.how-role-btn');
+  if (roleButtons.length) {
+    roleButtons.forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        const role = btn.getAttribute('data-how-role');
+        roleButtons.forEach(function(b) { b.classList.toggle('is-active', b === btn); });
+        document.querySelectorAll('[data-how-role-panel]').forEach(function(panel) {
+          panel.classList.toggle('is-active', panel.getAttribute('data-how-role-panel') === role);
+        });
+      });
+    });
+  }
+
+  document.querySelectorAll('.how-faq-item').forEach(function(item) {
+    const question = item.querySelector('.how-faq-q');
+    if (question) {
+      question.addEventListener('click', function() {
+        item.classList.toggle('is-open');
+      });
+    }
+  });
+}
+
+// GETTING STARTED page — the troubleshooting FAQ accordion. Safe no-op
+// everywhere else (only getting-started.html has these elements).
+function setupGettingStartedPage() {
+  document.querySelectorAll('.gs-faq-item').forEach(function(item) {
+    const question = item.querySelector('.gs-faq-q');
+    if (question) {
+      question.addEventListener('click', function() {
+        item.classList.toggle('is-open');
+      });
+    }
+  });
+}
+
 function highlightActiveNav() {
   const currentPage = document.body.getAttribute('data-page');
   const navLinksArray = document.querySelectorAll('.nav-links a');
@@ -84,8 +130,42 @@ function setupScrollReveal() {
   revealItems.forEach(item => observer.observe(item));
 }
  
+// Auth is primarily kept in sessionStorage (isolated per tab — lets
+// different tabs stay logged in as different roles at once, important for
+// testing passenger/driver/admin side by side). localStorage is written
+// alongside it purely as a brief same-tab recovery backup: right after
+// register/login, this tab's own sessionStorage is set immediately, but if
+// something about the very next navigation loses it (observed in some
+// embedded preview browsers, where a same-tab redirect can behave like a
+// fresh context), this tab recovers its OWN identity from localStorage
+// instead of bouncing back to the login page — then re-adopts it into
+// sessionStorage so this tab is self-contained again from then on. A tab
+// that already has its own sessionStorage (e.g. a second tab intentionally
+// logged in as a different role) never touches localStorage at all, so it's
+// never hijacked by another tab's login. The backup only counts within a
+// short window after it was written (AUTH_HANDOFF_WINDOW_MS) — without
+// this, a completely unrelated new tab opened later (e.g. just visiting
+// the home page to register a new account) would silently inherit whoever
+// last logged in on any tab, which is exactly the bug this window prevents.
+const AUTH_HANDOFF_WINDOW_MS = 30000;
+
 function getStoredUser() {
-  const rawUser = sessionStorage.getItem('authUser');
+  let rawUser = sessionStorage.getItem('authUser');
+  if (!rawUser) {
+    const backupRaw = localStorage.getItem('authUser');
+    if (backupRaw && localStorage.getItem('isAuthenticated') === 'true') {
+      try {
+        const backup = JSON.parse(backupRaw);
+        if (backup.loggedInAt && (Date.now() - backup.loggedInAt) < AUTH_HANDOFF_WINDOW_MS) {
+          rawUser = backupRaw;
+          sessionStorage.setItem('authUser', rawUser);
+          sessionStorage.setItem('isAuthenticated', 'true');
+        }
+      } catch (error) {
+        // Malformed backup — ignore, treat as no recovery available.
+      }
+    }
+  }
   if (!rawUser) {
     return {
       name: '',
@@ -127,11 +207,21 @@ function setStoredUser(user) {
     email: user.email || '',
     accountId: user.accountId || null,
     accountStatus: user.accountStatus || '',
-    token: user.token || ''
+    token: user.token || '',
+    // Only read back by the localStorage recovery fallback in
+    // getStoredUser() — bounds how long a same-tab handoff stays usable.
+    loggedInAt: Date.now()
   };
 
-  sessionStorage.setItem('authUser', JSON.stringify(payload));
+  const json = JSON.stringify(payload);
+  sessionStorage.setItem('authUser', json);
   sessionStorage.setItem('isAuthenticated', 'true');
+  // Backup copy for this tab's own same-tab-navigation recovery — see the
+  // comment on getStoredUser() above. NOT meant to let other tabs inherit
+  // this login; getStoredUser() only ever reads it when a tab's own
+  // sessionStorage is empty.
+  localStorage.setItem('authUser', json);
+  localStorage.setItem('isAuthenticated', 'true');
   localStorage.removeItem('userName');
   localStorage.removeItem('userRole');
   localStorage.removeItem('userEmail');
@@ -148,6 +238,12 @@ function getAuthHeaders() {
 function clearStoredUser() {
   sessionStorage.removeItem('authUser');
   sessionStorage.removeItem('isAuthenticated');
+  // Also clears the localStorage backup so a brand-new tab opened later
+  // doesn't silently inherit a login this tab just logged out of — it only
+  // ever gets read as a same-tab recovery fallback (see getStoredUser()),
+  // never touched by other tabs that already have their own session.
+  localStorage.removeItem('authUser');
+  localStorage.removeItem('isAuthenticated');
   localStorage.removeItem('userName');
   localStorage.removeItem('userRole');
   localStorage.removeItem('userEmail');
@@ -265,6 +361,9 @@ function renderAuthStatus() {
 }
  
 function isAuthenticated() {
+  // getStoredUser() runs first and self-heals sessionStorage from the
+  // localStorage backup when this tab's own session is empty, so by the
+  // time this reads sessionStorage it already reflects the recovered state.
   return Boolean(getStoredUser().role) && sessionStorage.getItem('isAuthenticated') === 'true';
 }
  
@@ -333,6 +432,25 @@ function showDriverApprovalBanner() {
     banner.classList.remove('hidden');
   } else {
     banner.classList.add('hidden');
+  }
+}
+
+// A driver's accountStatus is cached in sessionStorage from whenever they
+// last logged in/registered — it doesn't update on its own when an admin
+// approves them mid-session, which left the "pending approval" banner (and
+// the "Offline" toggle it implies) stuck showing even after approval. This
+// re-checks the real value from the server and refreshes the cached copy
+// (which also re-renders the banner, via setStoredUser -> refreshAuthState)
+// whenever it actually changed.
+async function syncDriverAccountStatus() {
+  const user = getStoredUser();
+  if (!isAuthenticated() || user.role !== 'driver') return;
+
+  const profile = await fetchProfile();
+  if (!profile || !profile.account_status) return;
+
+  if (profile.account_status !== user.accountStatus) {
+    setStoredUser({ ...user, accountStatus: profile.account_status });
   }
 }
 
@@ -495,8 +613,13 @@ function showAdminDashboardIfLoggedIn() {
 // #cta-signup.
 function updateHomeCtaVisibility() {
   const signupLink = document.querySelector('#cta-signup');
-  if (!signupLink) return;
-  signupLink.style.display = isAuthenticated() ? 'none' : '';
+  // The desktop hamburger dropdown has its own Login item (#cta-signup-drawer)
+  // since the top-bar Login button is hidden at desktop widths there — kept
+  // in sync with the same auth state.
+  const drawerLoginLink = document.querySelector('#cta-signup-drawer');
+  const hide = isAuthenticated() ? 'none' : '';
+  if (signupLink) signupLink.style.display = hide;
+  if (drawerLoginLink) drawerLoginLink.style.display = hide;
 }
 
 // LOYALTY / REWARDS — only present on passenger-rewards.html, so this is a
@@ -597,6 +720,40 @@ async function renderDriverRating() {
     detailsEl.style.display = 'block';
   } catch (error) {
     console.warn('Unable to fetch driver rating', error);
+  }
+}
+
+// ACCOUNT STANDING — a driver/passenger's own warning/violation history, on
+// their Profile page. Only present on driver-profile.html /
+// passenger-profile.html, so this is a safe no-op everywhere else.
+async function renderMyViolations() {
+  const loadingEl = document.querySelector('#warnings-loading');
+  const detailsEl = document.querySelector('#warnings-details');
+  if (!loadingEl || !detailsEl) return;
+
+  const user = getStoredUser();
+  if (!isAuthenticated() || (user.role !== 'driver' && user.role !== 'passenger')) return;
+
+  try {
+    const res = await fetch(`${COMPLAINTS_API_URL}/my-violations`, { headers: getAuthHeaders() });
+    if (!res.ok) return;
+    const data = await res.json();
+
+    document.querySelector('#warnings-count').textContent = data.count;
+
+    const listEl = document.querySelector('#warnings-list');
+    listEl.innerHTML = data.violations.map(v => `
+      <div class="rating-item">
+        <p class="warning-item-severity tone-${v.severity === 'Violation' ? 'danger' : 'warning'}">${escapeHtml(v.severity)}</p>
+        <p class="rating-item-comment">${escapeHtml(v.reason)}</p>
+        <small>${new Date(v.created_at).toLocaleDateString()}</small>
+      </div>
+    `).join('') || '<p class="rating-empty">No warnings or violations on record. Keep it up!</p>';
+
+    loadingEl.style.display = 'none';
+    detailsEl.style.display = 'block';
+  } catch (error) {
+    console.warn('Unable to fetch account standing', error);
   }
 }
 
@@ -833,6 +990,7 @@ async function pollDriverLocation() {
 // safe no-op everywhere else.
 let driverMapInstance = null;
 let driverMapMarker = null;
+let driverMapPassengerMarker = null;
 let driverMapRouteLine = null;
 let driverMapRouteFull = null;
 let driverMapTrackedRideId = null;
@@ -860,6 +1018,10 @@ function clearDriverMapTracking() {
   if (driverMapMarker) {
     driverMapInstance.removeLayer(driverMapMarker);
     driverMapMarker = null;
+  }
+  if (driverMapPassengerMarker) {
+    driverMapInstance.removeLayer(driverMapPassengerMarker);
+    driverMapPassengerMarker = null;
   }
   if (driverMapRouteLine) {
     driverMapInstance.removeLayer(driverMapRouteLine);
@@ -896,6 +1058,28 @@ async function renderDriverMapTracking() {
     driverMapRouteLine = L.polyline(driverMapRouteFull, {
       color: '#7f1d1d', weight: 5, opacity: 0.75, lineCap: 'round', lineJoin: 'round'
     }).addTo(driverMapInstance);
+  }
+
+  // Best-effort: shows where the passenger actually was when they requested
+  // this ride (a one-time GPS snapshot, not continuously updated) — a ride
+  // requested before this feature existed, or where the passenger denied
+  // location access, simply has no coordinates and no marker ever appears.
+  try {
+    const res = await fetch(`${RIDES_API_URL}/${activeRide.ride_id}/passenger-location`, { headers: getAuthHeaders() });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.lat != null && data.lng != null) {
+        const passengerPoint = [data.lat, data.lng];
+        if (!driverMapPassengerMarker) {
+          const passengerIcon = L.divIcon({ className: 'driver-location-icon', html: '<span class="passenger-location-badge">🧍</span>', iconSize: [36, 36], iconAnchor: [18, 18] });
+          driverMapPassengerMarker = L.marker(passengerPoint, { icon: passengerIcon, zIndexOffset: 900 }).addTo(driverMapInstance).bindPopup('Passenger pickup spot');
+        } else {
+          driverMapPassengerMarker.setLatLng(passengerPoint);
+        }
+      }
+    }
+  } catch (error) {
+    console.warn('Unable to load passenger pickup location', error);
   }
 
   if (!lastKnownDriverPosition) return;
@@ -967,24 +1151,52 @@ async function renderAdminDriverManagement() {
   const drivers = await fetchAdminDrivers();
 
   if (!drivers.length) {
-    tbody.innerHTML = '<tr><td colspan="4">No drivers registered yet.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5">No drivers registered yet.</td></tr>';
     return;
   }
 
   tbody.innerHTML = drivers.map(driver => {
-    const actions = driver.account_status === 'Pending'
+    const approvalActions = driver.account_status === 'Pending'
       ? `<button type="button" class="btn-primary" data-action="approve-driver" data-driver-id="${driver.driver_id}">Approve</button>
          <button type="button" class="btn-secondary" data-action="reject-driver" data-driver-id="${driver.driver_id}">Reject</button>`
-      : '—';
+      : '';
+    const driverName = escapeHtml(driver.first_name + ' ' + driver.last_name);
+    const licenseCell = driver.has_license_file
+      ? `<button type="button" class="btn-link" data-action="view-license" data-driver-id="${driver.driver_id}">View license</button>`
+      : '<span class="tone-warning">Not uploaded</span>';
     return `
       <tr>
-        <td>${escapeHtml(driver.first_name + ' ' + driver.last_name)}</td>
+        <td>${driverName}</td>
         <td>${escapeHtml(driver.contact_number || '—')}</td>
+        <td>${licenseCell}</td>
         <td>${escapeHtml(driver.account_status)}</td>
-        <td>${actions}</td>
+        <td>${approvalActions}
+          <button type="button" class="btn-secondary-outline" data-action="issue-warning" data-account-id="${driver.account_id}" data-target-name="${driverName}">Issue Warning</button>
+        </td>
       </tr>
     `;
   }).join('');
+
+  setupIssueWarningButtons(tbody);
+
+  // Fetches the license file as a blob (a plain <a href> can't carry the
+  // Authorization header this admin-only endpoint requires) and opens it.
+  tbody.querySelectorAll('[data-action="view-license"]').forEach(button => {
+    button.addEventListener('click', async function() {
+      const driverId = this.getAttribute('data-driver-id');
+      try {
+        const res = await fetch(`${ADMIN_API_URL}/drivers/${driverId}/license`, { headers: getAuthHeaders() });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || 'Could not load license file');
+        }
+        const blob = await res.blob();
+        window.open(URL.createObjectURL(blob), '_blank');
+      } catch (error) {
+        alert(error.message || 'Could not load license file');
+      }
+    });
+  });
 
   tbody.querySelectorAll('[data-action="approve-driver"]').forEach(button => {
     button.addEventListener('click', async function() {
@@ -1024,22 +1236,26 @@ async function renderAdminPassengerManagement() {
     const passengers = data.passengers || [];
 
     if (!passengers.length) {
-      tbody.innerHTML = '<tr><td colspan="4">No passengers registered yet.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5">No passengers registered yet.</td></tr>';
       return;
     }
 
     tbody.innerHTML = passengers.map(p => {
       const lastBooking = p.last_booking ? new Date(p.last_booking).toLocaleDateString() : '—';
       const status = p.ride_count > 0 ? 'Active' : 'No bookings yet';
+      const passengerName = escapeHtml(p.name);
       return `
         <tr>
-          <td>${escapeHtml(p.name)}</td>
+          <td>${passengerName}</td>
           <td>${p.ride_count}</td>
           <td>${escapeHtml(lastBooking)}</td>
           <td>${escapeHtml(status)}</td>
+          <td><button type="button" class="btn-secondary-outline" data-action="issue-warning" data-account-id="${p.account_id}" data-target-name="${passengerName}">Issue Warning</button></td>
         </tr>
       `;
     }).join('');
+
+    setupIssueWarningButtons(tbody);
   } catch (error) {
     console.warn('Unable to fetch passengers', error);
   }
@@ -1081,11 +1297,163 @@ async function renderAdminBookings() {
   }
 }
 
+// ADMIN — complaints filed by passengers/drivers against each other, plus
+// the "Issue Warning" modal shared between this panel and the driver/
+// passenger management tables. Only present on admin.html.
+async function renderAdminComplaints() {
+  const tbody = document.querySelector('#admin-complaints-tbody');
+  if (!tbody) return;
+
+  try {
+    const res = await fetch(`${COMPLAINTS_API_URL}/admin`, { headers: getAuthHeaders() });
+    if (!res.ok) return;
+    const data = await res.json();
+    const complaints = data.complaints || [];
+
+    if (!complaints.length) {
+      tbody.innerHTML = '<tr><td colspan="7">No complaints filed yet.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = complaints.map(c => {
+      const route = c.pickup_location ? `${escapeHtml(c.pickup_location)} → ${escapeHtml(c.dropoff_location)}` : '—';
+      const tone = c.status === 'Pending' ? 'warning' : c.status === 'Reviewed' ? 'info' : 'success';
+      const againstName = escapeHtml(c.against_name || '—');
+      const actions = c.status === 'Resolved' ? '—' : `
+        <button type="button" class="btn-secondary-outline" data-action="mark-reviewed" data-complaint-id="${c.complaint_id}">Mark Reviewed</button>
+        ${c.against_account_id ? `<button type="button" class="btn-secondary-outline" data-action="issue-warning" data-account-id="${c.against_account_id}" data-target-name="${againstName}" data-complaint-id="${c.complaint_id}">Issue Warning</button>` : ''}
+      `;
+      return `
+        <tr>
+          <td>${escapeHtml(c.filed_by_name || '—')}</td>
+          <td>${againstName}</td>
+          <td>${escapeHtml(c.category)}</td>
+          <td>${route}</td>
+          <td><span class="ride-badge tone-${tone}">${escapeHtml(c.status)}</span></td>
+          <td>${new Date(c.created_at).toLocaleDateString()}</td>
+          <td>${actions}</td>
+        </tr>
+      `;
+    }).join('');
+
+    tbody.querySelectorAll('[data-action="mark-reviewed"]').forEach(button => {
+      button.addEventListener('click', async function() {
+        try {
+          await updateComplaintStatusRemote(this.getAttribute('data-complaint-id'), 'Reviewed');
+          renderAdminComplaints();
+        } catch (error) {
+          alert(error.message || 'Could not update complaint');
+        }
+      });
+    });
+
+    setupIssueWarningButtons(tbody);
+  } catch (error) {
+    console.warn('Unable to fetch complaints', error);
+  }
+}
+
+async function updateComplaintStatusRemote(complaintId, status, adminNotes) {
+  const res = await fetch(`${COMPLAINTS_API_URL}/admin/${complaintId}`, {
+    method: 'PUT',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ status, admin_notes: adminNotes })
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Unable to update complaint');
+  return data;
+}
+
+async function issueViolationRemote(accountId, severity, reason, complaintId) {
+  const res = await fetch(`${COMPLAINTS_API_URL}/admin/violations`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ account_id: accountId, severity, reason, complaint_id: complaintId || null })
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Unable to issue warning');
+  return data;
+}
+
+// Wires every "Issue Warning" button found inside `container` — used by the
+// Complaints panel, the driver-management table, and the passenger-management
+// table alike, all sharing the one #violation-modal.
+function setupIssueWarningButtons(container) {
+  container.querySelectorAll('[data-action="issue-warning"]').forEach(button => {
+    button.addEventListener('click', function() {
+      openViolationModal({
+        accountId: this.getAttribute('data-account-id'),
+        targetName: this.getAttribute('data-target-name'),
+        complaintId: this.getAttribute('data-complaint-id') || null
+      });
+    });
+  });
+}
+
+let violationModalContext = null;
+
+function openViolationModal({ accountId, targetName, complaintId }) {
+  const modal = document.querySelector('#violation-modal');
+  if (!modal) return;
+  violationModalContext = { accountId, complaintId };
+  document.querySelector('#violation-modal-target').textContent = `Against: ${targetName || 'this account'}`;
+  document.querySelector('#violation-severity').value = 'Warning';
+  document.querySelector('#violation-reason').value = '';
+  document.querySelector('#violation-modal-error').textContent = '';
+  modal.classList.remove('hidden');
+}
+
+function closeViolationModal() {
+  const modal = document.querySelector('#violation-modal');
+  if (modal) modal.classList.add('hidden');
+  violationModalContext = null;
+}
+
+function setupViolationModal() {
+  const modal = document.querySelector('#violation-modal');
+  if (!modal) return;
+
+  document.querySelector('#violation-modal-cancel').addEventListener('click', closeViolationModal);
+  modal.addEventListener('click', (event) => {
+    if (event.target === modal) closeViolationModal();
+  });
+
+  document.querySelector('#violation-modal-submit').addEventListener('click', async function() {
+    const errorEl = document.querySelector('#violation-modal-error');
+    const severity = document.querySelector('#violation-severity').value;
+    const reason = document.querySelector('#violation-reason').value.trim();
+    errorEl.textContent = '';
+
+    if (!reason) {
+      errorEl.textContent = 'Please explain why this is being issued.';
+      return;
+    }
+    if (!violationModalContext) return;
+
+    this.disabled = true;
+    try {
+      await issueViolationRemote(violationModalContext.accountId, severity, reason, violationModalContext.complaintId);
+      showRideFeedback('success', `${severity} issued`, 'The account has been notified on their profile.');
+      closeViolationModal();
+      renderAdminComplaints();
+      renderAdminDriverManagement();
+      renderAdminPassengerManagement();
+    } catch (error) {
+      errorEl.textContent = error.message || 'Please try again.';
+    } finally {
+      this.disabled = false;
+    }
+  });
+}
+
 function fillDashboardWelcome() {
   const welcomeName = document.querySelector('[data-dashboard-welcome]');
   if (!welcomeName) return;
   const user = getStoredUser();
-  const displayName = user.name || user.role || 'User';
+  const fullName = user.name || user.role || 'User';
+  // "Welcome back, Juan" reads friendlier than "Welcome back, Juan Dela Cruz"
+  // — just the first name here; the full name is still used elsewhere (reviews, admin tables).
+  const displayName = fullName.split(' ')[0];
   welcomeName.textContent = displayName;
 }
  
@@ -1098,41 +1466,45 @@ function escapeHtml(value) {
     .replace(/'/g, '&#39;');
 }
  
+// Centered popup used for quick ride-related confirmations (requested,
+// accepted, cancelled, chat errors, etc.) — same overlay/pop-in design
+// language as the other modals (.auth-modal, .chat-modal), not a corner
+// toast, and not blocking: it auto-dismisses on its own after ~2.6s, or
+// immediately if the user clicks it.
+const RIDE_FEEDBACK_ICONS = {
+  success: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 13 10 18 19 7"/></svg>',
+  error: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>',
+  info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><circle cx="12" cy="7.5" r="1" fill="currentColor" stroke="none"/></svg>'
+};
+
 function showRideFeedback(type, title, message) {
   const existing = document.querySelector('[data-ride-feedback]');
   if (existing) existing.remove();
- 
-  const feedback = document.createElement('div');
-  feedback.setAttribute('data-ride-feedback', '');
-  feedback.style.position = 'fixed';
-  feedback.style.right = '1rem';
-  feedback.style.bottom = '1rem';
-  feedback.style.zIndex = '1200';
-  feedback.style.maxWidth = '320px';
-  feedback.style.padding = '0.95rem 1rem';
-  feedback.style.borderRadius = '14px';
-  feedback.style.boxShadow = '0 16px 40px rgba(15, 23, 42, 0.18)';
-  feedback.style.background = type === 'error' ? '#fee2e2' : type === 'success' ? '#dcfce7' : '#dbeafe';
-  feedback.style.color = type === 'error' ? '#991b1b' : type === 'success' ? '#166534' : '#1d4ed8';
-  feedback.style.transform = 'translateY(12px)';
-  feedback.style.opacity = '0';
-  feedback.style.transition = 'all 180ms ease';
-  feedback.innerHTML = `
-    <div style="font-weight:700; margin-bottom:0.25rem;">${escapeHtml(title)}</div>
-    <div style="font-size:0.95rem; line-height:1.4;">${escapeHtml(message)}</div>
+
+  const overlay = document.createElement('div');
+  overlay.setAttribute('data-ride-feedback', '');
+  overlay.className = 'ride-feedback-overlay';
+  overlay.innerHTML = `
+    <div class="ride-feedback-modal">
+      <div class="ride-feedback-icon ${type}">${RIDE_FEEDBACK_ICONS[type] || RIDE_FEEDBACK_ICONS.info}</div>
+      <h3>${escapeHtml(title)}</h3>
+      <p>${escapeHtml(message)}</p>
+    </div>
   `;
- 
-  document.body.appendChild(feedback);
-  window.setTimeout(() => {
-    feedback.style.opacity = '1';
-    feedback.style.transform = 'translateY(0)';
-  }, 10);
- 
-  window.setTimeout(() => {
-    feedback.style.opacity = '0';
-    feedback.style.transform = 'translateY(12px)';
-    window.setTimeout(() => feedback.remove(), 180);
-  }, 2800);
+
+  document.body.appendChild(overlay);
+
+  let dismissTimer = null;
+  const dismiss = () => {
+    if (dismissTimer) clearTimeout(dismissTimer);
+    overlay.remove();
+  };
+
+  overlay.addEventListener('click', function(event) {
+    if (event.target === overlay) dismiss();
+  });
+
+  dismissTimer = window.setTimeout(dismiss, 2600);
 }
  
 function getRideLifecycleSteps(status) {
@@ -1158,6 +1530,9 @@ const RIDES_API_URL = 'http://localhost:3000/api/rides';
 const ADMIN_API_URL = 'http://localhost:3000/api/admin';
 const PROFILE_API_URL = 'http://localhost:3000/api/profile';
 const REVIEWS_API_URL = 'http://localhost:3000/api/reviews';
+const COMPLAINTS_API_URL = 'http://localhost:3000/api/complaints';
+const OTP_API_URL = 'http://localhost:3000/api/otp';
+const MESSAGES_API_URL = 'http://localhost:3000/api/messages';
 
 // Formats a JS Date as 'YYYY-MM-DD HH:MM:SS' in local time, which is what
 // MySQL's DATETIME column expects — avoids timezone drift from ISO strings.
@@ -1236,45 +1611,38 @@ async function createRideRequest(payload) {
   return data;
 }
 
-// DRIVER's own "I'm on shift" switch — only present on driver.html, and
-// only wired up if the driver role is logged in, so this is a safe no-op
-// everywhere else.
+// Fire-and-forget — attaches a GPS snapshot to an already-created ride once
+// it resolves. Never blocks or surfaces errors to the passenger; the ride
+// itself was already created successfully regardless of whether this lands.
+async function updateRidePickupLocation(rideId, lat, lng) {
+  try {
+    await fetch(`${RIDES_API_URL}/${rideId}/pickup-location`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ lat, lng })
+    });
+  } catch (error) {
+    console.warn('Could not attach pickup location to ride', error);
+  }
+}
+
+// DRIVER's "on shift" status — only present on driver.html, and only wired
+// up if the driver role is logged in, so this is a safe no-op everywhere
+// else. No manual toggle: a driver goes online automatically at login (see
+// loginDriver in authController.js) and offline automatically at logout
+// (see setupLogoutButtons below) — this just displays the current state.
 function setupAvailabilityToggle() {
-  const toggleBtn = document.querySelector('#availability-switch');
   const label = document.querySelector('#availability-label');
-  if (!toggleBtn || !label) return;
+  if (!label) return;
 
   const user = getStoredUser();
   if (!isAuthenticated() || user.role !== 'driver') return;
 
-  function updateUI(isOnline) {
-    toggleBtn.classList.toggle('is-on', isOnline);
-    toggleBtn.setAttribute('aria-pressed', String(isOnline));
-    label.textContent = isOnline ? 'Online — accepting rides' : 'Offline';
-  }
-
-  toggleBtn.addEventListener('click', async () => {
-    const nextState = !toggleBtn.classList.contains('is-on');
-    toggleBtn.disabled = true;
-    try {
-      const res = await fetch(`${RIDES_API_URL}/driver/availability`, {
-        method: 'PUT',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ is_online: nextState })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Unable to update availability');
-      updateUI(data.is_online);
-    } catch (error) {
-      showRideFeedback('error', 'Could not update', error.message || 'Please try again.');
-    } finally {
-      toggleBtn.disabled = false;
-    }
-  });
-
   fetch(`${RIDES_API_URL}/driver/availability`, { headers: getAuthHeaders() })
     .then(res => res.ok ? res.json() : null)
-    .then(data => { if (data) updateUI(data.is_online); })
+    .then(data => {
+      if (data) label.textContent = data.is_online ? 'Online — accepting rides' : 'Offline';
+    })
     .catch(error => console.warn('Unable to fetch availability', error));
 }
 
@@ -1352,11 +1720,78 @@ async function renderAvailableDriversIndicator() {
       text.textContent = `${data.count} driver${data.count === 1 ? '' : 's'} available right now`;
     } else {
       dot.classList.remove('is-available');
-      text.textContent = 'No drivers online right now — requests may take a bit longer.';
+      // "No drivers online" and "drivers online but all busy with a trip
+      // right now" read very differently to a waiting passenger — don't
+      // conflate them just because neither has anyone free at this instant.
+      text.textContent = data.onlineCount > 0
+        ? 'All online drivers are currently on a trip — your request may take a bit longer.'
+        : 'No drivers online right now — requests may take a bit longer.';
     }
   } catch (error) {
     console.warn('Unable to fetch available drivers count', error);
   }
+}
+
+// Tapping the availability indicator opens a list of who's actually online
+// right now (name + plate number only — no contact info or live location
+// for drivers a passenger isn't riding with yet) so they have something to
+// check the tricycle that shows up against, for their own safety.
+function setupAvailabilityIndicatorClick() {
+  const indicator = document.querySelector('#availability-indicator');
+  if (!indicator) return;
+  indicator.addEventListener('click', openAvailableDriversModal);
+}
+
+function openAvailableDriversModal() {
+  const overlay = document.createElement('div');
+  overlay.className = 'chat-overlay';
+  overlay.innerHTML = `
+    <div class="chat-modal driver-list-modal">
+      <div class="chat-modal-header">
+        <h3>Drivers online right now</h3>
+        <button type="button" class="chat-close-btn" aria-label="Close">&times;</button>
+      </div>
+      <div class="driver-list-body">
+        <p class="driver-list-loading">Loading...</p>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  document.body.style.overflow = 'hidden';
+
+  function closeModal() {
+    overlay.remove();
+    document.body.style.overflow = '';
+  }
+
+  overlay.querySelector('.chat-close-btn').addEventListener('click', closeModal);
+  overlay.addEventListener('click', function(event) {
+    if (event.target === overlay) closeModal();
+  });
+
+  const body = overlay.querySelector('.driver-list-body');
+
+  fetch(`${RIDES_API_URL}/available-drivers`, { headers: getAuthHeaders() })
+    .then(res => res.ok ? res.json() : Promise.reject(new Error('Could not load drivers')))
+    .then(data => {
+      const drivers = data.drivers || [];
+      if (!drivers.length) {
+        body.innerHTML = '<p class="driver-list-empty">No drivers online right now.</p>';
+        return;
+      }
+      body.innerHTML = drivers.map(d => `
+        <div class="driver-list-item">
+          <span class="driver-list-avatar">${escapeHtml((d.name || '?').charAt(0).toUpperCase())}</span>
+          <div>
+            <strong>${escapeHtml(d.name || 'Driver')}</strong>
+            <small>Plate: ${escapeHtml(d.plate_number || 'Not on file')} · Body no: ${escapeHtml(d.body_number || 'Not on file')}</small>
+          </div>
+        </div>
+      `).join('');
+    })
+    .catch(error => {
+      body.innerHTML = `<p class="driver-list-empty">${escapeHtml(error.message || 'Could not load drivers.')}</p>`;
+    });
 }
 
 async function acceptRideRemote(rideId) {
@@ -1380,6 +1815,56 @@ async function updateRideStatusRemote(rideId, status) {
   return data;
 }
 
+async function convertRideToSoloRemote(rideId) {
+  const res = await fetch(`${RIDES_API_URL}/${rideId}/convert-to-solo`, {
+    method: 'PUT',
+    headers: getAuthHeaders()
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Unable to convert this ride');
+  return data;
+}
+
+// Generic yes/no confirmation popup — resolves true/false depending on
+// which button the user picks (or false if they dismiss it entirely).
+// Built dynamically the same way as openChatModal/openAvailableDriversModal
+// rather than a static block in the page HTML, since it's reused wherever
+// a destructive or easy-to-mistap action needs a second confirmation.
+function showConfirmModal({ title, messageHtml, confirmLabel = 'Confirm', cancelLabel = 'Cancel' }) {
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
+    overlay.className = 'chat-overlay';
+    overlay.innerHTML = `
+      <div class="chat-modal confirm-modal">
+        <div class="chat-modal-header">
+          <h3>${escapeHtml(title)}</h3>
+          <button type="button" class="chat-close-btn" aria-label="Close">&times;</button>
+        </div>
+        <div class="confirm-modal-body">${messageHtml}</div>
+        <div class="confirm-modal-actions">
+          <button type="button" class="btn-secondary-outline confirm-cancel-btn">${escapeHtml(cancelLabel)}</button>
+          <button type="button" class="btn-primary confirm-ok-btn">${escapeHtml(confirmLabel)}</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    document.body.style.overflow = 'hidden';
+
+    function close(result) {
+      overlay.remove();
+      document.body.style.overflow = '';
+      resolve(result);
+    }
+
+    overlay.querySelector('.chat-close-btn').addEventListener('click', () => close(false));
+    overlay.querySelector('.confirm-cancel-btn').addEventListener('click', () => close(false));
+    overlay.querySelector('.confirm-ok-btn').addEventListener('click', () => close(true));
+    overlay.addEventListener('click', function(event) {
+      if (event.target === overlay) close(false);
+    });
+  });
+}
+
 function setupPassengerRideRequestForm() {
   const form = document.querySelector('#ride-request-form');
   if (!form) return;
@@ -1395,7 +1880,8 @@ function setupPassengerRideRequestForm() {
 
     const pickupLocation = document.querySelector('#pickup-location').value;
     const dropoffLocation = document.querySelector('#dropoff-location').value;
-    const rideType = document.querySelector('#ride-type').value;
+    const rideTypeSelect = document.querySelector('#ride-type');
+    const rideType = rideTypeSelect.value;
     const scheduleSelect = document.querySelector('#ride-schedule');
     const scheduleMinutes = scheduleSelect ? parseInt(scheduleSelect.value, 10) : 0;
     const scheduledAt = scheduleMinutes > 0 ? toMySQLDateTime(new Date(Date.now() + scheduleMinutes * 60000)) : null;
@@ -1412,11 +1898,47 @@ function setupPassengerRideRequestForm() {
       return;
     }
 
+    // One more explicit "are you sure" before actually creating the ride —
+    // easy to fat-finger the wrong campus or ride type otherwise.
+    const rideTypeLabel = rideTypeSelect.selectedOptions[0]
+      ? rideTypeSelect.selectedOptions[0].textContent
+      : rideType;
+    const whenLabel = scheduleSelect && scheduleSelect.selectedOptions[0]
+      ? scheduleSelect.selectedOptions[0].textContent
+      : 'Leave now';
+    const confirmed = await showConfirmModal({
+      title: 'Confirm your ride request',
+      messageHtml: `
+        <p class="confirm-route"><strong>${escapeHtml(pickupLocation)}</strong> <span class="ride-route-arrow">→</span> <strong>${escapeHtml(dropoffLocation)}</strong></p>
+        <p><strong>Ride type:</strong> ${escapeHtml(rideTypeLabel)}</p>
+        <p><strong>When:</strong> ${escapeHtml(whenLabel)}</p>
+      `,
+      confirmLabel: 'Yes, request ride',
+      cancelLabel: 'Cancel'
+    });
+    if (!confirmed) return;
+
     const submitButton = form.querySelector('button[type="submit"]');
     if (submitButton) submitButton.disabled = true;
 
+    // Kicks off the browser's native "Allow location?" prompt right at the
+    // moment of requesting a ride. Deliberately NOT awaited here — a slow or
+    // denied GPS lock used to hold up the whole request (2-3s instead of
+    // feeling instant). Ride creation goes ahead immediately; the
+    // coordinates, if they ever resolve, get attached to the ride
+    // afterward in the background (see updateRidePickupLocation below).
+    const locationPromise = navigator.geolocation
+      ? new Promise((resolve) => {
+          navigator.geolocation.getCurrentPosition(
+            (position) => resolve({ lat: position.coords.latitude, lng: position.coords.longitude }),
+            () => resolve(null),
+            { enableHighAccuracy: true, timeout: 8000 }
+          );
+        })
+      : Promise.resolve(null);
+
     try {
-      await createRideRequest({
+      const result = await createRideRequest({
         passenger_account_id: user.accountId,
         pickup_location: pickupLocation,
         dropoff_location: dropoffLocation,
@@ -1435,6 +1957,12 @@ function setupPassengerRideRequestForm() {
           ? 'Your seat is booked. Fare is finalized once the tricycle fills up or a driver departs early.'
           : 'Your trip request is now waiting for a driver.'
       );
+
+      locationPromise.then((coords) => {
+        if (coords && result && result.rideId) {
+          updateRidePickupLocation(result.rideId, coords.lat, coords.lng);
+        }
+      });
     } catch (error) {
       console.error('Ride request failed', error);
       showRideFeedback('error', 'Request failed', error.message || 'Could not connect to the server.');
@@ -1452,7 +1980,8 @@ function getRideStatusConfig(status) {
     'In Progress': { label: 'In Progress', description: 'The trip is underway.', tone: 'info' },
     Completed: { label: 'Completed', description: 'The ride has been completed.', tone: 'success' },
     Cancelled: { label: 'Cancelled', description: 'The ride was cancelled.', tone: 'danger' },
-    Failed: { label: 'Failed', description: 'The ride could not be completed.', tone: 'danger' }
+    Failed: { label: 'Failed', description: 'The ride could not be completed.', tone: 'danger' },
+    Declined: { label: 'Declined', description: 'The driver declined this ride request.', tone: 'danger' }
   };
  
   return configs[status] || { label: status || 'Unknown', description: 'Status update received.', tone: 'warning' };
@@ -1466,6 +1995,21 @@ function getNextRideStatusOptions(currentStatus) {
   return [];
 }
  
+// Disables "Request ride" while the passenger already has one in flight —
+// the backend rejects a second one anyway (see createRide), this just
+// makes it obvious in the UI instead of letting them hit an error.
+function updateRideRequestFormAvailability(hasActiveRide) {
+  const submitBtn = document.querySelector('#ride-request-form button[type="submit"]');
+  if (!submitBtn) return;
+  if (hasActiveRide) {
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'You already have an active ride';
+  } else {
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Request ride';
+  }
+}
+
 async function renderPassengerRideStatus() {
   const container = document.querySelector('#ride-status-details');
   const emptyState = document.querySelector('#ride-status-empty');
@@ -1480,7 +2024,8 @@ async function renderPassengerRideStatus() {
   }
 
   const rides = await fetchMyRides();
-  const activeRide = rides.find(ride => !['Completed', 'Cancelled', 'Failed'].includes(ride.status)) || null;
+  const activeRide = rides.find(ride => !['Completed', 'Cancelled', 'Failed', 'Declined'].includes(ride.status)) || null;
+  updateRideRequestFormAvailability(Boolean(activeRide));
 
   if (!activeRide) {
     emptyState.style.display = 'block';
@@ -1495,10 +2040,33 @@ async function renderPassengerRideStatus() {
   const updatedAt = new Date(activeRide.updated_at || activeRide.created_at).toLocaleString();
   const driverName = activeRide.driver_name || 'Awaiting confirmation';
   const statusConfig = getRideStatusConfig(activeRide.status);
-  const canCancel = !['Completed', 'Cancelled', 'Failed'].includes(activeRide.status);
+  // Once the driver has actually picked the passenger up, cancelling no
+  // longer makes sense — they're already in the tricycle. Only Pending
+  // (not yet accepted) and Accepted (driver on the way, not arrived yet)
+  // allow a cancel.
+  const canCancel = ['Pending', 'Accepted'].includes(activeRide.status);
+  // A Shared pool stays "Open" to new joiners even after a driver has
+  // accepted it early (under 4 riders) — it only closes once full or once
+  // the driver actually departs (marked "Picked Up"). So "waiting for more
+  // students" can still be true for an already-Accepted ride, not just a
+  // Pending one.
+  const riderCountSoFar = activeRide.pool_rider_count || 1;
+  const poolStillOpen = activeRide.ride_type === 'Shared' && activeRide.pool_status === 'Open' && riderCountSoFar < 4;
   const fareText = activeRide.fare != null
-    ? `₱${Number(activeRide.fare).toFixed(0)}`
+    ? `₱${Number(activeRide.fare).toFixed(0)}${poolStillOpen ? ' so far' : ''}`
     : 'Calculating — waiting for more students to join';
+  const fareTierRow = poolStillOpen ? `
+    <div class="fare-tier-row">
+      <span class="fare-tier-chip${riderCountSoFar >= 2 ? ' is-active' : ''}">2 · ₱30</span>
+      <span class="fare-tier-chip${riderCountSoFar >= 3 ? ' is-active' : ''}">3 · ₱25</span>
+      <span class="fare-tier-chip${riderCountSoFar >= 4 ? ' is-active' : ''}">4 · ₱20</span>
+    </div>
+  ` : '';
+  // Been waiting alone for a while with no one else joining the pool yet —
+  // offer a way out instead of leaving them stuck indefinitely. Only makes
+  // sense before a driver has accepted (accepting already required 2+).
+  const waitedMs = Date.now() - new Date(activeRide.created_at).getTime();
+  const canConvertToSolo = activeRide.status === 'Pending' && poolStillOpen && riderCountSoFar <= 1 && waitedMs > 5 * 60 * 1000;
   const scheduleText = activeRide.scheduled_at
     ? `Scheduled for ${new Date(activeRide.scheduled_at).toLocaleString()}`
     : 'Requested for now';
@@ -1516,7 +2084,9 @@ async function renderPassengerRideStatus() {
       ? 'Waiting for the tricycle to fill up, or for a driver to depart early.'
       : 'Waiting for a driver to accept your request.')
     : activeRide.status === 'Accepted'
-      ? 'Your driver is on the way to your pickup point.'
+      ? (poolStillOpen
+        ? 'Your driver is on the way — still waiting for other students to join before you depart.'
+        : 'Your driver is on the way to your pickup point.')
       : activeRide.status === 'Picked Up'
         ? 'The trip is underway and the driver is heading to your destination.'
         : activeRide.status === 'In Progress'
@@ -1532,9 +2102,10 @@ async function renderPassengerRideStatus() {
         <div class="ride-meta">
           <span><strong>Ride type:</strong> ${escapeHtml(activeRide.ride_type)}</span>
           <span><strong>Driver:</strong> ${escapeHtml(driverName)}</span>
-          ${activeRide.driver_contact ? `<span><strong>Driver contact:</strong> ${escapeHtml(activeRide.driver_contact)}</span>` : ''}
+          ${activeRide.driver_plate ? `<span><strong>Plate number:</strong> ${escapeHtml(activeRide.driver_plate)}</span>` : ''}
           <span><strong>Fare:</strong> ${escapeHtml(fareText)}</span>
         </div>
+        ${fareTierRow}
         <div class="ride-timestamps">
           <small>${escapeHtml(scheduleText)}</small>
           <small>Requested ${escapeHtml(createdAt)}</small>
@@ -1554,9 +2125,35 @@ async function renderPassengerRideStatus() {
     </div>
 
     <div class="ride-actions">
+      ${activeRide.driver_account_id ? `
+        <button type="button" class="btn-secondary-outline" data-action="open-chat" data-ride-id="${activeRide.ride_id}" data-other-name="${escapeHtml(driverName)}">
+          💬 Chat with driver${activeRide.unread_message_count > 0 ? `<span class="chat-unread-badge">${activeRide.unread_message_count}</span>` : ''}
+        </button>
+      ` : ''}
+      ${canConvertToSolo ? `<button type="button" class="btn-secondary-outline" data-action="convert-to-solo" data-ride-id="${activeRide.ride_id}">Book as Solo instead (₱60)</button>` : ''}
       ${canCancel ? `<button type="button" class="btn-secondary-outline" data-action="cancel-request" data-ride-id="${activeRide.ride_id}">Cancel request</button>` : ''}
     </div>
   `;
+
+  const convertButton = container.querySelector('[data-action="convert-to-solo"]');
+  if (convertButton) {
+    convertButton.addEventListener('click', async function() {
+      try {
+        await convertRideToSoloRemote(activeRide.ride_id);
+        showRideFeedback('success', 'Switched to Solo', 'Your ride is now booked as Solo at ₱60.');
+        renderPassengerRideStatus();
+      } catch (error) {
+        showRideFeedback('error', 'Could not switch', error.message || 'Please try again.');
+      }
+    });
+  }
+
+  const chatButton = container.querySelector('[data-action="open-chat"]');
+  if (chatButton) {
+    chatButton.addEventListener('click', function() {
+      openChatModal(this.getAttribute('data-ride-id'), this.getAttribute('data-other-name'));
+    });
+  }
 
   const cancelButton = container.querySelector('[data-action="cancel-request"]');
   if (cancelButton) {
@@ -1582,19 +2179,24 @@ async function renderPassengerRideStatus() {
 // refresh or poll.
 const RIDE_MILESTONES = {
   Accepted: {
-    icon: '🛺',
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21c-4-4.5-7-8-7-11a7 7 0 0 1 14 0c0 3-3 6.5-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>',
     title: 'Your driver is on the way!',
     message: 'Be sure to be at your pickup point — this helps your driver find you.'
   },
   'Picked Up': {
-    icon: '🙋',
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.2"/><path d="M5 20c1-3.5 4-5.5 7-5.5s6 2 7 5.5"/></svg>',
     title: "You're on board!",
     message: "Enjoy your ride — you're on the way to your destination."
   },
   Completed: {
-    icon: '🏁',
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4"/><path d="M5 5h11l-2.5 3.5L16 12H5"/></svg>',
     title: 'You have arrived at your destination!',
     message: "See you on your next trip. Don't forget to pay your driver."
+  },
+  Declined: {
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9 9l6 6M15 9l-6 6"/></svg>',
+    title: 'Your ride request was declined',
+    message: "The driver wasn't able to take this trip. Feel free to request another ride."
   }
 };
 
@@ -1694,6 +2296,123 @@ function showRideMilestoneModal(milestone, ride) {
   }
 }
 
+// RIDE CHAT — a simple text thread scoped to one ride, shared by both the
+// "Chat with driver" button (passenger side) and the per-rider "Chat"
+// buttons on a driver's active ride card. No Socket.IO in this codebase, so
+// while the modal is open it polls for new messages every 4s; the interval
+// is cleared on close (unlike the codebase's other "run forever" pollers —
+// there's no point polling a thread nobody's looking at).
+async function fetchRideMessages(rideId) {
+  const res = await fetch(`${MESSAGES_API_URL}/${rideId}`, { headers: getAuthHeaders() });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Could not load messages');
+  return data.messages || [];
+}
+
+async function sendRideMessage(rideId, text) {
+  const res = await fetch(MESSAGES_API_URL, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ ride_id: rideId, message: text })
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Could not send message');
+  return data;
+}
+
+function renderChatMessages(overlay, messages) {
+  const list = overlay.querySelector('.chat-message-list');
+  if (!list) return;
+  const accountId = getStoredUser().accountId;
+
+  if (!messages.length) {
+    list.innerHTML = '<p class="chat-empty">No messages yet — say hello!</p>';
+    return;
+  }
+
+  list.innerHTML = messages.map(m => {
+    const mine = m.sender_account_id === accountId;
+    const time = new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return `
+      <div class="chat-bubble ${mine ? 'mine' : 'theirs'}">
+        <p>${escapeHtml(m.message)}</p>
+        <small>${time}</small>
+      </div>
+    `;
+  }).join('');
+  list.scrollTop = list.scrollHeight;
+}
+
+function openChatModal(rideId, otherPartyName) {
+  const overlay = document.createElement('div');
+  overlay.className = 'chat-overlay';
+  overlay.innerHTML = `
+    <div class="chat-modal">
+      <div class="chat-modal-header">
+        <h3>Chat with ${escapeHtml(otherPartyName || 'the other party')}</h3>
+        <button type="button" class="chat-close-btn" aria-label="Close chat">&times;</button>
+      </div>
+      <div class="chat-message-list"></div>
+      <form class="chat-input-row">
+        <input type="text" class="chat-input" placeholder="Type a message..." maxlength="500" autocomplete="off" required>
+        <button type="submit" class="btn-primary">Send</button>
+      </form>
+      <small class="error-msg chat-error"></small>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  document.body.style.overflow = 'hidden';
+
+  let chatPollInterval = null;
+
+  function closeModal() {
+    if (chatPollInterval) {
+      clearInterval(chatPollInterval);
+      chatPollInterval = null;
+    }
+    overlay.remove();
+    document.body.style.overflow = '';
+    // The unread badge on the dashboard only clears once these re-render;
+    // opening the chat already marked the thread read server-side.
+    renderPassengerRideStatus();
+    renderDriverRideRequests();
+  }
+
+  overlay.querySelector('.chat-close-btn').addEventListener('click', closeModal);
+  overlay.addEventListener('click', function(event) {
+    if (event.target === overlay) closeModal();
+  });
+
+  async function loadMessages() {
+    try {
+      const messages = await fetchRideMessages(rideId);
+      renderChatMessages(overlay, messages);
+    } catch (error) {
+      const errorEl = overlay.querySelector('.chat-error');
+      if (errorEl) errorEl.textContent = error.message;
+    }
+  }
+
+  overlay.querySelector('.chat-input-row').addEventListener('submit', async function(event) {
+    event.preventDefault();
+    const input = overlay.querySelector('.chat-input');
+    const text = input.value.trim();
+    if (!text) return;
+    const errorEl = overlay.querySelector('.chat-error');
+    errorEl.textContent = '';
+    try {
+      await sendRideMessage(rideId, text);
+      input.value = '';
+      await loadMessages();
+    } catch (error) {
+      errorEl.textContent = error.message;
+    }
+  });
+
+  loadMessages();
+  chatPollInterval = setInterval(loadMessages, 4000);
+}
+
 async function renderBookingsList() {
   const loading = document.querySelector('#bookings-loading');
   const emptyState = document.querySelector('#bookings-empty');
@@ -1736,6 +2455,28 @@ async function renderBookingsList() {
             <small class="error-msg review-error"></small>
           </div>
         </div>`;
+
+    // The other party on this ride is who a complaint would be filed
+    // against — a driver has passenger_account_id, a passenger has
+    // driver_account_id, both selected via `r.*` in rideController.
+    const otherPartyAccountId = isDriver ? ride.passenger_account_id : ride.driver_account_id;
+    const complaintBlock = !otherPartyAccountId ? '' : `
+      <div class="complaint-prompt" data-ride-id="${ride.ride_id}" data-against-account-id="${otherPartyAccountId}">
+        <button type="button" class="btn-secondary-outline complaint-toggle">Report a concern</button>
+        <div class="complaint-form" style="display:none;">
+          <select class="complaint-category">
+            <option value="">Select a category</option>
+            <option value="Reckless driving">Reckless driving</option>
+            <option value="Rude behavior">Rude behavior</option>
+            <option value="Overcharging">Overcharging</option>
+            <option value="Other">Other</option>
+          </select>
+          <textarea class="complaint-description" rows="2" placeholder="Describe what happened..."></textarea>
+          <button type="button" class="btn-primary complaint-submit">Submit report</button>
+          <small class="error-msg complaint-error"></small>
+        </div>
+      </div>`;
+
     return `
       <article class="booking-item">
         <div>
@@ -1746,6 +2487,7 @@ async function renderBookingsList() {
             <span>Requested ${escapeHtml(requestedAt)}</span>
           </div>
           ${reviewBlock}
+          ${complaintBlock}
         </div>
         <div class="booking-meta" style="align-items:center; gap:14px;">
           <span class="booking-fare">${escapeHtml(fareText)}</span>
@@ -1756,6 +2498,7 @@ async function renderBookingsList() {
   }).join('');
 
   setupReviewPrompts(list);
+  setupComplaintPrompts(list);
 }
 
 function setupReviewPrompts(container) {
@@ -1805,6 +2548,61 @@ function setupReviewPrompts(container) {
   });
 }
 
+// "Report a concern" — lets a passenger/driver file a complaint against the
+// other party on a given ride. Same toggle-a-hidden-form pattern as reviews.
+function setupComplaintPrompts(container) {
+  container.querySelectorAll('.complaint-prompt').forEach(prompt => {
+    const rideId = prompt.getAttribute('data-ride-id');
+    const againstAccountId = prompt.getAttribute('data-against-account-id');
+    const toggleBtn = prompt.querySelector('.complaint-toggle');
+    const form = prompt.querySelector('.complaint-form');
+    const categoryEl = prompt.querySelector('.complaint-category');
+    const descriptionEl = prompt.querySelector('.complaint-description');
+    const submitBtn = prompt.querySelector('.complaint-submit');
+    const errorEl = prompt.querySelector('.complaint-error');
+
+    toggleBtn.addEventListener('click', () => {
+      form.style.display = form.style.display === 'none' ? 'block' : 'none';
+    });
+
+    submitBtn.addEventListener('click', async () => {
+      errorEl.textContent = '';
+      if (!categoryEl.value) {
+        errorEl.textContent = 'Please select a category.';
+        return;
+      }
+      if (!descriptionEl.value.trim()) {
+        errorEl.textContent = 'Please describe what happened.';
+        return;
+      }
+      submitBtn.disabled = true;
+      try {
+        const res = await fetch(COMPLAINTS_API_URL, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({
+            ride_id: rideId,
+            against_account_id: againstAccountId,
+            category: categoryEl.value,
+            description: descriptionEl.value.trim()
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Unable to submit report');
+        showRideFeedback('success', 'Report submitted', 'Our admin team will review this shortly.');
+        toggleBtn.textContent = 'Report a concern';
+        form.style.display = 'none';
+        categoryEl.value = '';
+        descriptionEl.value = '';
+      } catch (error) {
+        errorEl.textContent = error.message || 'Please try again.';
+      } finally {
+        submitBtn.disabled = false;
+      }
+    });
+  });
+}
+
 function renderPendingRideCard(group) {
   if (group.type === 'solo') {
     const ride = group.ride;
@@ -1831,9 +2629,28 @@ function renderPendingRideCard(group) {
   }
 
   const riderCount = group.riders.length;
-  const fareGuess = riderCount >= 4 ? 20 : riderCount === 3 ? 25 : riderCount === 2 ? 30 : 60;
   const names = group.riders.map(r => escapeHtml(r.passenger_name || 'Passenger')).join(', ');
   const anchorRideId = group.riders[0].ride_id;
+  const allRideIds = group.riders.map(r => r.ride_id).join(',');
+  const canAccept = riderCount >= 2;
+
+  const fareTierRow = `
+    <div class="fare-tier-row">
+      <span class="fare-tier-chip${riderCount >= 2 ? ' is-active' : ''}">2 · ₱30</span>
+      <span class="fare-tier-chip${riderCount >= 3 ? ' is-active' : ''}">3 · ₱25</span>
+      <span class="fare-tier-chip${riderCount >= 4 ? ' is-active' : ''}">4 · ₱20</span>
+    </div>
+  `;
+
+  const description = !canAccept
+    ? `Needs ${2 - riderCount} more student${2 - riderCount === 1 ? '' : 's'} before this can be accepted.`
+    : riderCount < 4
+      ? 'Wait for more students, or accept now to depart with the current group.'
+      : 'Tricycle is full and ready to depart.';
+
+  const acceptButton = canAccept
+    ? `<button type="button" class="btn-primary" data-action="accept-ride" data-ride-id="${anchorRideId}">Accept${riderCount < 4 ? ' & depart now' : ''}</button>`
+    : `<button type="button" class="btn-secondary-outline" disabled>Waiting for more students</button>`;
 
   return `
     <article class="driver-card">
@@ -1845,12 +2662,13 @@ function renderPendingRideCard(group) {
         <span class="ride-badge tone-warning">${riderCount}/4 joined</span>
       </div>
       <div class="driver-card-meta">
-        <span>Fare if accepted now: ₱${fareGuess}/student</span>
         <span>${names}</span>
       </div>
-      <p class="driver-card-description">${riderCount < 4 ? 'Wait for more students, or accept now to depart with the current group.' : 'Tricycle is full and ready to depart.'}</p>
+      ${fareTierRow}
+      <p class="driver-card-description">${description}</p>
       <div class="driver-card-actions">
-        <button type="button" class="btn-primary" data-action="accept-ride" data-ride-id="${anchorRideId}">Accept${riderCount < 4 ? ' & depart now' : ''}</button>
+        ${acceptButton}
+        <button type="button" class="btn-secondary-outline" data-action="decline-pool" data-ride-ids="${allRideIds}">Decline</button>
       </div>
     </article>
   `;
@@ -1863,6 +2681,30 @@ function renderActiveRideCard(group) {
   const nextStatusButtons = getNextRideStatusOptions(anchor.status)
     .map(nextStatus => `<button type="button" class="btn-secondary-outline" data-action="advance-status" data-ride-id="${anchor.ride_id}" data-next-status="${nextStatus}">${escapeHtml(nextStatus)}</button>`)
     .join('');
+  // One chat entry point per rider — a Shared-pool card can hold several
+  // riders, each with their own ride_id and their own message thread.
+  const chatButtons = group.riders
+    .map(r => `
+      <button type="button" class="btn-secondary-outline" data-action="open-chat" data-ride-id="${r.ride_id}" data-other-name="${escapeHtml(r.passenger_name || 'Passenger')}">
+        💬 Chat${group.riders.length > 1 ? ` (${escapeHtml(r.passenger_name || 'Passenger')})` : ''}${r.unread_message_count > 0 ? `<span class="chat-unread-badge">${r.unread_message_count}</span>` : ''}
+      </button>
+    `)
+    .join('');
+
+  // Accepting a Shared pool early (under 4) doesn't close it — more
+  // students can still join this same trip, under this same driver, right
+  // up until it's full or the driver marks "Picked Up" (departs).
+  const poolStillOpen = anchor.ride_type === 'Shared' && anchor.pool_status === 'Open' && group.riders.length < 4;
+  const fareTierRow = poolStillOpen ? `
+    <div class="fare-tier-row">
+      <span class="fare-tier-chip${group.riders.length >= 2 ? ' is-active' : ''}">2 · ₱30</span>
+      <span class="fare-tier-chip${group.riders.length >= 3 ? ' is-active' : ''}">3 · ₱25</span>
+      <span class="fare-tier-chip${group.riders.length >= 4 ? ' is-active' : ''}">4 · ₱20</span>
+    </div>
+  ` : '';
+  const waitingNote = poolStillOpen
+    ? `<p class="driver-card-description">Still waiting for other students to join — ${group.riders.length}/4 so far. Fare may drop further before you depart.</p>`
+    : '';
 
   return `
     <article class="driver-card">
@@ -1877,8 +2719,11 @@ function renderActiveRideCard(group) {
         <span>${group.riders.length > 1 ? names : escapeHtml(anchor.ride_type)}</span>
         <span>Fare: ₱${Number(anchor.fare || 0).toFixed(0)}/student</span>
       </div>
+      ${fareTierRow}
+      ${waitingNote}
       <p class="driver-card-description">${escapeHtml(statusConfig.description)}</p>
       <div class="driver-card-actions">
+        ${chatButtons}
         ${nextStatusButtons}
       </div>
     </article>
@@ -1910,10 +2755,17 @@ async function renderDriverRideRequests() {
       const rideId = this.getAttribute('data-ride-id');
       try {
         const result = await acceptRideRemote(rideId);
-        showRideFeedback('success', 'Ride accepted', result.fare ? `Trip assigned to you — fare locked at ₱${result.fare}/student.` : 'The trip is now assigned to you.');
+        showRideFeedback('success', 'Ride accepted', result.fare
+          ? (result.poolStillOpen
+            ? `Trip assigned to you — currently ₱${result.fare}/student, more students may still join before you depart.`
+            : `Trip assigned to you — fare locked at ₱${result.fare}/student.`)
+          : 'The trip is now assigned to you.');
         renderPassengerRideStatus();
         renderDriverRideRequests();
         renderDriverDashboardStats();
+        // Starts GPS sharing (and the browser's native location prompt)
+        // right now instead of waiting for the next 10s poll tick.
+        syncDriverLocationSharing();
       } catch (error) {
         showRideFeedback('error', 'Could not accept', error.message || 'Please try again.');
         // The ride may have just been taken by another driver, or this driver
@@ -1927,13 +2779,36 @@ async function renderDriverRideRequests() {
     button.addEventListener('click', async function() {
       const rideId = this.getAttribute('data-ride-id');
       try {
-        await updateRideStatusRemote(rideId, 'Cancelled');
+        await updateRideStatusRemote(rideId, 'Declined');
         showRideFeedback('info', 'Ride declined', 'The request was declined and removed from your queue.');
         renderDriverRideRequests();
         renderDriverDashboardStats();
       } catch (error) {
         showRideFeedback('error', 'Could not decline', error.message || 'Please try again.');
       }
+    });
+  });
+
+  // Declining a Shared pool declines it for every rider currently in it
+  // (not just one) — consistent with Accept, which assigns the whole group
+  // at once. Other drivers can still pick up the route fresh afterward.
+  container.querySelectorAll('[data-action="decline-pool"]').forEach(button => {
+    button.addEventListener('click', async function() {
+      const rideIds = this.getAttribute('data-ride-ids').split(',').filter(Boolean);
+      try {
+        await Promise.all(rideIds.map(id => updateRideStatusRemote(id, 'Declined')));
+        showRideFeedback('info', 'Ride declined', 'The request was declined and removed from your queue.');
+        renderDriverRideRequests();
+        renderDriverDashboardStats();
+      } catch (error) {
+        showRideFeedback('error', 'Could not decline', error.message || 'Please try again.');
+      }
+    });
+  });
+
+  container.querySelectorAll('[data-action="open-chat"]').forEach(button => {
+    button.addEventListener('click', function() {
+      openChatModal(this.getAttribute('data-ride-id'), this.getAttribute('data-other-name'));
     });
   });
 
@@ -2021,6 +2896,67 @@ function isValidName(value) {
   return sanitized.length >= 2 && /^[a-zA-Z\s'-]+$/.test(sanitized);
 }
  
+// Philippine LTO driver's license number format: 1 letter + 10 digits,
+// displayed as L##-##-###### (e.g. N01-23-456789). Builds the formatted
+// string character-by-character from whatever the user actually typed —
+// first character must be a letter, the rest must be digits — so invalid
+// characters are simply skipped rather than shown as an error mid-typing.
+function formatDriverLicenseNumber(value) {
+  const raw = value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  let core = '';
+  for (let i = 0; i < raw.length && core.length < 11; i++) {
+    const ch = raw[i];
+    if (core.length === 0) {
+      if (/[A-Z]/.test(ch)) core += ch;
+    } else if (/[0-9]/.test(ch)) {
+      core += ch;
+    }
+  }
+  const part1 = core.slice(0, 3);
+  const part2 = core.slice(3, 5);
+  const part3 = core.slice(5, 11);
+  return [part1, part2, part3].filter(Boolean).join('-');
+}
+
+// Tricycle plate number format: 2 letters + 5 digits, displayed as
+// XX-12345 (e.g. CD-64318). Same character-by-character build as the
+// license number above — first 2 characters must be letters, the rest
+// must be digits, invalid characters are skipped rather than errored on
+// mid-typing.
+function formatPlateNumber(value) {
+  const raw = value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  let core = '';
+  for (let i = 0; i < raw.length && core.length < 7; i++) {
+    const ch = raw[i];
+    if (core.length < 2) {
+      if (/[A-Z]/.test(ch)) core += ch;
+    } else if (/[0-9]/.test(ch)) {
+      core += ch;
+    }
+  }
+  const part1 = core.slice(0, 2);
+  const part2 = core.slice(2, 7);
+  return [part1, part2].filter(Boolean).join('-');
+}
+
+function isValidPlateNumber(value) {
+  return /^[A-Z]{2}-\d{5}$/.test(value);
+}
+
+// Tricycle body number format: exactly 5 digits, no letters or hyphen —
+// just strips anything non-numeric and caps the length as the user types.
+function formatBodyNumber(value) {
+  return value.replace(/[^0-9]/g, '').slice(0, 5);
+}
+
+function isValidBodyNumber(value) {
+  return /^\d{5}$/.test(value);
+}
+
+function isValidDriverLicenseNumber(value) {
+  return /^[A-Z]\d{2}-\d{2}-\d{6}$/.test(value);
+}
+
 function isValidEmail(value) {
   // RFC 5322 simplified email validation
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -2030,6 +2966,12 @@ function isValidEmail(value) {
 function isValidContactNumber(value) {
   // Philippine mobile format: 09XXXXXXXXX (11 digits, starts with 09)
   return /^09\d{9}$/.test(value);
+}
+
+// Strips anything non-numeric and caps it at 11 digits as the user types
+// their own contact number — same digit-only masking as the body number.
+function formatContactNumber(value) {
+  return value.replace(/[^0-9]/g, '').slice(0, 11);
 }
  
 function checkPasswordStrength(value) {
@@ -2079,17 +3021,18 @@ function showAuthFeedback(type, title, message) {
   const modalContent = document.querySelector('.auth-modal-content');
  
   if (type === 'success') {
-    modalIcon.textContent = '✓';
+    modalIcon.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 13 10 18 19 7"/></svg>';
     modalIcon.className = 'auth-modal-icon';
-    modalTitle.textContent = title || '🎉 Welcome!';
+    modalTitle.textContent = title || 'Welcome!';
+    modalTitle.style.color = '';
     modalMessage.textContent = message || 'Your account has been created successfully.';
     modalRedirectText.textContent = 'Redirecting to your dashboard...';
     modalRedirectText.style.display = 'block';
   } else if (type === 'error') {
-    modalIcon.textContent = '!';
+    modalIcon.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>';
     modalIcon.className = 'auth-modal-icon error';
-    modalTitle.textContent = 'Oops!';
-    modalTitle.style.color = '#dc2626';
+    modalTitle.textContent = title || 'Something went wrong';
+    modalTitle.style.color = '';
     if (modalContent) modalContent.classList.add('error');
     modalMessage.textContent = message || 'Something went wrong. Please try again.';
     modalRedirectText.style.display = 'none';
@@ -2157,6 +3100,14 @@ function setupAuthForm() {
         if (targetForm) targetForm.classList.add('active');
       });
     });
+
+    // A "Login" link elsewhere (e.g. the Home page's nav-cta) points here
+    // with ?tab=login so returning users land straight on the login form
+    // instead of the Register tab that's active by default.
+    if (new URLSearchParams(window.location.search).get('tab') === 'login') {
+      const loginTab = document.querySelector('.auth-tab[data-tab="login"]');
+      if (loginTab) loginTab.click();
+    }
   }
  
   if (registerForm) {
@@ -2170,7 +3121,81 @@ function setupAuthForm() {
     const studentIdInput = document.querySelector('#reg-student-id');
     const driverSection = document.querySelector('#reg-driver-section');
     const licenseInput = document.querySelector('#reg-license');
- 
+    const plateInput = document.querySelector('#reg-plate');
+    const bodyInput = document.querySelector('#reg-body');
+    const licenseFileInput = document.querySelector('#reg-license-file');
+    const otpModal = document.querySelector('#otp-modal');
+    const otpModalEmail = document.querySelector('#otp-modal-email');
+    const otpCodeInput = document.querySelector('#reg-otp-code');
+    const otpStatusEl = document.querySelector('#otp-status');
+    const otpVerifyBtn = document.querySelector('#otp-verify-btn');
+    const otpCancelBtn = document.querySelector('#otp-cancel-btn');
+    const resendOtpBtn = document.querySelector('#reg-resend-otp');
+
+    // Passenger registration is two steps: send a code, then verify it
+    // before the account is actually created (see authController.registerStudent,
+    // which rejects the account creation call unless email_otp has a
+    // verified, unexpired row for that email). The code entry itself lives
+    // in a popup (#otp-modal) rather than inline in the form.
+    let otpSent = false;
+    let otpVerified = false;
+
+    function resetOtpState() {
+      otpSent = false;
+      otpVerified = false;
+      if (otpModal) otpModal.classList.add('hidden');
+      if (otpCodeInput) otpCodeInput.value = '';
+      const otpErrorEl = document.querySelector('#otp-error');
+      if (otpErrorEl) otpErrorEl.textContent = '';
+      if (otpStatusEl) otpStatusEl.textContent = '';
+    }
+
+    async function sendRegistrationOtp(targetEmail) {
+      const response = await fetch(`${OTP_API_URL}/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: targetEmail })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Could not send verification code');
+      return data;
+    }
+
+    if (resendOtpBtn) {
+      resendOtpBtn.addEventListener('click', async function() {
+        const targetEmail = emailInput.value.trim().toLowerCase();
+        if (!targetEmail) return;
+        const otpErrorEl = document.querySelector('#otp-error');
+        if (otpErrorEl) otpErrorEl.textContent = '';
+        if (otpStatusEl) otpStatusEl.textContent = 'Sending...';
+        try {
+          await sendRegistrationOtp(targetEmail);
+          if (otpStatusEl) otpStatusEl.textContent = 'New code sent!';
+        } catch (error) {
+          if (otpStatusEl) otpStatusEl.textContent = '';
+          if (otpErrorEl) otpErrorEl.textContent = error.message;
+        }
+      });
+    }
+
+    if (otpVerifyBtn) {
+      // Re-fires the form's submit handler, which now sees otpSent === true
+      // and reads the code instead of sending a new one.
+      otpVerifyBtn.addEventListener('click', function() {
+        registerForm.requestSubmit();
+      });
+    }
+
+    if (otpCancelBtn) {
+      otpCancelBtn.addEventListener('click', resetOtpState);
+    }
+
+    // Changing the email after a code was sent, or switching away from
+    // Passenger, invalidates the in-progress OTP flow (it was for a
+    // different, now-stale, email).
+    if (emailInput) emailInput.addEventListener('input', resetOtpState);
+    if (roleSelect) roleSelect.addEventListener('change', resetOtpState);
+
     // Real-time validation for first name
     if (fnameInput) {
       fnameInput.addEventListener('input', function() {
@@ -2243,20 +3268,24 @@ function setupAuthForm() {
       });
     }
 
-    // Real-time validation for contact number
+    // Real-time formatting + validation for contact number — strips
+    // non-digit characters and caps it at 11 digits as the user types their
+    // own number, matching the same treatment as the driver fields above.
     if (contactInput) {
       contactInput.addEventListener('input', function() {
-        const isEmpty = this.value.trim().length === 0;
-        const isValid = !isEmpty && isValidContactNumber(this.value.trim());
-
+        this.value = formatContactNumber(this.value);
+        const isComplete = isValidContactNumber(this.value);
         this.classList.remove('input-error', 'input-valid');
         document.querySelector('#contact-error').textContent = '';
-
-        if (!isEmpty && !isValid) {
+        if (isComplete) {
+          this.classList.add('input-valid');
+        }
+      });
+      contactInput.addEventListener('blur', function() {
+        const val = this.value.trim();
+        if (val.length > 0 && !isValidContactNumber(val)) {
           this.classList.add('input-error');
           document.querySelector('#contact-error').textContent = 'Enter an 11-digit number starting with 09';
-        } else if (isValid) {
-          this.classList.add('input-valid');
         }
       });
     }
@@ -2282,11 +3311,26 @@ function setupAuthForm() {
     toggleStudentSection();
 
     // Toggle driver's license field visibility based on role
+    const emailField = document.querySelector('#reg-email-field');
+    const driverContactNote = document.querySelector('#driver-contact-note');
     const toggleDriverSection = () => {
       if (!driverSection || !roleSelect) return;
       if (roleSelect.value === 'driver') {
         driverSection.style.display = '';
         if (licenseInput) licenseInput.setAttribute('required', 'required');
+        if (plateInput) plateInput.setAttribute('required', 'required');
+        if (bodyInput) bodyInput.setAttribute('required', 'required');
+        if (licenseFileInput) licenseFileInput.setAttribute('required', 'required');
+        // Drivers log in with their contact number, not an email — hide the
+        // shared email field entirely for this role (see authController.registerDriver).
+        if (emailField) emailField.style.display = 'none';
+        if (emailInput) {
+          emailInput.value = '';
+          document.querySelector('#email-error').textContent = '';
+          emailInput.classList.remove('input-error', 'input-valid');
+          emailInput.removeAttribute('required');
+        }
+        if (driverContactNote) driverContactNote.style.display = '';
       } else {
         driverSection.style.display = 'none';
         if (licenseInput) {
@@ -2295,6 +3339,26 @@ function setupAuthForm() {
           licenseInput.classList.remove('input-error', 'input-valid');
           licenseInput.removeAttribute('required');
         }
+        if (plateInput) {
+          plateInput.value = '';
+          document.querySelector('#plate-error').textContent = '';
+          plateInput.classList.remove('input-error', 'input-valid');
+          plateInput.removeAttribute('required');
+        }
+        if (bodyInput) {
+          bodyInput.value = '';
+          document.querySelector('#body-error').textContent = '';
+          bodyInput.classList.remove('input-error', 'input-valid');
+          bodyInput.removeAttribute('required');
+        }
+        if (licenseFileInput) {
+          licenseFileInput.value = '';
+          document.querySelector('#license-file-error').textContent = '';
+          licenseFileInput.removeAttribute('required');
+        }
+        if (emailField) emailField.style.display = '';
+        if (emailInput) emailInput.setAttribute('required', 'required');
+        if (driverContactNote) driverContactNote.style.display = 'none';
       }
     };
 
@@ -2317,22 +3381,73 @@ function setupAuthForm() {
       });
     }
 
-    // Real-time validation for driver's license number (driver only)
+    // Real-time formatting + validation for driver's license number (driver
+    // only) — auto-uppercases and auto-inserts hyphens into the Philippine
+    // LTO format (L##-##-######) as the user types their own number; no
+    // default value is ever set, this only reformats whatever they type.
     if (licenseInput) {
       licenseInput.addEventListener('input', function() {
-        const val = this.value.trim();
-        const isValid = val.length >= 5;
+        this.value = formatDriverLicenseNumber(this.value);
+        const isComplete = isValidDriverLicenseNumber(this.value);
         this.classList.remove('input-error', 'input-valid');
         document.querySelector('#license-error').textContent = '';
-        if (val.length > 0 && !isValid) {
-          this.classList.add('input-error');
-          document.querySelector('#license-error').textContent = 'Enter a valid license number';
-        } else if (isValid) {
+        if (isComplete) {
           this.classList.add('input-valid');
         }
       });
+      licenseInput.addEventListener('blur', function() {
+        const val = this.value.trim();
+        if (val.length > 0 && !isValidDriverLicenseNumber(val)) {
+          this.classList.add('input-error');
+          document.querySelector('#license-error').textContent = 'Format must be L##-##-###### (e.g. N01-23-456789)';
+        }
+      });
     }
- 
+
+    // Real-time formatting + validation for plate number (driver only) —
+    // auto-uppercases and auto-inserts the hyphen after 2 letters (XX-12345,
+    // e.g. CD-64318) as the user types their own plate number.
+    if (plateInput) {
+      plateInput.addEventListener('input', function() {
+        this.value = formatPlateNumber(this.value);
+        const isComplete = isValidPlateNumber(this.value);
+        this.classList.remove('input-error', 'input-valid');
+        document.querySelector('#plate-error').textContent = '';
+        if (isComplete) {
+          this.classList.add('input-valid');
+        }
+      });
+      plateInput.addEventListener('blur', function() {
+        const val = this.value.trim();
+        if (val.length > 0 && !isValidPlateNumber(val)) {
+          this.classList.add('input-error');
+          document.querySelector('#plate-error').textContent = 'Format must be XX-12345 (2 letters, hyphen, 5 digits)';
+        }
+      });
+    }
+
+    // Real-time formatting + validation for body number (driver only) —
+    // strips any non-digit characters and caps it at 5 digits as the user
+    // types their own body number.
+    if (bodyInput) {
+      bodyInput.addEventListener('input', function() {
+        this.value = formatBodyNumber(this.value);
+        const isComplete = isValidBodyNumber(this.value);
+        this.classList.remove('input-error', 'input-valid');
+        document.querySelector('#body-error').textContent = '';
+        if (isComplete) {
+          this.classList.add('input-valid');
+        }
+      });
+      bodyInput.addEventListener('blur', function() {
+        const val = this.value.trim();
+        if (val.length > 0 && !isValidBodyNumber(val)) {
+          this.classList.add('input-error');
+          document.querySelector('#body-error').textContent = 'Body number must be exactly 5 digits';
+        }
+      });
+    }
+
     // Name extension select -> show/hide 'Other' input
     const extSelect = document.querySelector('#reg-ext');
     const extOtherInput = document.querySelector('#reg-ext-other');
@@ -2380,6 +3495,8 @@ function setupAuthForm() {
       const role = roleSelect ? roleSelect.value : 'passenger';
       const studentId = studentIdInput ? studentIdInput.value.trim() : '';
       const licenseNumber = licenseInput ? licenseInput.value.trim() : '';
+      const plateNumber = plateInput ? plateInput.value.trim().toUpperCase() : '';
+      const bodyNumber = bodyInput ? bodyInput.value.trim() : '';
       const extSelect = document.querySelector('#reg-ext');
       const extOtherInput = document.querySelector('#reg-ext-other');
       let extensionRaw = '';
@@ -2423,8 +3540,10 @@ function setupAuthForm() {
         lnameInput.classList.add('input-valid');
       }
  
-      // Validate email
-      if (!email) {
+      // Validate email (drivers don't have an email field — they log in by contact number)
+      if (role === 'driver') {
+        // no-op
+      } else if (!email) {
         emailInput.classList.add('input-error');
         document.querySelector('#email-error').textContent = 'Email is required';
         isValid = false;
@@ -2432,7 +3551,7 @@ function setupAuthForm() {
         emailInput.classList.add('input-error');
         document.querySelector('#email-error').textContent = 'Please enter a valid email (example@domain.com)';
         isValid = false;
-      } else if (role === 'passenger' && !email.endsWith('@student.tsu.edu.ph')) {
+      } else if (!email.endsWith('@student.tsu.edu.ph')) {
         // Passengers must register using the official school email
         emailInput.classList.add('input-error');
         document.querySelector('#email-error').textContent = 'Passengers must use a valid @student.tsu.edu.ph email';
@@ -2486,12 +3605,48 @@ function setupAuthForm() {
           document.querySelector('#license-error').textContent = "Driver's license number is required";
           if (licenseInput) licenseInput.classList.add('input-error');
           isValid = false;
-        } else if (licenseNumber.length < 5) {
-          document.querySelector('#license-error').textContent = 'Enter a valid license number';
+        } else if (!isValidDriverLicenseNumber(licenseNumber)) {
+          document.querySelector('#license-error').textContent = 'Format must be L##-##-###### (e.g. N01-23-456789)';
           if (licenseInput) licenseInput.classList.add('input-error');
           isValid = false;
         } else if (licenseInput) {
           licenseInput.classList.add('input-valid');
+        }
+
+        if (!plateNumber) {
+          document.querySelector('#plate-error').textContent = 'Plate number is required';
+          if (plateInput) plateInput.classList.add('input-error');
+          isValid = false;
+        } else if (!isValidPlateNumber(plateNumber)) {
+          document.querySelector('#plate-error').textContent = 'Format must be XX-12345 (2 letters, hyphen, 5 digits)';
+          if (plateInput) plateInput.classList.add('input-error');
+          isValid = false;
+        } else if (plateInput) {
+          plateInput.classList.add('input-valid');
+        }
+
+        if (!bodyNumber) {
+          document.querySelector('#body-error').textContent = 'Body number is required';
+          if (bodyInput) bodyInput.classList.add('input-error');
+          isValid = false;
+        } else if (!isValidBodyNumber(bodyNumber)) {
+          document.querySelector('#body-error').textContent = 'Body number must be exactly 5 digits';
+          if (bodyInput) bodyInput.classList.add('input-error');
+          isValid = false;
+        } else if (bodyInput) {
+          bodyInput.classList.add('input-valid');
+        }
+
+        const licenseFile = licenseFileInput && licenseFileInput.files ? licenseFileInput.files[0] : null;
+        if (!licenseFile) {
+          document.querySelector('#license-file-error').textContent = "Please upload a photo or scan of your driver's license";
+          isValid = false;
+        } else if (licenseFile.size > 5 * 1024 * 1024) {
+          document.querySelector('#license-file-error').textContent = 'File is too large (max 5MB)';
+          isValid = false;
+        } else if (!['image/jpeg', 'image/png', 'application/pdf'].includes(licenseFile.type)) {
+          document.querySelector('#license-file-error').textContent = 'Only JPG, PNG, or PDF files are allowed';
+          isValid = false;
         }
       }
 
@@ -2527,54 +3682,121 @@ function setupAuthForm() {
         if (confirmPasswordInput) confirmPasswordInput.classList.add('input-error');
         isValid = false;
       }
- 
+
+      // Agree-to-terms checkbox
+      const agreeTermsInput = document.querySelector('#reg-agree-terms');
+      if (agreeTermsInput && !agreeTermsInput.checked) {
+        document.querySelector('#agree-terms-error').textContent = 'Please read and agree to the Code of Conduct to continue.';
+        isValid = false;
+      }
+
       if (!isValid) return;
- 
+
+      // Passenger registration requires a verified email OTP before the
+      // account is actually created. Drivers skip this entirely.
+      if (role === 'passenger' && !otpVerified) {
+        const otpErrorEl = document.querySelector('#otp-error');
+        if (otpErrorEl) otpErrorEl.textContent = '';
+
+        if (!otpSent) {
+          try {
+            await sendRegistrationOtp(email);
+            otpSent = true;
+            if (otpModalEmail) otpModalEmail.textContent = email;
+            if (otpStatusEl) otpStatusEl.textContent = '';
+            if (otpModal) otpModal.classList.remove('hidden');
+          } catch (error) {
+            showAuthFeedback('error', 'Could Not Send Code', error.message);
+          }
+          return;
+        }
+
+        const code = otpCodeInput ? otpCodeInput.value.trim() : '';
+        if (!code) {
+          if (otpErrorEl) otpErrorEl.textContent = 'Please enter the 6-digit code';
+          return;
+        }
+
+        try {
+          const verifyResponse = await fetch(`${OTP_API_URL}/verify`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, code })
+          });
+          const verifyData = await verifyResponse.json();
+          if (!verifyResponse.ok) {
+            if (otpErrorEl) otpErrorEl.textContent = verifyData.error || 'Incorrect code';
+            return;
+          }
+          otpVerified = true;
+          if (otpModal) otpModal.classList.add('hidden');
+        } catch (error) {
+          if (otpErrorEl) otpErrorEl.textContent = 'Could not verify code. Please try again.';
+          return;
+        }
+        // Falls through to the registration POST below now that otpVerified is true.
+      }
+
       // Format names
       const firstName = formatName(firstNameRaw);
       const lastName = formatName(lastNameRaw);
       const fullName = `${firstName} ${lastName}${extensionRaw ? ' ' + extensionRaw : ''}`.trim();
  
       // Build the request for the correct backend endpoint depending on role.
-      // Note: the "email" field the user typed is stored as the "username"
-      // in the backend, since the database schema (based on the ERD) uses
-      // a username column rather than a separate email column.
+      // Passengers log in by email (stored as "username" in the backend).
+      // Drivers log in by contact number instead — no email at all, so the
+      // backend uses contact_number as their username.
       const apiUrl = role === 'driver'
         ? `${API_BASE_URL}/register/driver`
         : `${API_BASE_URL}/register/student`;
- 
-      const payload = role === 'driver'
-        ? {
-            username: email,
-            password: password,
-            first_name: firstName,
-            last_name: lastName,
-            driver_license_no: licenseNumber,
-            contact_number: contactNumber
-          }
-        : {
-            username: email,
-            password: password,
-            first_name: firstName,
-            last_name: lastName,
-            student_number: studentId,
-            contact_number: contactNumber
-          };
- 
-      try {
-        const response = await fetch(apiUrl, {
+
+      // Driver registration includes a file, so it goes over multipart
+      // FormData instead of JSON — the license upload middleware (multer)
+      // needs multipart parsing, and the browser sets the correct
+      // multipart boundary itself as long as we don't set Content-Type.
+      let fetchOptions;
+      if (role === 'driver') {
+        const formData = new FormData();
+        formData.append('password', password);
+        formData.append('first_name', firstName);
+        formData.append('last_name', lastName);
+        formData.append('driver_license_no', licenseNumber);
+        formData.append('plate_number', plateNumber);
+        formData.append('body_number', bodyNumber);
+        formData.append('contact_number', contactNumber);
+        const licenseFile = licenseFileInput && licenseFileInput.files ? licenseFileInput.files[0] : null;
+        if (licenseFile) formData.append('licenseDocument', licenseFile);
+        fetchOptions = { method: 'POST', body: formData };
+      } else {
+        const payload = {
+          username: email,
+          password: password,
+          first_name: firstName,
+          last_name: lastName,
+          student_number: studentId,
+          contact_number: contactNumber
+        };
+        fetchOptions = {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
-        });
- 
+        };
+      }
+
+      try {
+        const response = await fetch(apiUrl, fetchOptions);
+
         const data = await response.json();
- 
+
         if (!response.ok) {
           if (response.status === 409 && /student id/i.test(data.error || '')) {
             if (studentIdInput) studentIdInput.classList.add('input-error');
             document.querySelector('#student-id-error').textContent = data.error;
             showAuthFeedback('error', 'Student ID Already Registered', data.error);
+          } else if (response.status === 409 && /contact number/i.test(data.error || '')) {
+            if (contactInput) contactInput.classList.add('input-error');
+            document.querySelector('#contact-error').textContent = data.error;
+            showAuthFeedback('error', 'Contact Number Already Registered', 'This contact number is already being used. Try logging in instead!');
           } else if (response.status === 409) {
             emailInput.classList.add('input-error');
             document.querySelector('#email-error').textContent = 'This email is already registered';
@@ -2585,29 +3807,25 @@ function setupAuthForm() {
           return;
         }
  
-        // Registered successfully in the database.
-        // Drivers aren't allowed to log in yet — their account starts as
-        // "Pending" until an admin verifies their license/MTOP/TODA
-        // registration — so send them to the login tab instead of a
-        // dashboard they can't actually use.
+        // Registered successfully — both roles go straight to their
+        // dashboard now. A driver's account starts "Pending" (admin still
+        // has to verify the license/MTOP/TODA registration before they can
+        // accept rides), but they can already log in and see the dashboard
+        // — driver.html shows a "pending approval" banner for that state
+        // (see showDriverApprovalBanner()).
+        //
+        // The redirect fires immediately (no delay) rather than after the
+        // usual few-second feedback pause — Edge's native "Save your
+        // password?" prompt can appear during that window (this form has
+        // password fields) and blocks the page from navigating away while
+        // it's showing, which silently strands the user on this page.
+        // Navigating right away beats the prompt to it.
         if (role === 'driver') {
-          showAuthFeedback(
-            'success',
-            `Thanks, ${firstName}!`,
-            'Your driver account was created and is pending admin approval. You can log in once it has been verified.'
-          );
-          setTimeout(() => {
-            hideAuthModal();
-            const loginTab = document.querySelector('.auth-tab[data-tab="login"]');
-            if (loginTab) loginTab.click();
-          }, 2500);
+          setStoredUser({ name: fullName, role, accountId: data.accountId, accountStatus: data.accountStatus, token: data.token });
         } else {
           setStoredUser({ name: fullName, role, email, accountId: data.accountId, token: data.token });
-          showAuthFeedback('success', `Welcome, ${firstName}!`, `Your ${role} account is ready. Let's get you started!`);
-          setTimeout(() => {
-            redirectToDashboard(role);
-          }, 2500);
         }
+        redirectToDashboard(role);
  
       } catch (error) {
         console.error('Registration request failed', error);
@@ -2707,50 +3925,66 @@ function setupAuthForm() {
  
     
  
+    // Passenger logs in by email; driver logs in by contact number (matches
+    // the account.username value set at registration for each role). Swap
+    // which identifier field is shown when the role select changes.
+    const loginRoleSelect = document.querySelector('#login-role');
+    const loginEmailField = document.querySelector('#login-email-field');
+    const loginContactField = document.querySelector('#login-contact-field');
+    const loginEmailInput = document.querySelector('#login-email');
+    const loginContactInput = document.querySelector('#login-contact');
+    const toggleLoginIdentifier = () => {
+      if (!loginRoleSelect) return;
+      const isDriver = loginRoleSelect.value === 'driver';
+      if (loginEmailField) loginEmailField.style.display = isDriver ? 'none' : '';
+      if (loginContactField) loginContactField.style.display = isDriver ? '' : 'none';
+      if (loginEmailInput) {
+        if (isDriver) loginEmailInput.removeAttribute('required');
+        else loginEmailInput.setAttribute('required', 'required');
+      }
+    };
+    if (loginRoleSelect) {
+      loginRoleSelect.addEventListener('change', toggleLoginIdentifier);
+      toggleLoginIdentifier();
+    }
+
     if (loginForm) {
     loginForm.addEventListener('submit', async function(event) {
       event.preventDefault();
-      const email = document.querySelector('#login-email').value.trim().toLowerCase();
+      const role = loginRoleSelect ? loginRoleSelect.value : 'passenger';
       const password = document.querySelector('#login-password').value.trim();
       const errorEl = document.querySelector('#login-error');
       if (errorEl) errorEl.textContent = '';
 
-      if (!email || !password) {
-        if (errorEl) errorEl.textContent = 'Please enter email and password.';
+      const isDriver = role === 'driver';
+      const identifier = isDriver
+        ? (loginContactInput ? loginContactInput.value.trim() : '')
+        : (loginEmailInput ? loginEmailInput.value.trim().toLowerCase() : '');
+
+      if (!identifier || !password) {
+        if (errorEl) errorEl.textContent = isDriver
+          ? 'Please enter your contact number and password.'
+          : 'Please enter email and password.';
         return;
       }
 
-      const payload = JSON.stringify({ username: email, password: password });
+      if (isDriver && !isValidContactNumber(identifier)) {
+        if (errorEl) errorEl.textContent = 'Enter an 11-digit number starting with 09';
+        return;
+      }
+
+      const payload = JSON.stringify({ username: identifier, password: password });
       const headers = { 'Content-Type': 'application/json' };
- 
+      const endpoint = isDriver ? 'login/driver' : 'login/student';
+
       try {
-        // We don't ask the user to pick a role on this form, so we try each
-        // role's login endpoint in turn: student first, then driver, then admin.
-        let response = await fetch(`${API_BASE_URL}/login/student`, {
+        const response = await fetch(`${API_BASE_URL}/${endpoint}`, {
           method: 'POST', headers, body: payload
         });
-        let data = await response.json();
- 
-        // A 403 means the username/password matched a real account but it's
-        // blocked for another reason (e.g. a driver still pending admin
-        // approval) — that's the definitive answer, so stop trying the next
-        // role instead of masking it with the admin endpoint's 401 later.
-        if (!response.ok && response.status !== 403) {
-          response = await fetch(`${API_BASE_URL}/login/driver`, {
-            method: 'POST', headers, body: payload
-          });
-          data = await response.json();
-        }
+        const data = await response.json();
 
-        if (!response.ok && response.status !== 403) {
-          response = await fetch(`${API_BASE_URL}/login/admin`, {
-            method: 'POST', headers, body: payload
-          });
-          data = await response.json();
-        }
- 
         if (!response.ok) {
-          if (errorEl) errorEl.textContent = data.error || 'Invalid email or password.';
+          if (errorEl) errorEl.textContent = data.error || 'Invalid credentials.';
           return;
         }
 
@@ -2758,9 +3992,9 @@ function setupAuthForm() {
         // the `student` table), but every dashboard/redirect check in this file
         // uses "passenger" as the role name. Normalize it here, once, right
         // where the server response comes in.
-        const role = data.user.role === 'student' ? 'passenger' : data.user.role;
-        setStoredUser({ name: data.user.name, role, email: data.user.username, accountId: data.user.accountId, accountStatus: data.user.accountStatus, token: data.token });
-        redirectToDashboard(role);
+        const normalizedRole = data.user.role === 'student' ? 'passenger' : data.user.role;
+        setStoredUser({ name: data.user.name, role: normalizedRole, email: data.user.username, accountId: data.user.accountId, accountStatus: data.user.accountStatus, token: data.token });
+        redirectToDashboard(normalizedRole);
 
       } catch (error) {
         console.error('Login request failed', error);
@@ -2793,9 +4027,11 @@ function refreshAuthState() {
   renderAdminDriverManagement();
   renderAdminPassengerManagement();
   renderAdminBookings();
+  renderAdminComplaints();
   renderAdminStats();
   renderLoyaltyStatus();
   renderDriverRating();
+  renderMyViolations();
   renderProfile();
   renderBookingsList();
   renderAvailableDriversIndicator();
@@ -2808,8 +4044,11 @@ function refreshAuthState() {
 document.addEventListener('DOMContentLoaded', function() {
   refreshAuthState();
   setupLoginNavLink();
+  setupViolationModal();
   setupNavMenu();
   setupBackToTop();
+  setupHowItWorksPage();
+  setupGettingStartedPage();
   highlightActiveNav();
   setupAuthForm();
   setupAdminLoginForm();
@@ -2817,6 +4056,7 @@ document.addEventListener('DOMContentLoaded', function() {
   setupPassengerRideRequestForm();
   setupProfileForm();
   setupAvailabilityToggle();
+  setupAvailabilityIndicatorClick();
   setupPassengerMap();
   setupDriverMap();
 
@@ -2826,6 +4066,13 @@ document.addEventListener('DOMContentLoaded', function() {
   if (getStoredUser().role === 'passenger') {
     setInterval(checkRideMilestones, 15000);
     setInterval(pollDriverLocation, 7000);
+    // Keeps the "Chat with driver" unread badge current without the
+    // passenger needing to take an action first.
+    setInterval(renderPassengerRideStatus, 15000);
+    // Drivers can log in/out (going online/offline) while the passenger is
+    // just sitting on the dashboard — keep the "N drivers available" count
+    // live instead of only reflecting whoever was online at page load.
+    setInterval(renderAvailableDriversIndicator, 15000);
   }
 
   // A driver's ride can go from "no active ride" to "just accepted one"
@@ -2834,6 +4081,12 @@ document.addEventListener('DOMContentLoaded', function() {
   if (getStoredUser().role === 'driver') {
     setInterval(syncDriverLocationSharing, 10000);
     setInterval(renderDriverMapTracking, 7000);
+    // Keeps each rider's unread-chat badge current on the active-ride cards.
+    setInterval(renderDriverRideRequests, 15000);
+    // Clears the "pending approval" banner on its own once an admin
+    // approves the driver mid-session, instead of requiring a re-login.
+    syncDriverAccountStatus();
+    setInterval(syncDriverAccountStatus, 15000);
   }
 });
 

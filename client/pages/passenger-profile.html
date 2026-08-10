@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="../css/passenger.css?v=21">
+  <link rel="stylesheet" href="../css/passenger.css?v=41">
 </head>
 <body data-page="passenger">
   <header>
@@ -24,7 +24,6 @@
             <small class="nav-drawer-role"></small>
           </div>
         </a>
-        <a href="index.html" data-page="home"><svg class="nav-row-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 10L10 4.5L16.5 10"/><path d="M5.5 8.5V16H14.5V8.5"/></svg><span>Home</span></a>
         <a href="booking.html" data-page="booking"><svg class="nav-row-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.5" width="14" height="12" rx="2"/><path d="M3 8.5H17M7 3V6M13 3V6"/></svg><span>Booking</span></a>
         <a href="passenger.html" data-page="passenger" class="hidden"><svg class="nav-row-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 11V6.5C6 5.1 7.1 4 8.5 4H11.5C12.9 4 14 5.1 14 6.5V11"/><rect x="4.5" y="11" width="11" height="4" rx="1.5"/><path d="M6 15V17M14 15V17"/></svg><span>Booking</span></a>
         <a href="driver.html" data-page="driver"><svg class="nav-row-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="6.5"/><circle cx="10" cy="10" r="1.8"/><path d="M10 3.5V8.2M5 14L8.6 11.4M15 14L11.4 11.4"/></svg><span>Booking</span></a>
@@ -105,10 +104,6 @@
           <button type="submit" class="btn-primary">Save changes</button>
           <small class="error-msg" id="profile-error"></small>
         </form>
-
-        <div class="profile-logout-row">
-          <button type="button" class="btn-secondary-outline" data-action="logout">Logout</button>
-        </div>
       </article>
 
       <article id="loyalty-card" class="dashboard-card">
@@ -129,13 +124,15 @@
           </div>
         </div>
       </article>
-    </section>
 
-    <section class="section dashboard-details dashboard-details-single">
-      <a href="passenger-bookings.html" class="dashboard-panel dashboard-panel-link">
-        <h2>My Bookings →</h2>
-        <p>View your full ride history and past trips.</p>
-      </a>
+      <article id="warnings-card" class="dashboard-card">
+        <h3>Account standing</h3>
+        <p id="warnings-loading">Loading...</p>
+        <div id="warnings-details" style="display:none;">
+          <p class="rating-summary"><span id="warnings-count">0</span> <small>warning(s)/violation(s) on record</small></p>
+          <div id="warnings-list" class="rating-list"></div>
+        </div>
+      </article>
     </section>
   </main>
 
@@ -148,11 +145,11 @@
       </div>
       <div>
         <h4>Quick Links</h4>
-        <p><a href="index.html">Home</a> · <a href="booking.html">Booking</a> · <a href="auth.html">Login</a></p>
+        <p><a href="index.html">Home</a> · <a href="booking.html">Booking</a> · <a href="rules.html">Rules</a> · <a href="auth.html">Login</a></p>
       </div>
     </div>
   </footer>
 
-  <script src="../js/app.js?v=21"></script>
+  <script src="../js/app.js?v=67"></script>
 </body>
 </html>

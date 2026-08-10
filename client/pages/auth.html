@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="../css/auth.css?v=21">
+  <link rel="stylesheet" href="../css/auth.css?v=33">
 </head>
 <body data-page="auth">
   <header>
@@ -84,15 +84,16 @@
             </div>
 
             <div class="form-row-2">
-              <div class="form-field">
+              <div class="form-field" id="reg-email-field">
                 <label for="reg-email">Email address <span class="required-star">*</span></label>
-                <input type="email" id="reg-email" name="email" placeholder="jane@example.com" required>
+                <input type="email" id="reg-email" name="email" placeholder="jane@student.tsu.edu.ph" required>
                 <small class="error-msg" id="email-error"></small>
               </div>
               <div class="form-field">
                 <label for="reg-contact">Contact number <span class="required-star">*</span></label>
-                <input type="tel" id="reg-contact" name="contactNumber" placeholder="09XXXXXXXXX" required>
+                <input type="tel" id="reg-contact" name="contactNumber" placeholder="09XXXXXXXXX" maxlength="11" inputmode="numeric" required>
                 <small class="error-msg" id="contact-error"></small>
+                <small class="field-note" id="driver-contact-note" style="display:none;">This will also be your login ID as a driver.</small>
               </div>
             </div>
 
@@ -104,9 +105,27 @@
 
             <div id="reg-driver-section" style="display:none;">
               <label for="reg-license">Driver's license number <span class="required-star">*</span></label>
-              <input type="text" id="reg-license" name="driverLicenseNo" placeholder="Enter your driver's license number">
+              <input type="text" id="reg-license" name="driverLicenseNo" placeholder="e.g. N01-23-456789" maxlength="13" autocomplete="off">
               <small class="error-msg" id="license-error"></small>
-              <small class="field-note">Your account stays pending until the admin verifies your license, MTOP, and TODA registration.</small>
+
+              <div class="form-row-2">
+                <div class="form-field">
+                  <label for="reg-plate">Plate number <span class="required-star">*</span></label>
+                  <input type="text" id="reg-plate" name="plateNumber" placeholder="e.g. CD-64318" maxlength="8" autocomplete="off">
+                  <small class="error-msg" id="plate-error"></small>
+                </div>
+                <div class="form-field">
+                  <label for="reg-body">Body number <span class="required-star">*</span></label>
+                  <input type="text" id="reg-body" name="bodyNumber" placeholder="e.g. 64318" maxlength="5" inputmode="numeric" autocomplete="off">
+                  <small class="error-msg" id="body-error"></small>
+                </div>
+              </div>
+              <small class="field-note">Shown to passengers so they can confirm the tricycle that arrives is really yours.</small>
+
+              <label for="reg-license-file">Driver's license photo or scan <span class="required-star">*</span></label>
+              <input type="file" id="reg-license-file" name="licenseDocument" accept="image/jpeg,image/png,application/pdf">
+              <small class="error-msg" id="license-file-error"></small>
+              <small class="field-note">JPG, PNG, or PDF, up to 5MB. Your account stays pending until the admin verifies your license, MTOP, and TODA registration.</small>
             </div>
 
             <div class="form-row-2">
@@ -136,13 +155,32 @@
               <small><span class="check-item" id="check-length">✗</span> Is at least 8 characters long</small>
             </div>
 
-            <button type="submit" class="btn-primary">Create account</button>
+            <label class="checkbox-field">
+              <input type="checkbox" id="reg-agree-terms" name="agreeTerms">
+              I have read and agree to the <a href="rules.html" target="_blank" rel="noopener">GoTSUian Code of Conduct</a>.
+            </label>
+            <small class="error-msg" id="agree-terms-error"></small>
+
+            <button type="submit" class="btn-primary" id="reg-submit-btn">Create account</button>
             <p class="admin-login-note">Are you an admin? <a href="admin.html">Use the admin login page</a>.</p>
           </form>
 
           <form id="login-form" class="auth-form auth-tab-content">
-            <label for="login-email">Email address</label>
-            <input type="email" id="login-email" name="email" placeholder="jane@example.com" required>
+            <label for="login-role">I am logging in as</label>
+            <select id="login-role" name="role">
+              <option value="passenger">Passenger</option>
+              <option value="driver">Driver</option>
+            </select>
+
+            <div class="form-field" id="login-email-field">
+              <label for="login-email">Email address</label>
+              <input type="email" id="login-email" name="email" placeholder="jane@student.tsu.edu.ph" required>
+            </div>
+
+            <div class="form-field" id="login-contact-field" style="display:none;">
+              <label for="login-contact">Contact number</label>
+              <input type="tel" id="login-contact" name="contactNumber" placeholder="09XXXXXXXXX">
+            </div>
 
             <label for="login-password">Password</label>
             <div class="password-input-group">
@@ -174,7 +212,7 @@
     <!-- Success/Error Modal -->
     <div id="auth-modal" class="auth-modal hidden">
       <div class="auth-modal-content">
-        <div class="auth-modal-icon" id="modal-icon">✓</div>
+        <div class="auth-modal-icon" id="modal-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 13 10 18 19 7"/></svg></div>
         <h2 id="modal-title">Success!</h2>
         <p id="modal-message">Your account has been created successfully.</p>
         <p id="modal-redirect-text" class="modal-small-text">Redirecting to your dashboard...</p>
@@ -184,6 +222,25 @@
           <div class="modal-actions">
             <button id="modal-ok-btn" class="btn-secondary">OK</button>
           </div>
+      </div>
+    </div>
+
+    <!-- Email OTP Verification Modal -->
+    <div id="otp-modal" class="auth-modal hidden">
+      <div class="auth-modal-content">
+        <div class="auth-modal-icon neutral"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg></div>
+        <h2>Verify your email</h2>
+        <p>We sent a 6-digit code to <strong id="otp-modal-email"></strong>.</p>
+        <input type="text" id="reg-otp-code" name="otpCode" placeholder="000000" maxlength="6" inputmode="numeric" autocomplete="one-time-code" class="otp-code-input">
+        <small class="error-msg" id="otp-error"></small>
+        <small class="modal-small-text" id="otp-status"></small>
+        <div class="modal-actions">
+          <button type="button" id="otp-verify-btn" class="btn-primary">Verify &amp; create account</button>
+        </div>
+        <p class="otp-modal-links">
+          <button type="button" id="reg-resend-otp" class="btn-link">Resend code</button>
+          <button type="button" id="otp-cancel-btn" class="btn-link">Cancel</button>
+        </p>
       </div>
     </div>
   </main>
@@ -197,11 +254,11 @@
       </div>
       <div>
         <h4>Quick Links</h4>
-        <p><a href="index.html">Home</a> · <a href="booking.html">Booking</a> · <a href="auth.html">Login</a></p>
+        <p><a href="index.html">Home</a> · <a href="booking.html">Booking</a> · <a href="rules.html">Rules</a> · <a href="auth.html">Login</a></p>
       </div>
     </div>
   </footer>
 
-  <script src="../js/app.js?v=21"></script>
+  <script src="../js/app.js?v=67"></script>
 </body>
 </html>

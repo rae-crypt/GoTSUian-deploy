@@ -9,7 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <link rel="stylesheet" href="../css/passenger.css?v=21">
+  <link rel="stylesheet" href="../css/passenger.css?v=41">
 </head>
 <body data-page="passenger">
   <header>
@@ -26,7 +26,6 @@
             <small class="nav-drawer-role"></small>
           </div>
         </a>
-        <a href="index.html" data-page="home"><svg class="nav-row-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 10L10 4.5L16.5 10"/><path d="M5.5 8.5V16H14.5V8.5"/></svg><span>Home</span></a>
         <a href="booking.html" data-page="booking"><svg class="nav-row-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.5" width="14" height="12" rx="2"/><path d="M3 8.5H17M7 3V6M13 3V6"/></svg><span>Booking</span></a>
         <a href="passenger.html" data-page="passenger" class="hidden"><svg class="nav-row-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 11V6.5C6 5.1 7.1 4 8.5 4H11.5C12.9 4 14 5.1 14 6.5V11"/><rect x="4.5" y="11" width="11" height="4" rx="1.5"/><path d="M6 15V17M14 15V17"/></svg><span>Booking</span></a>
         <a href="driver.html" data-page="driver"><svg class="nav-row-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="6.5"/><circle cx="10" cy="10" r="1.8"/><path d="M10 3.5V8.2M5 14L8.6 11.4M15 14L11.4 11.4"/></svg><span>Booking</span></a>
@@ -44,7 +43,7 @@
     <section class="hero hero-simple">
       <div class="hero-copy">
         <span class="hero-badge"><span></span> Passenger Dashboard</span>
-        <h1>Welcome back, <span data-dashboard-welcome>Passenger</span></h1>
+        <h1>Welcome, <span data-dashboard-welcome>Passenger</span></h1>
         <p>Your trips and booking tools are ready. Book a ride or check your current trip status below.</p>
       </div>
     </section>
@@ -123,13 +122,11 @@
             <div id="ride-status-details" style="display:none;"></div>
           </article>
         </div>
-      </div>
-    </section>
 
-    <section class="section dashboard-details dashboard-details-single">
-      <div class="dashboard-panel">
-        <h2>Need help?</h2>
-        <p>Contact support or review your ride details anytime from your dashboard. Safe campus travel starts here.</p>
+        <a href="passenger-bookings.html" class="dashboard-panel dashboard-panel-link">
+          <h2>Booking History →</h2>
+          <p>View your full ride history and past trips.</p>
+        </a>
       </div>
     </section>
   </main>
@@ -143,11 +140,11 @@
       </div>
       <div>
         <h4>Quick Links</h4>
-        <p><a href="index.html">Home</a> · <a href="booking.html">Booking</a> · <a href="auth.html">Login</a></p>
+        <p><a href="index.html">Home</a> · <a href="booking.html">Booking</a> · <a href="rules.html">Rules</a> · <a href="auth.html">Login</a></p>
       </div>
     </div>
   </footer>
 
-  <script src="../js/app.js?v=21"></script>
+  <script src="../js/app.js?v=67"></script>
 </body>
 </html>
