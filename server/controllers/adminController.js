@@ -1,3 +1,5 @@
+const path = require('path');
+const fs = require('fs');
 const db = require('../config/db');
 
 // LIST ALL DRIVERS — the admin dashboard's driver management table shows
@@ -6,13 +8,34 @@ const db = require('../config/db');
 exports.listDrivers = (req, res) => {
   const sql = `
     SELECT driver_id, account_id, first_name, last_name, driver_license_no,
-           contact_number, account_status
+           contact_number, account_status,
+           license_document_path IS NOT NULL AS has_license_file
     FROM tricycle_driver
     ORDER BY FIELD(account_status, 'Pending', 'Active', 'Rejected'), driver_id DESC
   `;
   db.query(sql, (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     res.status(200).json({ drivers: rows });
+  });
+};
+
+// SERVE A DRIVER'S LICENSE DOCUMENT — admin-only (mounted behind
+// authMiddleware + requireAdmin in adminRoutes.js), since this is a
+// government ID and must never be reachable as a public static file.
+exports.getDriverLicenseFile = (req, res) => {
+  const { driverId } = req.params;
+
+  db.query(`SELECT license_document_path FROM tricycle_driver WHERE driver_id = ?`, [driverId], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!rows.length || !rows[0].license_document_path) {
+      return res.status(404).json({ error: 'No license document on file for this driver' });
+    }
+
+    const filePath = path.join(__dirname, '..', rows[0].license_document_path);
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: 'License file is missing from the server' });
+    }
+    res.sendFile(filePath);
   });
 };
 
@@ -32,7 +55,6 @@ exports.getStats = (req, res) => {
     res.status(200).json(rows[0]);
   });
 };
-
 // LIST ALL PASSENGERS — every registered student, with how many rides
 // they've made and when they last booked. "Active" just means they've
 // booked at least once; there's no separate account-status field for

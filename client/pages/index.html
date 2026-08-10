@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="../css/index.css?v=21">
+  <link rel="stylesheet" href="../css/index.css?v=34">
 </head>
 <body data-page="home">
   <header>
@@ -21,25 +21,29 @@
             <small class="nav-drawer-role"></small>
           </div>
         </a>
-        <a href="index.html" data-page="home"><svg class="nav-row-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 10L10 4.5L16.5 10"/><path d="M5.5 8.5V16H14.5V8.5"/></svg><span>Home</span></a>
-        <a href="booking.html" data-page="booking"><svg class="nav-row-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.5" width="14" height="12" rx="2"/><path d="M3 8.5H17M7 3V6M13 3V6"/></svg><span>Booking</span></a>
+        <a href="about.html"><svg class="nav-row-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="7"/><line x1="10" y1="9.2" x2="10" y2="14"/><circle cx="10" cy="6.3" r="1" fill="currentColor" stroke="none"/></svg><span>About Us</span></a>
+        <a href="how-it-works.html"><svg class="nav-row-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="6" r="1.3" fill="currentColor" stroke="none"/><line x1="9" y1="6" x2="16.5" y2="6"/><circle cx="5" cy="10" r="1.3" fill="currentColor" stroke="none"/><line x1="9" y1="10" x2="16.5" y2="10"/><circle cx="5" cy="14" r="1.3" fill="currentColor" stroke="none"/><line x1="9" y1="14" x2="16.5" y2="14"/></svg><span>How it works</span></a>
+        <a href="getting-started.html"><svg class="nav-row-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="7"/><path d="M7.8 8.2a2.3 2.3 0 1 1 3.4 2c-.8.5-1.2 1-1.2 1.9"/><circle cx="10" cy="14.2" r="1" fill="currentColor" stroke="none"/></svg><span>Getting Started</span></a>
+        <a href="auth.html?tab=login" id="cta-signup-drawer"><svg class="nav-row-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.5 4V2.7C12.5 2.3 12.1 2 11.7 2H3.8C3.3 2 3 2.3 3 2.7V17.3C3 17.7 3.3 18 3.8 18H11.7C12.1 18 12.5 17.7 12.5 17.3V16"/><path d="M8 10H17.5M14.5 6.8L17.7 10L14.5 13.2"/></svg><span>Login</span></a>
         <a href="passenger.html" data-page="passenger" class="hidden"><svg class="nav-row-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 11V6.5C6 5.1 7.1 4 8.5 4H11.5C12.9 4 14 5.1 14 6.5V11"/><rect x="4.5" y="11" width="11" height="4" rx="1.5"/><path d="M6 15V17M14 15V17"/></svg><span>Booking</span></a>
         <a href="driver.html" data-page="driver"><svg class="nav-row-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="6.5"/><circle cx="10" cy="10" r="1.8"/><path d="M10 3.5V8.2M5 14L8.6 11.4M15 14L11.4 11.4"/></svg><span>Booking</span></a>
         <a href="admin.html" data-page="admin"><svg class="nav-row-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 2.5L16.5 5.2V9C16.5 13 13.7 16.3 10 17.5C6.3 16.3 3.5 13 3.5 9V5.2L10 2.5Z"/><path d="M7.2 10L9.2 12L12.8 8"/></svg><span>Admin</span></a>
-        <a href="auth.html" data-page="auth"><svg class="nav-row-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.5 4V2.7C12.5 2.3 12.1 2 11.7 2H3.8C3.3 2 3 2.3 3 2.7V17.3C3 17.7 3.3 18 3.8 18H11.7C12.1 18 12.5 17.7 12.5 17.3V16"/><path d="M8 10H17.5M14.5 6.8L17.7 10L14.5 13.2"/></svg><span>Login</span></a>
         <button type="button" class="nav-row-logout hidden" data-action="logout"><svg class="nav-row-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.5 4V2.7C12.5 2.3 12.1 2 11.7 2H3.8C3.3 2 3 2.3 3 2.7V17.3C3 17.7 3.3 18 3.8 18H11.7C12.1 18 12.5 17.7 12.5 17.3V16"/><path d="M8 10H17.5M14.5 6.8L17.7 10L14.5 13.2"/></svg><span>Logout</span></button>
       </nav>
       <div class="nav-cta">
-        <a href="booking.html" id="cta-signup">Sign up</a>
+        <a href="auth.html?tab=login" id="cta-signup">Login</a>
       </div>
       <button class="nav-toggle" aria-label="Open navigation"><span></span><span class="nav-toggle-avatar"></span></button>
     </div>
   </header>
   <div class="nav-backdrop" aria-hidden="true"></div>
   <main class="site-shell">
-    <section class="hero hero-simple">
+    <section class="hero hero-gotsuian">
       <div class="hero-copy">
-        <span class="hero-badge"><span></span> TSU San Isidro Campus</span>
+        <span class="hero-badge">
+          <svg class="hero-badge-pin" viewBox="0 0 160 190" aria-hidden="true"><path d="M80 186 C50 146 22 112 22 76 C22 39 47 12 80 12 C113 12 138 39 138 76 C138 112 110 146 80 186 Z"/></svg>
+          TSU San Isidro Campus
+        </span>
         <h1>Your Campus Ride Starts in One Tap</h1>
         <p>GoTSUian instantly connects TSU students with verified campus tricycle drivers. Book your ride, track the driver live, and arrive safely without waiting.</p>
         <div class="hero-actions">
@@ -50,6 +54,26 @@
           <p><strong>Trusted by over 1,000 TSU students</strong> for fast, safe campus rides.</p>
           <p>No download required — start your ride from the browser in seconds.</p>
         </div>
+      </div>
+      <div class="hero-illustration">
+        <svg viewBox="0 0 420 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Location pin illustration">
+          <defs>
+            <linearGradient id="heroPinGradient" x1="15%" y1="5%" x2="90%" y2="100%">
+              <stop offset="0%" stop-color="#e8897f"/>
+              <stop offset="40%" stop-color="#b02e2e"/>
+              <stop offset="100%" stop-color="#5c1414"/>
+            </linearGradient>
+          </defs>
+          <ellipse class="hero-pin-shadow" cx="210" cy="272" rx="72" ry="12"/>
+          <g class="hero-pin-float">
+            <g transform="translate(106,4) scale(1.3)">
+              <path d="M80 186 C50 146 22 112 22 76 C22 39 47 12 80 12 C113 12 138 39 138 76 C138 112 110 146 80 186 Z" fill="url(#heroPinGradient)"/>
+              <ellipse cx="52" cy="52" rx="18" ry="28" fill="#ffffff" opacity="0.3" transform="rotate(-25 52 52)"/>
+              <circle cx="80" cy="76" r="28" fill="#3d0d0d" opacity="0.25"/>
+              <circle cx="80" cy="76" r="24" fill="#fffaf5"/>
+            </g>
+          </g>
+        </svg>
       </div>
     </section>
 
@@ -83,118 +107,6 @@
       </div>
     </section>
 
-    <section class="section section-card">
-      <div class="section-intro">
-        <h2>How it works</h2>
-        <p class="lead">From pickup to drop-off, every ride is built for fast, reliable campus travel.</p>
-      </div>
-      <div class="steps-grid">
-        <article class="step-card">
-          <div class="step-number">1</div>
-          <h3>Open GoTSUian</h3>
-          <p>Choose your pickup and destination in seconds.</p>
-        </article>
-        <article class="step-card">
-          <div class="step-number">2</div>
-          <h3>Match with a Driver</h3>
-          <p>A verified tricycle driver accepts your request right away.</p>
-        </article>
-        <article class="step-card">
-          <div class="step-number">3</div>
-          <h3>Track Arrival</h3>
-          <p>Follow the driver in real time as they head to your pickup spot.</p>
-        </article>
-        <article class="step-card">
-          <div class="step-number">4</div>
-          <h3>Ride with Confidence</h3>
-          <p>Jump in and ride safely to your destination with a trusted driver.</p>
-        </article>
-      </div>
-    </section>
-
-    <section class="section">
-      <div class="section-intro">
-        <h2>Need help getting started?</h2>
-        <p class="lead">These simple steps get your location working so your ride request is ready fast.</p>
-      </div>
-      <div class="support-grid">
-        <article class="support-card">
-          <div class="support-copy">
-            <h3>Turn on GPS</h3>
-            <p>Switch on location services so GoTSUian can find your pickup spot.</p>
-          </div>
-        </article>
-        <article class="support-card">
-          <div class="support-copy">
-            <h3>Open the site</h3>
-            <p>Open GoTSUian in your browser and keep the page active.</p>
-          </div>
-        </article>
-        <article class="support-card">
-          <div class="support-copy">
-            <h3>Allow access</h3>
-            <p>Tap allow when the browser asks for location permission.</p>
-          </div>
-        </article>
-        <article class="support-card">
-          <div class="support-copy">
-            <h3>See your pickup</h3>
-            <p>Your location will appear on the map so you can confirm it instantly.</p>
-          </div>
-        </article>
-      </div>
-    </section>
-
-    <section class="section">
-      <div class="section-intro">
-        <h2>What Students Say</h2>
-        <p class="lead">Trusted by TSU San Isidro students who want a faster, safer ride home after classes.</p>
-      </div>
-      <div class="testimonial-grid">
-        <article class="testimonial-card">
-          <p>"GoTSUian makes it easy to book a ride before classes end — I don’t have to wait outside in the heat."</p>
-          <small>— Mae, Information Technology</small>
-        </article>
-        <article class="testimonial-card">
-          <p>"The driver arrival map is so helpful. I always know when my ride is coming."</p>
-          <small>— Carlo, Engineering</small>
-        </article>
-        <article class="testimonial-card">
-          <p>"Fast booking and trusted drivers keep me moving across campus every day."</p>
-          <small>— Joy, Business Administration</small>
-        </article>
-      </div>
-    </section>
-
-    <section class="section about-section">
-      <div class="section-intro">
-        <h2>About GoTSUian</h2>
-        <p class="lead">GoTSUian is built for TSU students who need a fast, safe, and reliable way to move around campus. Our mission is to make campus travel easy through trusted drivers, real-time booking, and seamless monitoring.</p>
-      </div>
-      <div class="feature-grid">
-        <article class="feature-card">
-          <div class="icon">🎓</div>
-          <div>
-            <h3>Student-first service</h3>
-            <p>Designed to support TSU campus life with simple booking and fast pickup at key campus locations.</p>
-          </div>
-        </article>
-        <article class="feature-card">
-          <div class="icon">🚦</div>
-          <div>
-            <h3>Trusted drivers</h3>
-            <p>All drivers are verified for safety and reliability so students can ride with confidence.</p>
-          </div>
-        </article>
-        <article class="feature-card">
-          <div class="icon">📱</div>
-          <div>
-            <h3>Easy booking</h3>
-            <p>Choose a driver, track your ride, and pay with a seamless digital experience made for students.</p>
-          </div>
-        </article>
-      </div>
-    </section>
   </main>
 
   <footer class="site-shell footer">
@@ -206,12 +118,12 @@
       </div>
       <div>
         <h4>Quick Links</h4>
-        <p><a href="index.html">Home</a> · <a href="booking.html">Booking</a> · <a href="auth.html">Login</a></p>
+        <p><a href="index.html">Home</a> · <a href="booking.html">Booking</a> · <a href="rules.html">Rules</a> · <a href="auth.html">Login</a></p>
       </div>
     </div>
   </footer>
 
   <button class="back-to-top" aria-label="Back to top">↑</button>
-  <script src="../js/app.js?v=21"></script>
+  <script src="../js/app.js?v=67"></script>
 </body>
 </html>

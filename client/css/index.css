@@ -379,6 +379,44 @@ top: 7px;
   opacity: 0;
 }
 
+/* The avatar-swap variant of the hamburger button (shown once logged in —
+   an initial letter instead of the 3-line icon). This used to only be
+   declared inside the mobile-only breakpoint below, so at desktop widths
+   .nav-toggle-avatar fell back to being a plain <span> — which the generic
+   ".nav-toggle span" rule above then styled as ANOTHER hamburger icon,
+   rendering two overlapping icons (and two X's once opened). Unscoped here
+   so it's hidden by default at every width, not just mobile. */
+.nav-toggle .nav-toggle-avatar {
+  display: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: var(--white);
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+.nav-toggle .nav-toggle-avatar::before,
+.nav-toggle .nav-toggle-avatar::after {
+  content: none;
+}
+
+.nav-toggle.open .nav-toggle-avatar {
+  transform: none;
+}
+
+.nav-toggle.has-avatar span {
+  display: none;
+}
+
+.nav-toggle.has-avatar .nav-toggle-avatar {
+  display: flex;
+}
+
 
 
 .hero  {
@@ -1334,37 +1372,6 @@ display: grid;
 
 
 
-  .nav-toggle .nav-toggle-avatar {
-    display: none;
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
-    background: var(--primary);
-    color: var(--white);
-    align-items: center;
-    justify-content: center;
-    font-weight: 700;
-    font-size: 0.9rem;
-    flex-shrink: 0;
-  }
-
-  .nav-toggle .nav-toggle-avatar::before,
-  .nav-toggle .nav-toggle-avatar::after {
-    content: none;
-  }
-
-  .nav-toggle.open .nav-toggle-avatar {
-    transform: none;
-  }
-
-  .nav-toggle.has-avatar span {
-    display: none;
-  }
-
-  .nav-toggle.has-avatar .nav-toggle-avatar {
-    display: flex;
-  }
-
   .nav-links a,
   .nav-row-logout  {
 width: 100%;
@@ -1791,5 +1798,278 @@ display: none !important;
   color: var(--muted);
   font-weight: 500;
   text-transform: capitalize;
+}
+
+/* HOME HERO — maroon gradient card with a floating gradient pin
+   illustration (matches the GoTSUian logo mark). Scoped entirely under
+   .hero-gotsuian so it can't leak into other pages' .hero rules. */
+.hero.hero-gotsuian {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  align-items: center;
+  gap: 2.5rem;
+  background: linear-gradient(155deg, var(--primary) 0%, var(--primary-soft) 78%);
+  border-radius: 32px;
+  padding: 64px 56px;
+  margin-top: 24px;
+  overflow: hidden;
+  text-align: left;
+}
+
+.hero-gotsuian .hero-copy {
+  text-align: left;
+  margin: 0;
+  max-width: 560px;
+}
+
+.hero-gotsuian .hero-badge {
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  color: #fff2ea;
+}
+
+.hero-badge-pin {
+  width: 13px;
+  height: 16px;
+  fill: var(--accent-gold);
+  flex-shrink: 0;
+}
+
+.hero-gotsuian .hero-copy h1 {
+  text-align: left;
+  margin: 24px 0 0;
+  color: #fff2ea;
+}
+
+.hero-gotsuian .hero-copy p {
+  text-align: left;
+  margin: 20px 0 0;
+  color: #f6d9c9;
+  max-width: 46ch;
+}
+
+.hero-gotsuian .hero-actions {
+  justify-content: flex-start;
+}
+
+/* .hero-mobile-signup defaults to display:none on desktop (it used to be a
+   mobile-only duplicate of the nav's "Sign up" link) — this new hero always
+   wants both buttons side by side, desktop included. */
+.hero-gotsuian .hero-mobile-signup {
+  display: inline-flex;
+}
+
+/* Home page, DESKTOP widths only: About Us / How it works / Need help /
+   Booking live in a compact dropdown card anchored under the hamburger
+   button — not the plain top-nav row this page would otherwise get (see
+   the unscoped .nav-links rule near the top of this file), and not the
+   full-height mobile slide-in drawer either (that stays exactly as it was,
+   scoped to the max-width breakpoint further down — untouched). A profile
+   header row only ever appears here once actually logged in
+   (.nav-drawer-profile.is-visible, handled inside the mobile block); the
+   plain a/.nav-row-icon rules below deliberately exclude it so a
+   logged-out visitor doesn't see an empty blank row above "About Us". */
+@media (min-width: 721px) {
+  body[data-page="home"] .navbar {
+    position: relative;
+  }
+
+  body[data-page="home"] .nav-links {
+    position: absolute;
+    top: calc(100% + 12px);
+    right: 0;
+    bottom: auto;
+    width: 260px;
+    background: var(--white);
+    display: flex;
+    flex-direction: column;
+    padding: 8px;
+    gap: 2px;
+    border-radius: 16px;
+    box-shadow: 0 12px 32px rgba(15, 23, 42, 0.16);
+    opacity: 0;
+    transform: translateY(-8px);
+    pointer-events: none;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+    z-index: 70;
+  }
+
+  body[data-page="home"] .nav-links.open {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+
+  body[data-page="home"] .nav-links a:not(.nav-drawer-profile),
+  body[data-page="home"] .nav-row-logout {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    text-decoration: none;
+    color: var(--muted);
+    border: none;
+    border-radius: 10px;
+    background: none;
+    font: inherit;
+    font-weight: 500;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+
+  body[data-page="home"] .nav-links a:not(.nav-drawer-profile):hover,
+  body[data-page="home"] .nav-row-logout:hover {
+    background: var(--light);
+    color: var(--primary);
+  }
+
+  body[data-page="home"] .nav-links a.nav-drawer-profile {
+    display: none;
+  }
+
+  body[data-page="home"] .nav-row-icon {
+    display: inline-flex;
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    color: var(--primary);
+  }
+
+  body[data-page="home"] .nav-toggle {
+    display: grid;
+    place-items: center;
+    margin-left: auto;
+  }
+
+  /* The top-bar Login button is what left an orphaned CTA stranded dead
+     center of the navbar once .nav-links stopped taking up flex space
+     (it's an absolutely-positioned dropdown now, not a normal flex
+     sibling) — brand and the hamburger were the only two flex children
+     left, so Login floated in between. Login now lives inside the
+     dropdown itself (#cta-signup-drawer, added in index.html) instead. */
+  body[data-page="home"] .nav-cta {
+    display: none;
+  }
+}
+
+/* The hamburger drawer no longer has a Login item (trimmed to 3 content
+   links), and .nav-cta is display:none below the drawer breakpoint by
+   default — without this, a logged-out mobile visitor on Home would have
+   no way to reach Login at all. Appended last so it wins by cascade order
+   over the earlier `display: none` rule. */
+@media (max-width: 720px) {
+  .nav-cta {
+    display: flex;
+  }
+}
+
+.hero-gotsuian .btn-primary {
+  background: var(--accent-gold);
+  color: #3a2506;
+  box-shadow: 0 14px 30px -10px rgba(201, 150, 46, 0.55);
+}
+
+.hero-gotsuian .btn-secondary {
+  background: transparent;
+  color: #fff2ea;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: none;
+}
+
+.hero-gotsuian .hero-trust {
+  margin-top: 26px;
+  justify-items: start;
+  text-align: left;
+  margin-left: 0;
+}
+
+.hero-gotsuian .hero-trust p {
+  color: #f6d9c9;
+}
+
+.hero-illustration {
+  position: relative;
+  width: 100%;
+}
+
+.hero-illustration svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.hero-pin-shadow {
+  fill: #3d0d0d;
+  opacity: 0.4;
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  animation: hero-shadow-pulse 3.2s ease-in-out infinite;
+}
+
+.hero-pin-float {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: hero-pin-bob 3.2s ease-in-out infinite;
+}
+
+@keyframes hero-pin-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-14px); }
+}
+
+@keyframes hero-shadow-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.4; }
+  50% { transform: scale(0.82); opacity: 0.24; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-pin-float,
+  .hero-pin-shadow {
+    animation: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .hero.hero-gotsuian {
+    grid-template-columns: 1fr;
+    padding: 48px 32px;
+  }
+
+  .hero-illustration {
+    max-width: 260px;
+    margin: 0 auto;
+  }
+
+  .hero-gotsuian .hero-copy {
+    max-width: none;
+    text-align: center;
+  }
+
+  .hero-gotsuian .hero-copy h1,
+  .hero-gotsuian .hero-copy p {
+    text-align: center;
+  }
+
+  .hero-gotsuian .hero-actions {
+    justify-content: center;
+  }
+
+  .hero-gotsuian .hero-trust {
+    justify-items: center;
+    text-align: center;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .hero.hero-gotsuian {
+    padding: 40px 22px;
+    border-radius: 24px;
+  }
+
+  .hero-illustration {
+    max-width: 200px;
+  }
 }
 

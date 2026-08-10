@@ -1,3 +1,4 @@
+const path = require('path');
 const db = require('../config/db');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
@@ -15,51 +16,69 @@ exports.registerStudent = async (req, res) => {
     return res.status(400).json({ error: 'Missing required fields' });
   }
 
-  try {
-    const hashedPassword = await bcrypt.hash(password, 10);
+  const email = username.trim().toLowerCase();
 
-    db.beginTransaction((err) => {
+  // A passenger's email must have gone through /api/otp/send + /api/otp/verify
+  // first — this is the gate that stops anyone from registering with an
+  // inbox they don't actually own.
+  db.query(
+    `SELECT 1 FROM email_otp WHERE email = ? AND verified = 1 AND expires_at > NOW() LIMIT 1`,
+    [email],
+    async (err, otpRows) => {
       if (err) return res.status(500).json({ error: err.message });
+      if (!otpRows.length) {
+        return res.status(400).json({ error: 'Please verify your email first' });
+      }
 
-      const accountSql = `INSERT INTO user_account (username, password, role) VALUES (?, ?, 'student')`;
-      db.query(accountSql, [username, hashedPassword], (err, accountResult) => {
-        if (err) {
-          return db.rollback(() => res.status(err.code === 'ER_DUP_ENTRY' ? 409 : 500).json({ error: err.sqlMessage || err.message }));
-        }
+      try {
+        const hashedPassword = await bcrypt.hash(password, 10);
 
-        const accountId = accountResult.insertId;
+        db.beginTransaction((err) => {
+          if (err) return res.status(500).json({ error: err.message });
 
-        const studentSql = `
-          INSERT INTO student (account_id, student_number, first_name, middle_name, last_name, birth_date, age, sex, contact_number, current_address)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `;
-        db.query(studentSql, [accountId, student_number, first_name, middle_name || null, last_name, birth_date || null, age || null, sex || null, contact_number || null, current_address || null], (err, studentResult) => {
-          if (err) {
-            return db.rollback(() => res.status(err.code === 'ER_DUP_ENTRY' ? 409 : 500).json({ error: err.code === 'ER_DUP_ENTRY' ? 'This student ID is already registered' : err.message }));
-          }
-
-          db.commit((err) => {
+          const accountSql = `INSERT INTO user_account (username, password, role) VALUES (?, ?, 'student')`;
+          db.query(accountSql, [username, hashedPassword], (err, accountResult) => {
             if (err) {
-              return db.rollback(() => res.status(500).json({ error: err.message }));
+              return db.rollback(() => res.status(err.code === 'ER_DUP_ENTRY' ? 409 : 500).json({ error: err.sqlMessage || err.message }));
             }
-            const token = jwt.sign(
-              { accountId, role: 'student' },
-              process.env.JWT_SECRET,
-              { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
-            );
-            res.status(201).json({
-              message: 'Student registered successfully',
-              accountId,
-              studentId: studentResult.insertId,
-              token
+
+            const accountId = accountResult.insertId;
+
+            const studentSql = `
+              INSERT INTO student (account_id, student_number, first_name, middle_name, last_name, birth_date, age, sex, contact_number, current_address)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `;
+            db.query(studentSql, [accountId, student_number, first_name, middle_name || null, last_name, birth_date || null, age || null, sex || null, contact_number || null, current_address || null], (err, studentResult) => {
+              if (err) {
+                return db.rollback(() => res.status(err.code === 'ER_DUP_ENTRY' ? 409 : 500).json({ error: err.code === 'ER_DUP_ENTRY' ? 'This student ID is already registered' : err.message }));
+              }
+
+              db.commit((err) => {
+                if (err) {
+                  return db.rollback(() => res.status(500).json({ error: err.message }));
+                }
+                // Consume the OTP so it can't be reused for a second registration.
+                db.query(`DELETE FROM email_otp WHERE email = ?`, [email]);
+                const token = jwt.sign(
+                  { accountId, role: 'student' },
+                  process.env.JWT_SECRET,
+                  { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+                );
+                res.status(201).json({
+                  message: 'Student registered successfully',
+                  accountId,
+                  studentId: studentResult.insertId,
+                  token
+                });
+              });
             });
           });
         });
-      });
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    }
+  );
 };
 
 // LOGIN STUDENT (Passenger)
@@ -113,14 +132,44 @@ exports.loginStudent = async (req, res) => {
 // REGISTER DRIVER
 exports.registerDriver = async (req, res) => {
   const {
-    username, password,
+    password,
     first_name, middle_name, last_name,
-    driver_license_no, birth_date, age, sex, contact_number, current_address
+    driver_license_no, plate_number, body_number, birth_date, age, sex, contact_number, current_address
   } = req.body;
 
-  if (!username || !password || !first_name || !last_name || !driver_license_no) {
+  // Drivers log in with their contact number instead of an email/username —
+  // it doubles as the unique login identifier stored in user_account.username.
+  if (!contact_number || !password || !first_name || !last_name || !driver_license_no || !plate_number || !body_number) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
+
+  // Plate number (LTO-issued, e.g. CD-64318) and body number (TODA unit
+  // number painted on the tricycle) are two different real-world IDs with
+  // two different formats — validated server-side too, not just in the
+  // form, since this data is shown to passengers for their own safety.
+  const normalizedPlateNumber = plate_number.trim().toUpperCase();
+  if (!/^[A-Z]{2}-\d{5}$/.test(normalizedPlateNumber)) {
+    return res.status(400).json({ error: 'Plate number must be in the format AA-12345 (2 letters, hyphen, 5 digits)' });
+  }
+  if (!/^\d{5}$/.test(body_number.trim())) {
+    return res.status(400).json({ error: 'Body number must be exactly 5 digits' });
+  }
+
+  // Philippine LTO driver's license number: 1 letter + 10 digits, formatted
+  // as L##-##-###### (e.g. N01-23-456789) — same format the frontend
+  // auto-formats into as the driver types, re-checked here server-side.
+  const normalizedLicenseNo = driver_license_no.trim().toUpperCase();
+  if (!/^[A-Z]\d{2}-\d{2}-\d{6}$/.test(normalizedLicenseNo)) {
+    return res.status(400).json({ error: 'Driver\'s license number must be in the format L##-##-###### (e.g. N01-23-456789)' });
+  }
+
+  if (!req.file) {
+    return res.status(400).json({ error: "Driver's license file is required" });
+  }
+
+  // Store a path relative to server/ (not the absolute disk path multer
+  // gives us) so it stays valid regardless of which machine runs the server.
+  const licenseDocumentPath = path.join('uploads', 'licenses', req.file.filename);
 
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -129,18 +178,18 @@ exports.registerDriver = async (req, res) => {
       if (err) return res.status(500).json({ error: err.message });
 
       const accountSql = `INSERT INTO user_account (username, password, role) VALUES (?, ?, 'driver')`;
-      db.query(accountSql, [username, hashedPassword], (err, accountResult) => {
+      db.query(accountSql, [contact_number, hashedPassword], (err, accountResult) => {
         if (err) {
-          return db.rollback(() => res.status(err.code === 'ER_DUP_ENTRY' ? 409 : 500).json({ error: err.sqlMessage || err.message }));
+          return db.rollback(() => res.status(err.code === 'ER_DUP_ENTRY' ? 409 : 500).json({ error: err.code === 'ER_DUP_ENTRY' ? 'This contact number is already registered' : err.message }));
         }
 
         const accountId = accountResult.insertId;
 
         const driverSql = `
-          INSERT INTO tricycle_driver (account_id, first_name, middle_name, last_name, driver_license_no, account_status, birth_date, age, sex, contact_number, current_address)
-          VALUES (?, ?, ?, ?, ?, 'Pending', ?, ?, ?, ?, ?)
+          INSERT INTO tricycle_driver (account_id, first_name, middle_name, last_name, driver_license_no, plate_number, body_number, license_document_path, account_status, birth_date, age, sex, contact_number, current_address)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Pending', ?, ?, ?, ?, ?)
         `;
-        db.query(driverSql, [accountId, first_name, middle_name || null, last_name, driver_license_no, birth_date || null, age || null, sex || null, contact_number || null, current_address || null], (err, driverResult) => {
+        db.query(driverSql, [accountId, first_name, middle_name || null, last_name, normalizedLicenseNo, normalizedPlateNumber, body_number.trim(), licenseDocumentPath, birth_date || null, age || null, sex || null, contact_number || null, current_address || null], (err, driverResult) => {
           if (err) {
             return db.rollback(() => res.status(500).json({ error: err.message }));
           }
@@ -149,10 +198,22 @@ exports.registerDriver = async (req, res) => {
             if (err) {
               return db.rollback(() => res.status(500).json({ error: err.message }));
             }
+            // A Pending driver is already allowed to log in (see loginDriver
+            // — only 'Rejected' blocks access) and see their dashboard, they
+            // just can't accept rides yet. Issue a token here too so a
+            // newly-registered driver lands straight on their dashboard
+            // instead of being sent back to the login form.
+            const token = jwt.sign(
+              { accountId, role: 'driver', accountStatus: 'Pending' },
+              process.env.JWT_SECRET,
+              { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+            );
             res.status(201).json({
               message: 'Driver registered successfully',
               accountId,
-              driverId: driverResult.insertId
+              driverId: driverResult.insertId,
+              accountStatus: 'Pending',
+              token
             });
           });
         });
@@ -208,17 +269,24 @@ exports.loginDriver = async (req, res) => {
       { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
     );
 
-    res.status(200).json({
-      message: 'Login successful',
-      token,
-      user: {
-        accountId: user.account_id,
-        driverId: user.driver_id,
-        name: `${user.first_name} ${user.last_name}`,
-        username: user.username,
-        role: user.role,
-        accountStatus: user.account_status
-      }
+    // Driver is automatically "on shift" the moment they log in — no manual
+    // toggle needed. Logging out (see setupLogoutButtons in app.js) is what
+    // flips them back offline.
+    db.query(`UPDATE tricycle_driver SET is_online = TRUE WHERE account_id = ?`, [user.account_id], (err) => {
+      if (err) return res.status(500).json({ error: err.message });
+
+      res.status(200).json({
+        message: 'Login successful',
+        token,
+        user: {
+          accountId: user.account_id,
+          driverId: user.driver_id,
+          name: `${user.first_name} ${user.last_name}`,
+          username: user.username,
+          role: user.role,
+          accountStatus: user.account_status
+        }
+      });
     });
   });
 };

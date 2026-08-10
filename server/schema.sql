@@ -42,6 +42,7 @@ CREATE TABLE IF NOT EXISTS tricycle_driver (
   middle_name VARCHAR(100),
   last_name VARCHAR(100) NOT NULL,
   driver_license_no VARCHAR(50) NOT NULL,
+  license_document_path VARCHAR(255) NULL,
   account_status ENUM('Pending', 'Active', 'Rejected') NOT NULL DEFAULT 'Pending',
   is_online BOOLEAN NOT NULL DEFAULT FALSE,
   current_lat DECIMAL(10,7) NULL,
@@ -98,10 +99,12 @@ CREATE TABLE IF NOT EXISTS rides (
   driver_account_id INT NULL,
   pickup_location VARCHAR(100) NOT NULL,
   dropoff_location VARCHAR(100) NOT NULL,
+  pickup_lat DECIMAL(10,7) NULL,
+  pickup_lng DECIMAL(10,7) NULL,
   ride_type ENUM('Solo', 'Shared') NOT NULL DEFAULT 'Solo',
   pool_id INT NULL,
   fare DECIMAL(6,2) NULL,
-  status ENUM('Pending', 'Accepted', 'Picked Up', 'In Progress', 'Completed', 'Cancelled', 'Failed') NOT NULL DEFAULT 'Pending',
+  status ENUM('Pending', 'Accepted', 'Picked Up', 'In Progress', 'Completed', 'Cancelled', 'Failed', 'Declined') NOT NULL DEFAULT 'Pending',
   scheduled_at DATETIME NULL,
   notes TEXT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -126,3 +129,105 @@ CREATE TABLE IF NOT EXISTS reviews (
   FOREIGN KEY (driver_account_id) REFERENCES user_account(account_id),
   CHECK (rating BETWEEN 1 AND 5)
 );
+
+-- A passenger or driver can file a complaint against the other party,
+-- optionally tied to a specific ride. Resolving a complaint can (but doesn't
+-- have to) result in a row in `violations`.
+CREATE TABLE IF NOT EXISTS complaints (
+  complaint_id INT AUTO_INCREMENT PRIMARY KEY,
+  filed_by_account_id INT NOT NULL,
+  against_account_id INT NULL,
+  ride_id INT NULL,
+  category VARCHAR(50) NOT NULL,
+  description TEXT NOT NULL,
+  status ENUM('Pending', 'Reviewed', 'Resolved') NOT NULL DEFAULT 'Pending',
+  admin_notes TEXT NULL,
+  resolved_by_admin_id INT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (filed_by_account_id) REFERENCES user_account(account_id),
+  FOREIGN KEY (against_account_id) REFERENCES user_account(account_id),
+  FOREIGN KEY (ride_id) REFERENCES rides(ride_id),
+  FOREIGN KEY (resolved_by_admin_id) REFERENCES administrator(admin_id)
+);
+
+-- A warning or violation issued by an admin against a driver/passenger's
+-- account. `complaint_id` is nullable — an admin can issue one directly
+-- (e.g. a pattern they noticed) without a filed complaint behind it.
+CREATE TABLE IF NOT EXISTS violations (
+  violation_id INT AUTO_INCREMENT PRIMARY KEY,
+  account_id INT NOT NULL,
+  issued_by_admin_id INT NOT NULL,
+  complaint_id INT NULL,
+  severity ENUM('Warning', 'Violation') NOT NULL,
+  reason TEXT NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (account_id) REFERENCES user_account(account_id),
+  FOREIGN KEY (issued_by_admin_id) REFERENCES administrator(admin_id),
+  FOREIGN KEY (complaint_id) REFERENCES complaints(complaint_id)
+);
+
+-- === Auth redesign migration (run against an EXISTING database) ===
+-- CREATE TABLE IF NOT EXISTS above won't touch tricycle_driver since it
+-- already exists, so run this ALTER + the new email_otp table by hand in
+-- MySQL Workbench:
+
+ALTER TABLE tricycle_driver ADD COLUMN license_document_path VARCHAR(255) NULL AFTER driver_license_no;
+
+-- Short-lived codes for verifying a passenger's @student.tsu.edu.ph inbox
+-- before their account is created. A row is consumed (deleted) the moment
+-- registration succeeds; `verified` distinguishes an entered-correctly code
+-- from one that was only ever sent.
+CREATE TABLE IF NOT EXISTS email_otp (
+  otp_id INT AUTO_INCREMENT PRIMARY KEY,
+  email VARCHAR(150) NOT NULL,
+  otp_hash VARCHAR(255) NOT NULL,
+  verified BOOLEAN NOT NULL DEFAULT FALSE,
+  attempts INT NOT NULL DEFAULT 0,
+  expires_at DATETIME NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_email_otp_email (email)
+);
+
+-- === "Chat with your Rider" migration (run against an EXISTING database) ===
+-- One thread per ride, between that ride's passenger and driver only.
+-- `is_read` powers the unread-message badge: a message counts as read once
+-- the OTHER party opens the chat for that ride (see messageController.js).
+CREATE TABLE IF NOT EXISTS messages (
+  message_id INT AUTO_INCREMENT PRIMARY KEY,
+  ride_id INT NOT NULL,
+  sender_account_id INT NOT NULL,
+  message TEXT NOT NULL,
+  is_read BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (ride_id) REFERENCES rides(ride_id),
+  FOREIGN KEY (sender_account_id) REFERENCES user_account(account_id)
+);
+
+-- === GPS pickup-spot migration (run against an EXISTING database) ===
+-- A one-time snapshot of the passenger's real coordinates at the moment
+-- they requested the ride (not continuously updated, unlike the driver's
+-- current_lat/current_lng) — lets the driver see roughly where the
+-- passenger actually is, not just the fixed campus point they picked.
+ALTER TABLE rides ADD COLUMN pickup_lat DECIMAL(10,7) NULL AFTER dropoff_location;
+ALTER TABLE rides ADD COLUMN pickup_lng DECIMAL(10,7) NULL AFTER pickup_lat;
+
+-- === Driver plate number migration (run against an EXISTING database) ===
+-- Shown to passengers in the "drivers available now" list so they can
+-- confirm the tricycle that shows up actually matches who they were told
+-- to expect (safety, not just informational). Format: 2 letters + hyphen +
+-- 5 digits (e.g. CD-64318), enforced client + server side.
+ALTER TABLE tricycle_driver ADD COLUMN plate_number VARCHAR(20) NULL AFTER driver_license_no;
+
+-- === Driver body number migration (run against an EXISTING database) ===
+-- The TODA-issued unit number painted on the tricycle body — a separate
+-- real-world identifier from the LTO plate number above. Format: 5 digits.
+ALTER TABLE tricycle_driver ADD COLUMN body_number VARCHAR(10) NULL AFTER plate_number;
+
+-- === "Declined" ride status migration (run against an EXISTING database) ===
+-- Previously a driver declining a request just set status = 'Cancelled',
+-- indistinguishable from the passenger cancelling their own request — the
+-- passenger got no notification either way. 'Declined' is a distinct
+-- terminal status so the passenger-side milestone popup can specifically
+-- say "the driver declined your request" instead of staying silent.
+ALTER TABLE rides MODIFY COLUMN status ENUM('Pending', 'Accepted', 'Picked Up', 'In Progress', 'Completed', 'Cancelled', 'Failed', 'Declined') NOT NULL DEFAULT 'Pending';

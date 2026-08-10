@@ -6,6 +6,9 @@ const rideRoutes = require('./routes/rideRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const profileRoutes = require('./routes/profileRoutes');
 const reviewRoutes = require('./routes/reviewRoutes');
+const complaintRoutes = require('./routes/complaintRoutes');
+const otpRoutes = require('./routes/otpRoutes');
+const messageRoutes = require('./routes/messageRoutes');
 
 
 const app = express();
@@ -38,7 +41,25 @@ app.use('/api/profile', profileRoutes);
 // Review routes
 app.use('/api/reviews', reviewRoutes);
 
+// Complaint / violation routes
+app.use('/api/complaints', complaintRoutes);
 
+// Registration email OTP routes
+app.use('/api/otp', otpRoutes);
+
+// Per-ride chat between a passenger and their assigned driver
+app.use('/api/messages', messageRoutes);
+
+// Catches multer errors (bad file type, over the size limit) and anything
+// else passed to next(err) — without this, Express's default HTML error
+// page would reach the frontend where it expects JSON (the exact bug seen
+// earlier with the complaints routes before nodemon was set up).
+app.use((err, req, res, next) => {
+  if (err) {
+    return res.status(400).json({ error: err.message || 'Request failed' });
+  }
+  next();
+});
 
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
