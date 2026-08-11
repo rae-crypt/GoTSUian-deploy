@@ -9,7 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <link rel="stylesheet" href="../css/passenger.css?v=41">
+  <link rel="stylesheet" href="../css/passenger.css?v=61">
 </head>
 <body data-page="passenger">
   <header>
@@ -44,7 +44,8 @@
       <div class="hero-copy">
         <span class="hero-badge"><span></span> Passenger Dashboard</span>
         <h1>Welcome, <span data-dashboard-welcome>Passenger</span></h1>
-        <p>Your trips and booking tools are ready. Book a ride or check your current trip status below.</p>
+        <p class="copy-full">Your trips and booking tools are ready. Book a ride or check your current trip status below.</p>
+        <p class="copy-short">Book a ride or check your current trip status below.</p>
       </div>
     </section>
 
@@ -53,9 +54,10 @@
         <div id="availability-indicator" class="availability-indicator">
           <span id="availability-dot" class="availability-dot"></span>
           <span id="availability-text">Checking driver availability...</span>
+          <small class="availability-goto copy-full">Tap to view →</small>
         </div>
         <article class="dashboard-card">
-          <h3>Request a ride</h3>
+          <h3><span class="card-icon-badge"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 11V6.5C6 5.1 7.1 4 8.5 4H11.5C12.9 4 14 5.1 14 6.5V11"/><rect x="4.5" y="11" width="11" height="4" rx="1.5"/></svg></span>Request a ride</h3>
           <form id="ride-request-form" class="auth-form">
             <div class="form-field">
               <label for="pickup-location">Pickup location</label>
@@ -75,8 +77,12 @@
               <small class="error-msg" id="route-error"></small>
             </div>
             <div class="form-field">
-              <label for="ride-type">Ride type</label>
-              <select id="ride-type" name="rideType">
+              <label>Ride type</label>
+              <div class="ride-type-toggle" role="group" aria-label="Ride type">
+                <button type="button" class="ride-type-btn is-selected" data-ride-type="Solo">Solo<small>₱60</small></button>
+                <button type="button" class="ride-type-btn" data-ride-type="Shared">Shared<small>₱20–30</small></button>
+              </div>
+              <select id="ride-type" name="rideType" class="ride-type-select-hidden" aria-hidden="true" tabindex="-1">
                 <option value="Solo">Solo — ₱60</option>
                 <option value="Shared">Shared — ₱20-30</option>
               </select>
@@ -100,7 +106,7 @@
         </article>
 
         <article class="dashboard-card rewards-teaser">
-          <h3>Loyalty Rewards</h3>
+          <h3><span class="card-icon-badge tone-gold"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2.5L16.5 5.2V9C16.5 13 13.7 16.3 10 17.5C6.3 16.3 3.5 13 3.5 9V5.2L10 2.5Z"/><path d="M7.2 10L9.2 12L12.8 8"/></svg></span>Loyalty Rewards</h3>
           <p id="loyalty-loading">Loading...</p>
           <div id="loyalty-details" style="display:none;">
             <p class="loyalty-count"><span id="loyalty-current">0</span> / <span id="loyalty-threshold">10</span> completed rides</p>
@@ -117,7 +123,7 @@
         <div class="map-stack">
           <div id="map" class="passenger-map"></div>
           <article id="ride-status-panel" class="ride-status-floating dashboard-card">
-            <h3>Current ride status</h3>
+            <h3><span class="copy-full">Current ride status</span><span class="copy-short">Ride status</span></h3>
             <p id="ride-status-empty">No active ride request yet.</p>
             <div id="ride-status-details" style="display:none;"></div>
           </article>
@@ -125,7 +131,8 @@
 
         <a href="passenger-bookings.html" class="dashboard-panel dashboard-panel-link">
           <h2>Booking History →</h2>
-          <p>View your full ride history and past trips.</p>
+          <p class="copy-full">View your full ride history and past trips.</p>
+          <p class="copy-short">Full ride history and past trips.</p>
         </a>
       </div>
     </section>
@@ -145,6 +152,7 @@
     </div>
   </footer>
 
-  <script src="../js/app.js?v=67"></script>
+  <script src="http://localhost:3000/socket.io/socket.io.js"></script>
+  <script src="../js/app.js?v=90"></script>
 </body>
 </html>

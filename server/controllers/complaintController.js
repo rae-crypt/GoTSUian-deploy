@@ -57,7 +57,7 @@ exports.getMyViolations = (req, res) => {
   const account_id = req.user.accountId;
 
   db.query(
-    `SELECT violation_id, severity, reason, created_at
+    `SELECT violation_id, severity, reason, escalated, created_at
      FROM violations
      WHERE account_id = ?
      ORDER BY created_at DESC`,
@@ -111,9 +111,42 @@ exports.updateComplaintStatus = (req, res) => {
   );
 };
 
+// Shared insert used by both the direct-Violation path and the
+// possibly-escalated-Warning path below — also resolves the linked
+// complaint (if any) the same way for both.
+function insertViolationRow(res, { account_id, issued_by_admin_id, complaint_id, severity, reason, escalated, message }) {
+  db.query(
+    `INSERT INTO violations (account_id, issued_by_admin_id, complaint_id, severity, reason, escalated)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [account_id, issued_by_admin_id, complaint_id || null, severity, reason, escalated],
+    (err) => {
+      if (err) return res.status(500).json({ error: err.message });
+
+      const responseBody = { message, escalated, finalSeverity: severity };
+
+      if (!complaint_id) {
+        return res.status(201).json(responseBody);
+      }
+
+      db.query(
+        `UPDATE complaints SET status = 'Resolved', resolved_by_admin_id = ? WHERE complaint_id = ?`,
+        [issued_by_admin_id, complaint_id],
+        (err2) => {
+          if (err2) return res.status(500).json({ error: err2.message });
+          responseBody.message += ' and complaint resolved';
+          res.status(201).json(responseBody);
+        }
+      );
+    }
+  );
+}
+
 // ADMIN — issue a warning or violation against an account. `complaint_id` is
 // optional: an admin can issue one standalone (e.g. a pattern they noticed),
 // or tied to a specific complaint, which also marks that complaint Resolved.
+// A Warning auto-escalates to a Violation if the account already has a prior
+// Warning on record — repeat offenses (of any kind) are treated as serious,
+// matching the Code of Conduct's stated policy.
 exports.issueViolation = (req, res) => {
   const { account_id, severity, reason, complaint_id } = req.body;
   const issued_by_admin_id = req.user.adminId;
@@ -123,26 +156,34 @@ exports.issueViolation = (req, res) => {
     return res.status(400).json({ error: 'Severity must be "Warning" or "Violation".' });
   }
   if (!reason || !reason.trim()) return res.status(400).json({ error: 'A reason is required.' });
+  const trimmedReason = reason.trim();
+
+  if (severity === 'Violation') {
+    return insertViolationRow(res, {
+      account_id, issued_by_admin_id, complaint_id, severity: 'Violation',
+      reason: trimmedReason, escalated: false, message: 'Violation issued'
+    });
+  }
 
   db.query(
-    `INSERT INTO violations (account_id, issued_by_admin_id, complaint_id, severity, reason)
-     VALUES (?, ?, ?, ?, ?)`,
-    [account_id, issued_by_admin_id, complaint_id || null, severity, reason.trim()],
-    (err) => {
+    `SELECT COUNT(*) AS c FROM violations WHERE account_id = ? AND severity = 'Warning'`,
+    [account_id],
+    (err, rows) => {
       if (err) return res.status(500).json({ error: err.message });
+      const priorWarnings = rows[0].c;
 
-      if (!complaint_id) {
-        return res.status(201).json({ message: `${severity} issued` });
+      if (priorWarnings >= 1) {
+        return insertViolationRow(res, {
+          account_id, issued_by_admin_id, complaint_id, severity: 'Violation',
+          reason: trimmedReason, escalated: true,
+          message: 'This is their 2nd warning — automatically escalated to a Violation'
+        });
       }
 
-      db.query(
-        `UPDATE complaints SET status = 'Resolved', resolved_by_admin_id = ? WHERE complaint_id = ?`,
-        [issued_by_admin_id, complaint_id],
-        (err2) => {
-          if (err2) return res.status(500).json({ error: err2.message });
-          res.status(201).json({ message: `${severity} issued and complaint resolved` });
-        }
-      );
+      insertViolationRow(res, {
+        account_id, issued_by_admin_id, complaint_id, severity: 'Warning',
+        reason: trimmedReason, escalated: false, message: 'Warning issued'
+      });
     }
   );
 };

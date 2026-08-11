@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { emitChatMessage } = require('../socket');
 
 // Confirms the requesting account is either the passenger or the driver on
 // this ride before letting them read/send anything on its thread.
@@ -69,6 +70,8 @@ exports.sendMessage = (req, res) => {
           sender_account_id: accountId,
           message: message.trim()
         });
+        const recipientAccountId = ride.passenger_account_id === accountId ? ride.driver_account_id : ride.passenger_account_id;
+        emitChatMessage(recipientAccountId);
       }
     );
   });

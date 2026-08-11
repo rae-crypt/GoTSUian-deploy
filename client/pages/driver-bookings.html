@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="../css/driver.css?v=43">
+  <link rel="stylesheet" href="../css/driver.css?v=48">
 </head>
 <body data-page="driver">
   <header>
@@ -40,21 +40,50 @@
   <main class="site-shell dashboard-page">
     <section class="hero hero-simple">
       <div class="hero-copy">
-        <span class="hero-badge"><span></span> My Rides</span>
-        <h1>Your ride history</h1>
-        <p>Every trip you've accepted, from pending to completed.</p>
+        <span class="hero-badge"><span></span> My Rides &amp; Ratings</span>
+        <h1>Your rides &amp; ratings</h1>
+        <p>Every trip you've accepted, plus the ratings and reviews passengers have left for you.</p>
+      </div>
+    </section>
+
+    <section class="section" id="driver-ratings-section">
+      <p id="driver-ratings-loading">Loading your reviews...</p>
+      <div id="driver-ratings-details" style="display:none;">
+        <article class="dashboard-card" id="driver-rating-summary-card">
+          <h3>Your rating</h3>
+          <div class="rating-overview">
+            <div class="rating-overview-score">
+              <span id="driver-ratings-average" class="rating-big-number">0.0</span>
+              <span id="driver-ratings-star-row" class="rating-star-row"></span>
+              <small id="driver-ratings-count">0 reviews</small>
+            </div>
+            <div id="driver-ratings-breakdown" class="rating-breakdown"></div>
+          </div>
+        </article>
+
+        <article class="dashboard-card" id="driver-reviews-card">
+          <h3>What passengers said</h3>
+          <div id="driver-reviews-list" class="rating-list"></div>
+        </article>
       </div>
     </section>
 
     <section class="section">
       <article class="dashboard-card">
-        <h3>All rides</h3>
-        <p id="bookings-loading">Loading your rides...</p>
-        <div id="bookings-empty" class="bookings-empty" style="display:none;">
-          <p>You haven't accepted any rides yet.</p>
-          <a href="driver.html" class="btn-secondary">View pending requests</a>
+        <div class="dashboard-card-head">
+          <h3>All rides</h3>
+          <button type="button" class="dashboard-card-toggle" aria-expanded="true" aria-label="Collapse this section">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7.5L10 12.5L15 7.5"/></svg>
+          </button>
         </div>
-        <div id="bookings-list" class="bookings-list" style="display:none;"></div>
+        <div class="dashboard-card-body">
+          <p id="bookings-loading">Loading your rides...</p>
+          <div id="bookings-empty" class="bookings-empty" style="display:none;">
+            <p>You haven't accepted any rides yet.</p>
+            <a href="driver.html" class="btn-secondary">View pending requests</a>
+          </div>
+          <div id="bookings-list" class="bookings-list" style="display:none;"></div>
+        </div>
       </article>
     </section>
   </main>
@@ -73,6 +102,7 @@
     </div>
   </footer>
 
-  <script src="../js/app.js?v=67"></script>
+  <script src="http://localhost:3000/socket.io/socket.io.js"></script>
+  <script src="../js/app.js?v=90"></script>
 </body>
 </html>

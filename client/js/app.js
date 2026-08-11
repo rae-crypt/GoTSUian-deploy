@@ -130,42 +130,16 @@ function setupScrollReveal() {
   revealItems.forEach(item => observer.observe(item));
 }
  
-// Auth is primarily kept in sessionStorage (isolated per tab — lets
-// different tabs stay logged in as different roles at once, important for
-// testing passenger/driver/admin side by side). localStorage is written
-// alongside it purely as a brief same-tab recovery backup: right after
-// register/login, this tab's own sessionStorage is set immediately, but if
-// something about the very next navigation loses it (observed in some
-// embedded preview browsers, where a same-tab redirect can behave like a
-// fresh context), this tab recovers its OWN identity from localStorage
-// instead of bouncing back to the login page — then re-adopts it into
-// sessionStorage so this tab is self-contained again from then on. A tab
-// that already has its own sessionStorage (e.g. a second tab intentionally
-// logged in as a different role) never touches localStorage at all, so it's
-// never hijacked by another tab's login. The backup only counts within a
-// short window after it was written (AUTH_HANDOFF_WINDOW_MS) — without
-// this, a completely unrelated new tab opened later (e.g. just visiting
-// the home page to register a new account) would silently inherit whoever
-// last logged in on any tab, which is exactly the bug this window prevents.
-const AUTH_HANDOFF_WINDOW_MS = 30000;
-
+// Auth lives in sessionStorage only — isolated per tab, so testing
+// passenger/driver/admin side by side in different tabs never bleeds
+// between them. (A previous version also kept a localStorage backup for
+// same-tab redirect recovery, needed by an old embedded preview browser;
+// real Chrome's sessionStorage survives location.replace() on its own, and
+// that backup was the actual cause of repeated cross-tab login hijacks —
+// any tab whose sessionStorage happened to be empty would silently adopt
+// whoever logged in elsewhere. Removed rather than patched again.)
 function getStoredUser() {
-  let rawUser = sessionStorage.getItem('authUser');
-  if (!rawUser) {
-    const backupRaw = localStorage.getItem('authUser');
-    if (backupRaw && localStorage.getItem('isAuthenticated') === 'true') {
-      try {
-        const backup = JSON.parse(backupRaw);
-        if (backup.loggedInAt && (Date.now() - backup.loggedInAt) < AUTH_HANDOFF_WINDOW_MS) {
-          rawUser = backupRaw;
-          sessionStorage.setItem('authUser', rawUser);
-          sessionStorage.setItem('isAuthenticated', 'true');
-        }
-      } catch (error) {
-        // Malformed backup — ignore, treat as no recovery available.
-      }
-    }
-  }
+  const rawUser = sessionStorage.getItem('authUser');
   if (!rawUser) {
     return {
       name: '',
@@ -207,24 +181,11 @@ function setStoredUser(user) {
     email: user.email || '',
     accountId: user.accountId || null,
     accountStatus: user.accountStatus || '',
-    token: user.token || '',
-    // Only read back by the localStorage recovery fallback in
-    // getStoredUser() — bounds how long a same-tab handoff stays usable.
-    loggedInAt: Date.now()
+    token: user.token || ''
   };
 
-  const json = JSON.stringify(payload);
-  sessionStorage.setItem('authUser', json);
+  sessionStorage.setItem('authUser', JSON.stringify(payload));
   sessionStorage.setItem('isAuthenticated', 'true');
-  // Backup copy for this tab's own same-tab-navigation recovery — see the
-  // comment on getStoredUser() above. NOT meant to let other tabs inherit
-  // this login; getStoredUser() only ever reads it when a tab's own
-  // sessionStorage is empty.
-  localStorage.setItem('authUser', json);
-  localStorage.setItem('isAuthenticated', 'true');
-  localStorage.removeItem('userName');
-  localStorage.removeItem('userRole');
-  localStorage.removeItem('userEmail');
   refreshAuthState();
 }
 
@@ -238,15 +199,6 @@ function getAuthHeaders() {
 function clearStoredUser() {
   sessionStorage.removeItem('authUser');
   sessionStorage.removeItem('isAuthenticated');
-  // Also clears the localStorage backup so a brand-new tab opened later
-  // doesn't silently inherit a login this tab just logged out of — it only
-  // ever gets read as a same-tab recovery fallback (see getStoredUser()),
-  // never touched by other tabs that already have their own session.
-  localStorage.removeItem('authUser');
-  localStorage.removeItem('isAuthenticated');
-  localStorage.removeItem('userName');
-  localStorage.removeItem('userRole');
-  localStorage.removeItem('userEmail');
   refreshAuthState();
 }
  
@@ -361,9 +313,6 @@ function renderAuthStatus() {
 }
  
 function isAuthenticated() {
-  // getStoredUser() runs first and self-heals sessionStorage from the
-  // localStorage backup when this tab's own session is empty, so by the
-  // time this reads sessionStorage it already reflects the recovered state.
   return Boolean(getStoredUser().role) && sessionStorage.getItem('isAuthenticated') === 'true';
 }
  
@@ -597,14 +546,13 @@ function showAdminDashboardIfLoggedIn() {
   const dashboardSection = document.querySelector('#admin-dashboard-section');
  
   if (!dashboardSection || !loginSection) return;
- 
-  if (isAuthenticated() && user.role === 'admin') {
-    loginSection.classList.add('hidden');
-    dashboardSection.classList.remove('hidden');
-  } else {
-    loginSection.classList.remove('hidden');
-    dashboardSection.classList.add('hidden');
-  }
+
+  const authed = isAuthenticated() && user.role === 'admin';
+  loginSection.classList.toggle('hidden', authed);
+  dashboardSection.classList.toggle('hidden', !authed);
+  // Topbar's "Admin" chip + Logout button — hidden until actually logged in,
+  // same rule as the dashboard section itself.
+  document.querySelectorAll('.admin-only').forEach(el => el.classList.toggle('hidden', !authed));
 }
 
 // index.html's nav-cta has a static "Sign up" link — hide it once someone
@@ -723,6 +671,70 @@ async function renderDriverRating() {
   }
 }
 
+// DRIVER RATINGS (FULL) — only present on driver-bookings.html, so this is a
+// safe no-op on every other page. Reuses the same GET /api/reviews/mine
+// endpoint as the dashboard preview above, but renders every review (not
+// sliced to 5) plus a per-star breakdown computed client-side from
+// data.reviews — no backend changes needed.
+async function renderDriverRatingsFull() {
+  const loadingEl = document.querySelector('#driver-ratings-loading');
+  const detailsEl = document.querySelector('#driver-ratings-details');
+  if (!loadingEl || !detailsEl) return;
+
+  const user = getStoredUser();
+  if (!isAuthenticated() || user.role !== 'driver') return;
+
+  try {
+    const res = await fetch(`${REVIEWS_API_URL}/mine`, { headers: getAuthHeaders() });
+    if (!res.ok) return;
+    const data = await res.json();
+
+    document.querySelector('#driver-ratings-average').textContent = data.average.toFixed(1);
+    document.querySelector('#driver-ratings-star-row').textContent =
+      '★'.repeat(Math.round(data.average)) + '☆'.repeat(5 - Math.round(data.average));
+    document.querySelector('#driver-ratings-count').textContent =
+      `${data.count} review${data.count === 1 ? '' : 's'}`;
+
+    const counts = [0, 0, 0, 0, 0]; // counts[0] = # of 1-star ... counts[4] = # of 5-star
+    data.reviews.forEach(r => { counts[r.rating - 1]++; });
+
+    document.querySelector('#driver-ratings-breakdown').innerHTML = [5, 4, 3, 2, 1].map(star => {
+      const count = counts[star - 1];
+      const pct = data.count ? Math.round((count / data.count) * 100) : 0;
+      return `
+        <div class="rating-breakdown-row">
+          <span class="rating-breakdown-label">${star}★</span>
+          <div class="rating-breakdown-bar"><div class="rating-breakdown-fill" style="width:${pct}%"></div></div>
+          <span class="rating-breakdown-count">${count}</span>
+        </div>`;
+    }).join('');
+
+    document.querySelector('#driver-reviews-list').innerHTML = data.reviews.map(r => {
+      const initial = (r.passenger_name || '?').trim().charAt(0).toUpperCase();
+      const formattedDate = new Date(r.created_at).toLocaleDateString();
+      return `
+        <div class="rating-item">
+          <div class="rating-item-head">
+            <div class="rating-item-who">
+              <span class="rating-item-avatar">${escapeHtml(initial)}</span>
+              <div class="rating-item-meta">
+                <strong class="rating-item-name">${escapeHtml(r.passenger_name)}</strong>
+                <small class="rating-item-date">${escapeHtml(formattedDate)}</small>
+              </div>
+            </div>
+            <span class="rating-item-stars">${'★'.repeat(r.rating)}${'☆'.repeat(5 - r.rating)}</span>
+          </div>
+          <p class="rating-item-comment">${r.comment ? escapeHtml(r.comment) : '<em>No comment left.</em>'}</p>
+        </div>`;
+    }).join('') || '<p class="rating-empty">No reviews yet.</p>';
+
+    loadingEl.style.display = 'none';
+    detailsEl.style.display = 'block';
+  } catch (error) {
+    console.warn('Unable to fetch driver ratings', error);
+  }
+}
+
 // ACCOUNT STANDING — a driver/passenger's own warning/violation history, on
 // their Profile page. Only present on driver-profile.html /
 // passenger-profile.html, so this is a safe no-op everywhere else.
@@ -744,7 +756,7 @@ async function renderMyViolations() {
     const listEl = document.querySelector('#warnings-list');
     listEl.innerHTML = data.violations.map(v => `
       <div class="rating-item">
-        <p class="warning-item-severity tone-${v.severity === 'Violation' ? 'danger' : 'warning'}">${escapeHtml(v.severity)}</p>
+        <p class="warning-item-severity tone-${v.severity === 'Violation' ? 'danger' : 'warning'}">${escapeHtml(v.severity)}${v.escalated ? ' <small>(auto-escalated)</small>' : ''}</p>
         <p class="rating-item-comment">${escapeHtml(v.reason)}</p>
         <small>${new Date(v.created_at).toLocaleDateString()}</small>
       </div>
@@ -1144,73 +1156,126 @@ async function updateDriverStatusRemote(driverId, status) {
   return data;
 }
 
+function initials(...parts) {
+  const chars = parts.map(p => (p || '').trim().charAt(0)).join('');
+  return chars.toUpperCase() || '?';
+}
+
+function statusPillTone(status) {
+  if (status === 'Active') return 'success';
+  if (status === 'Pending') return 'warning';
+  return 'danger';
+}
+
+function pillHtml(tone, label) {
+  return `<span class="admin-pill tone-${tone}"><svg viewBox="0 0 8 8"><circle cx="4" cy="4" r="4" fill="currentColor"/></svg>${escapeHtml(label)}</span>`;
+}
+
+// Same driver data renders two ways — a table row for web sizes, a stacked
+// card for mobile (see admin.css's @media(max-width:640px) which swaps
+// which one is visible) — kept as separate small templates rather than one
+// generic component since their layouts genuinely differ, not just widths.
+function renderDriverRow(driver) {
+  const driverName = escapeHtml(`${driver.first_name} ${driver.last_name}`);
+  const isPending = driver.account_status === 'Pending';
+  const licenseCell = driver.has_license_file
+    ? `<button type="button" class="admin-link-btn" data-action="view-license" data-driver-id="${driver.driver_id}">View file</button>`
+    : '<span class="tone-warning">Not uploaded</span>';
+  const approvalActions = isPending
+    ? `<button type="button" class="admin-btn tone-success" data-action="approve-driver" data-driver-id="${driver.driver_id}">Approve</button>
+       <button type="button" class="admin-btn tone-danger" data-action="reject-driver" data-driver-id="${driver.driver_id}">Reject</button>`
+    : `<button type="button" class="admin-btn tone-primary" data-action="view-license" data-driver-id="${driver.driver_id}">View</button>`;
+
+  return `
+    <tr${isPending ? ' data-pending-row' : ''} data-driver-id="${driver.driver_id}">
+      <td><div class="admin-person"><span class="admin-avatar">${initials(driver.first_name, driver.last_name)}</span><div><strong>${driverName}</strong></div></div></td>
+      <td>${escapeHtml(driver.contact_number || '—')}</td>
+      <td>${licenseCell}</td>
+      <td>${pillHtml(statusPillTone(driver.account_status), driver.account_status)}</td>
+      <td><div class="admin-actions">${approvalActions}<button type="button" class="admin-btn" data-action="issue-warning" data-account-id="${driver.account_id}" data-target-name="${driverName}">Issue Warning</button></div></td>
+    </tr>
+  `;
+}
+
+function renderDriverCard(driver) {
+  const driverName = escapeHtml(`${driver.first_name} ${driver.last_name}`);
+  const isPending = driver.account_status === 'Pending';
+  const licenseRow = driver.has_license_file
+    ? `<div class="admin-mcard-row"><span>License</span><span><button type="button" class="admin-link-btn" data-action="view-license" data-driver-id="${driver.driver_id}">View file</button></span></div>`
+    : `<div class="admin-mcard-row"><span>License</span><span class="tone-warning">Not uploaded</span></div>`;
+  const actions = isPending
+    ? `<button class="admin-btn tone-success" data-action="approve-driver" data-driver-id="${driver.driver_id}">Approve</button>
+       <button class="admin-btn tone-danger" data-action="reject-driver" data-driver-id="${driver.driver_id}">Reject</button>`
+    : `<button class="admin-btn tone-primary" data-action="view-license" data-driver-id="${driver.driver_id}">View</button>`;
+
+  return `
+    <div class="admin-mcard"${isPending ? ' data-pending-row' : ''} data-driver-id="${driver.driver_id}">
+      <div class="admin-mcard-top">
+        <div class="admin-person"><span class="admin-avatar">${initials(driver.first_name, driver.last_name)}</span><div><strong>${driverName}</strong></div></div>
+        ${pillHtml(statusPillTone(driver.account_status), driver.account_status)}
+      </div>
+      <div class="admin-mcard-rows">
+        <div class="admin-mcard-row"><span>Contact</span><span>${escapeHtml(driver.contact_number || '—')}</span></div>
+        ${licenseRow}
+      </div>
+      <div class="admin-mcard-actions">
+        ${actions}
+        <button class="admin-btn" data-action="issue-warning" data-account-id="${driver.account_id}" data-target-name="${driverName}">Warn</button>
+      </div>
+    </div>
+  `;
+}
+
+// Cached so the license modal (opened from either the table or the mobile
+// card, both firing the same data-driver-id click) can look up the full
+// driver record without a second network round trip.
+let currentAdminDrivers = [];
+
 async function renderAdminDriverManagement() {
   const tbody = document.querySelector('#admin-drivers-tbody');
+  const mobileList = document.querySelector('#admin-drivers-mobile');
   if (!tbody) return;
 
   const drivers = await fetchAdminDrivers();
+  currentAdminDrivers = drivers;
 
   if (!drivers.length) {
     tbody.innerHTML = '<tr><td colspan="5">No drivers registered yet.</td></tr>';
+    if (mobileList) mobileList.innerHTML = '<p class="admin-mcard-empty">No drivers registered yet.</p>';
+    updateAcceptAllVisibility(drivers);
     return;
   }
 
-  tbody.innerHTML = drivers.map(driver => {
-    const approvalActions = driver.account_status === 'Pending'
-      ? `<button type="button" class="btn-primary" data-action="approve-driver" data-driver-id="${driver.driver_id}">Approve</button>
-         <button type="button" class="btn-secondary" data-action="reject-driver" data-driver-id="${driver.driver_id}">Reject</button>`
-      : '';
-    const driverName = escapeHtml(driver.first_name + ' ' + driver.last_name);
-    const licenseCell = driver.has_license_file
-      ? `<button type="button" class="btn-link" data-action="view-license" data-driver-id="${driver.driver_id}">View license</button>`
-      : '<span class="tone-warning">Not uploaded</span>';
-    return `
-      <tr>
-        <td>${driverName}</td>
-        <td>${escapeHtml(driver.contact_number || '—')}</td>
-        <td>${licenseCell}</td>
-        <td>${escapeHtml(driver.account_status)}</td>
-        <td>${approvalActions}
-          <button type="button" class="btn-secondary-outline" data-action="issue-warning" data-account-id="${driver.account_id}" data-target-name="${driverName}">Issue Warning</button>
-        </td>
-      </tr>
-    `;
-  }).join('');
+  tbody.innerHTML = drivers.map(renderDriverRow).join('');
+  if (mobileList) mobileList.innerHTML = drivers.map(renderDriverCard).join('');
 
-  setupIssueWarningButtons(tbody);
+  wireDriverManagementActions(tbody);
+  if (mobileList) wireDriverManagementActions(mobileList);
 
-  // Fetches the license file as a blob (a plain <a href> can't carry the
-  // Authorization header this admin-only endpoint requires) and opens it.
-  tbody.querySelectorAll('[data-action="view-license"]').forEach(button => {
-    button.addEventListener('click', async function() {
-      const driverId = this.getAttribute('data-driver-id');
-      try {
-        const res = await fetch(`${ADMIN_API_URL}/drivers/${driverId}/license`, { headers: getAuthHeaders() });
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          throw new Error(data.error || 'Could not load license file');
-        }
-        const blob = await res.blob();
-        window.open(URL.createObjectURL(blob), '_blank');
-      } catch (error) {
-        alert(error.message || 'Could not load license file');
-      }
+  updateAcceptAllVisibility(drivers);
+}
+
+function wireDriverManagementActions(container) {
+  setupIssueWarningButtons(container);
+
+  container.querySelectorAll('[data-action="view-license"]').forEach(button => {
+    button.addEventListener('click', function() {
+      openLicenseModal(this.getAttribute('data-driver-id'));
     });
   });
 
-  tbody.querySelectorAll('[data-action="approve-driver"]').forEach(button => {
+  container.querySelectorAll('[data-action="approve-driver"]').forEach(button => {
     button.addEventListener('click', async function() {
-      const driverId = this.getAttribute('data-driver-id');
       try {
-        await updateDriverStatusRemote(driverId, 'Active');
+        await updateDriverStatusRemote(this.getAttribute('data-driver-id'), 'Active');
         renderAdminDriverManagement();
       } catch (error) {
-        alert(error.message || 'Could not approve driver');
+        showRideFeedback('error', 'Could not approve', error.message || 'Please try again.');
       }
     });
   });
 
-  tbody.querySelectorAll('[data-action="reject-driver"]').forEach(button => {
+  container.querySelectorAll('[data-action="reject-driver"]').forEach(button => {
     button.addEventListener('click', async function() {
       const driverId = this.getAttribute('data-driver-id');
       if (!confirm('Reject this driver application?')) return;
@@ -1218,15 +1283,218 @@ async function renderAdminDriverManagement() {
         await updateDriverStatusRemote(driverId, 'Rejected');
         renderAdminDriverManagement();
       } catch (error) {
-        alert(error.message || 'Could not reject driver');
+        showRideFeedback('error', 'Could not reject', error.message || 'Please try again.');
       }
     });
   });
 }
 
+// "Accept All Pending" — wired once (the button lives in the static HTML,
+// not re-rendered), reading whichever driver rows are pending straight from
+// the DOM at click time so it always reflects the latest render.
+function setupAcceptAllForDriverPanel() {
+  const panel = document.querySelector('#driver-management-panel');
+  const btn = panel && panel.querySelector('.accept-all-btn');
+  if (!btn) return;
+
+  const wrap = panel.querySelector('.accept-all-wrap');
+  const confirmBox = panel.querySelector('.accept-all-confirm');
+
+  btn.addEventListener('click', () => {
+    wrap.style.display = 'none';
+    confirmBox.style.display = 'flex';
+  });
+  panel.querySelector('.accept-all-cancel').addEventListener('click', () => {
+    confirmBox.style.display = 'none';
+    wrap.style.display = '';
+  });
+  panel.querySelector('.accept-all-yes').addEventListener('click', async () => {
+    const ids = Array.from(document.querySelectorAll('#admin-drivers-tbody tr[data-pending-row]'))
+      .map(row => row.getAttribute('data-driver-id'));
+    confirmBox.style.display = 'none';
+    wrap.style.display = '';
+    if (!ids.length) return;
+
+    try {
+      await Promise.all(ids.map(id => updateDriverStatusRemote(id, 'Active')));
+      showRideFeedback('success', 'Drivers approved', `${ids.length} pending driver${ids.length === 1 ? '' : 's'} approved.`);
+    } catch (error) {
+      showRideFeedback('error', 'Could not approve all', error.message || 'Please try again.');
+    }
+    renderAdminDriverManagement();
+    renderAdminStats();
+  });
+}
+
+// Collapsible panels — same accordion behavior on every size now (not just
+// mobile), since long driver/booking/complaint lists made the dashboard a
+// long scroll on desktop too.
+function setupAdminPanelCollapse() {
+  document.querySelectorAll('.admin-panel-toggle').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const panel = btn.closest('.admin-panel');
+      if (!panel) return;
+      const collapsed = panel.classList.toggle('is-collapsed');
+      btn.setAttribute('aria-expanded', String(!collapsed));
+      btn.setAttribute('aria-label', collapsed ? 'Expand this section' : 'Collapse this section');
+    });
+  });
+}
+
+// Same collapsible-section treatment as the admin panels, applied to the
+// "All bookings" / "All rides" cards — one toggle collapses the whole
+// card's body, not each individual ride.
+function setupDashboardCardCollapse() {
+  document.querySelectorAll('.dashboard-card-toggle').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const card = btn.closest('.dashboard-card');
+      if (!card) return;
+      const collapsed = card.classList.toggle('is-collapsed');
+      btn.setAttribute('aria-expanded', String(!collapsed));
+      btn.setAttribute('aria-label', collapsed ? 'Expand this section' : 'Collapse this section');
+    });
+  });
+}
+
+function updateAcceptAllVisibility(drivers) {
+  const panel = document.querySelector('#driver-management-panel');
+  if (!panel) return;
+  const zone = panel.querySelector('.accept-all-zone');
+  const countEl = panel.querySelector('.accept-all-count');
+  const pendingCount = drivers.filter(d => d.account_status === 'Pending').length;
+  if (countEl) countEl.textContent = `(${pendingCount})`;
+  if (zone) zone.style.display = pendingCount > 0 ? '' : 'none';
+}
+
+// License review modal — fetched as a blob (a plain <a href> can't carry
+// the Authorization header this admin-only endpoint requires); images
+// render inline, PDFs fall back to an "open in new tab" link since <img>
+// can't display them.
+function openLicenseModal(driverId) {
+  const driver = currentAdminDrivers.find(d => String(d.driver_id) === String(driverId));
+  const modal = document.querySelector('#license-modal');
+  if (!driver || !modal) return;
+
+  document.querySelector('#license-modal-name').textContent = `${driver.first_name} ${driver.last_name}'s license`;
+  const preview = document.querySelector('#license-modal-preview');
+  const errorEl = document.querySelector('#license-modal-error');
+  const actionsEl = document.querySelector('#license-modal-actions');
+  errorEl.textContent = '';
+  preview.innerHTML = `
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="11" r="2"/><path d="M6 16c.5-1.6 1.6-2.5 2.5-2.5s2 .9 2.5 2.5M14 9.5h5M14 12.5h5M14 15.5h3"/></svg>
+    <strong>Loading file…</strong>
+  `;
+  actionsEl.innerHTML = '';
+  modal.classList.remove('hidden');
+
+  fetch(`${ADMIN_API_URL}/drivers/${driverId}/license`, { headers: getAuthHeaders() })
+    .then(async res => {
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Could not load license file');
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      preview.innerHTML = blob.type.startsWith('image/')
+        ? `<img src="${url}" alt="${driver.first_name} ${driver.last_name}'s license">`
+        : `
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l5 5v13H6z"/><path d="M15 3v5h5"/></svg>
+          <strong>License file (PDF)</strong>
+          <small><a href="${url}" target="_blank" rel="noopener" style="color:var(--primary);font-weight:600;">Open in new tab</a></small>
+        `;
+    })
+    .catch(error => {
+      errorEl.textContent = error.message || 'Could not load license file';
+    });
+
+  if (driver.account_status === 'Pending') {
+    actionsEl.innerHTML = `
+      <button type="button" class="admin-btn-primary" style="background:var(--tone-success)" data-modal-action="approve-driver">Approve driver</button>
+      <button type="button" class="admin-btn-outline-full" style="color:var(--tone-danger);border-color:var(--tone-danger)" data-modal-action="reject-driver">Reject</button>
+    `;
+    actionsEl.querySelector('[data-modal-action="approve-driver"]').addEventListener('click', async function() {
+      try {
+        await updateDriverStatusRemote(driverId, 'Active');
+        closeLicenseModal();
+        renderAdminDriverManagement();
+      } catch (error) {
+        errorEl.textContent = error.message || 'Could not approve driver';
+      }
+    });
+    actionsEl.querySelector('[data-modal-action="reject-driver"]').addEventListener('click', async function() {
+      if (!confirm('Reject this driver application?')) return;
+      try {
+        await updateDriverStatusRemote(driverId, 'Rejected');
+        closeLicenseModal();
+        renderAdminDriverManagement();
+      } catch (error) {
+        errorEl.textContent = error.message || 'Could not reject driver';
+      }
+    });
+  }
+}
+
+function closeLicenseModal() {
+  const modal = document.querySelector('#license-modal');
+  if (modal) modal.classList.add('hidden');
+}
+
+function setupLicenseModal() {
+  const modal = document.querySelector('#license-modal');
+  if (!modal) return;
+  modal.querySelectorAll('[data-close-license-modal]').forEach(btn => {
+    btn.addEventListener('click', closeLicenseModal);
+  });
+  modal.addEventListener('click', (event) => {
+    if (event.target === modal) closeLicenseModal();
+  });
+}
+
+function passengerInitials(name) {
+  const parts = (name || '').trim().split(/\s+/);
+  return initials(parts[0], parts[1]);
+}
+
+function renderPassengerRow(p) {
+  const lastBooking = p.last_booking ? new Date(p.last_booking).toLocaleDateString() : '—';
+  const status = p.ride_count > 0 ? 'Active' : 'No bookings yet';
+  const passengerName = escapeHtml(p.name);
+  return `
+    <tr>
+      <td><div class="admin-person"><span class="admin-avatar">${passengerInitials(p.name)}</span><div><strong>${passengerName}</strong></div></div></td>
+      <td>${p.ride_count}</td>
+      <td>${escapeHtml(lastBooking)}</td>
+      <td>${pillHtml(p.ride_count > 0 ? 'success' : 'warning', status)}</td>
+      <td><button type="button" class="admin-btn" data-action="issue-warning" data-account-id="${p.account_id}" data-target-name="${passengerName}">Issue Warning</button></td>
+    </tr>
+  `;
+}
+
+function renderPassengerCard(p) {
+  const lastBooking = p.last_booking ? new Date(p.last_booking).toLocaleDateString() : '—';
+  const status = p.ride_count > 0 ? 'Active' : 'No bookings yet';
+  const passengerName = escapeHtml(p.name);
+  return `
+    <div class="admin-mcard">
+      <div class="admin-mcard-top">
+        <div class="admin-person"><span class="admin-avatar">${passengerInitials(p.name)}</span><div><strong>${passengerName}</strong></div></div>
+        ${pillHtml(p.ride_count > 0 ? 'success' : 'warning', status)}
+      </div>
+      <div class="admin-mcard-rows">
+        <div class="admin-mcard-row"><span>Rides booked</span><span>${p.ride_count}</span></div>
+        <div class="admin-mcard-row"><span>Last booking</span><span>${escapeHtml(lastBooking)}</span></div>
+      </div>
+      <div class="admin-mcard-actions">
+        <button type="button" class="admin-btn" data-action="issue-warning" data-account-id="${p.account_id}" data-target-name="${passengerName}">Issue Warning</button>
+      </div>
+    </div>
+  `;
+}
+
 // ADMIN — passenger management table, only present on admin.html.
 async function renderAdminPassengerManagement() {
   const tbody = document.querySelector('#admin-passengers-tbody');
+  const mobileList = document.querySelector('#admin-passengers-mobile');
   if (!tbody) return;
 
   try {
@@ -1237,33 +1505,60 @@ async function renderAdminPassengerManagement() {
 
     if (!passengers.length) {
       tbody.innerHTML = '<tr><td colspan="5">No passengers registered yet.</td></tr>';
+      if (mobileList) mobileList.innerHTML = '<p class="admin-mcard-empty">No passengers registered yet.</p>';
       return;
     }
 
-    tbody.innerHTML = passengers.map(p => {
-      const lastBooking = p.last_booking ? new Date(p.last_booking).toLocaleDateString() : '—';
-      const status = p.ride_count > 0 ? 'Active' : 'No bookings yet';
-      const passengerName = escapeHtml(p.name);
-      return `
-        <tr>
-          <td>${passengerName}</td>
-          <td>${p.ride_count}</td>
-          <td>${escapeHtml(lastBooking)}</td>
-          <td>${escapeHtml(status)}</td>
-          <td><button type="button" class="btn-secondary-outline" data-action="issue-warning" data-account-id="${p.account_id}" data-target-name="${passengerName}">Issue Warning</button></td>
-        </tr>
-      `;
-    }).join('');
+    tbody.innerHTML = passengers.map(renderPassengerRow).join('');
+    if (mobileList) mobileList.innerHTML = passengers.map(renderPassengerCard).join('');
 
     setupIssueWarningButtons(tbody);
+    if (mobileList) setupIssueWarningButtons(mobileList);
   } catch (error) {
     console.warn('Unable to fetch passengers', error);
   }
 }
 
+function renderBookingRow(b) {
+  const statusConfig = getRideStatusConfig(b.status);
+  const fareText = b.fare != null ? `₱${Number(b.fare).toFixed(0)}` : '—';
+  return `
+    <tr>
+      <td>${escapeHtml(b.passenger_name)}</td>
+      <td>${escapeHtml(b.driver_name || '—')}</td>
+      <td>${escapeHtml(b.pickup_location)} → ${escapeHtml(b.dropoff_location)}</td>
+      <td>${escapeHtml(b.ride_type)}</td>
+      <td>${fareText}</td>
+      <td>${pillHtml(statusConfig.tone, statusConfig.label)}</td>
+      <td>${new Date(b.created_at).toLocaleDateString()}</td>
+    </tr>
+  `;
+}
+
+function renderBookingCard(b) {
+  const statusConfig = getRideStatusConfig(b.status);
+  const fareText = b.fare != null ? `₱${Number(b.fare).toFixed(0)}` : '—';
+  return `
+    <div class="admin-mcard">
+      <div class="admin-mcard-top">
+        <strong style="font-size:14px;">${escapeHtml(b.passenger_name)}</strong>
+        ${pillHtml(statusConfig.tone, statusConfig.label)}
+      </div>
+      <div class="admin-mcard-rows">
+        <div class="admin-mcard-row"><span>Driver</span><span>${escapeHtml(b.driver_name || '—')}</span></div>
+        <div class="admin-mcard-row"><span>Route</span><span>${escapeHtml(b.pickup_location)} → ${escapeHtml(b.dropoff_location)}</span></div>
+        <div class="admin-mcard-row"><span>Type</span><span>${escapeHtml(b.ride_type)}</span></div>
+        <div class="admin-mcard-row"><span>Fare</span><span>${fareText}</span></div>
+        <div class="admin-mcard-row"><span>Requested</span><span>${new Date(b.created_at).toLocaleDateString()}</span></div>
+      </div>
+    </div>
+  `;
+}
+
 // ADMIN — all-bookings audit table, only present on admin.html.
 async function renderAdminBookings() {
   const tbody = document.querySelector('#admin-bookings-tbody');
+  const mobileList = document.querySelector('#admin-bookings-mobile');
   if (!tbody) return;
 
   try {
@@ -1274,27 +1569,62 @@ async function renderAdminBookings() {
 
     if (!bookings.length) {
       tbody.innerHTML = '<tr><td colspan="7">No bookings yet.</td></tr>';
+      if (mobileList) mobileList.innerHTML = '<p class="admin-mcard-empty">No bookings yet.</p>';
       return;
     }
 
-    tbody.innerHTML = bookings.map(b => {
-      const statusConfig = getRideStatusConfig(b.status);
-      const fareText = b.fare != null ? `₱${Number(b.fare).toFixed(0)}` : '—';
-      return `
-        <tr>
-          <td>${escapeHtml(b.passenger_name)}</td>
-          <td>${escapeHtml(b.driver_name || '—')}</td>
-          <td>${escapeHtml(b.pickup_location)} → ${escapeHtml(b.dropoff_location)}</td>
-          <td>${escapeHtml(b.ride_type)}</td>
-          <td>${fareText}</td>
-          <td><span class="ride-badge tone-${statusConfig.tone}">${escapeHtml(statusConfig.label)}</span></td>
-          <td>${new Date(b.created_at).toLocaleDateString()}</td>
-        </tr>
-      `;
-    }).join('');
+    tbody.innerHTML = bookings.map(renderBookingRow).join('');
+    if (mobileList) mobileList.innerHTML = bookings.map(renderBookingCard).join('');
   } catch (error) {
     console.warn('Unable to fetch bookings', error);
   }
+}
+
+function complaintTone(status) {
+  return status === 'Pending' ? 'warning' : status === 'Reviewed' ? 'info' : 'success';
+}
+
+function renderComplaintRow(c) {
+  const route = c.pickup_location ? `${escapeHtml(c.pickup_location)} → ${escapeHtml(c.dropoff_location)}` : '—';
+  const againstName = escapeHtml(c.against_name || '—');
+  const actions = c.status === 'Resolved' ? '—' : `
+    <button type="button" class="admin-btn" data-action="mark-reviewed" data-complaint-id="${c.complaint_id}">Mark Reviewed</button>
+    ${c.against_account_id ? `<button type="button" class="admin-btn" data-action="issue-warning" data-account-id="${c.against_account_id}" data-target-name="${againstName}" data-complaint-id="${c.complaint_id}">Issue Warning</button>` : ''}
+  `;
+  return `
+    <tr>
+      <td>${escapeHtml(c.filed_by_name || '—')}</td>
+      <td>${againstName}</td>
+      <td>${escapeHtml(c.category)}</td>
+      <td>${route}</td>
+      <td>${pillHtml(complaintTone(c.status), c.status)}</td>
+      <td>${new Date(c.created_at).toLocaleDateString()}</td>
+      <td><div class="admin-actions">${actions}</div></td>
+    </tr>
+  `;
+}
+
+function renderComplaintCard(c) {
+  const route = c.pickup_location ? `${escapeHtml(c.pickup_location)} → ${escapeHtml(c.dropoff_location)}` : '—';
+  const againstName = escapeHtml(c.against_name || '—');
+  const actions = c.status === 'Resolved' ? '' : `
+    <button type="button" class="admin-btn" data-action="mark-reviewed" data-complaint-id="${c.complaint_id}">Mark Reviewed</button>
+    ${c.against_account_id ? `<button type="button" class="admin-btn" data-action="issue-warning" data-account-id="${c.against_account_id}" data-target-name="${againstName}" data-complaint-id="${c.complaint_id}">Warn</button>` : ''}
+  `;
+  return `
+    <div class="admin-mcard">
+      <div class="admin-mcard-top">
+        <strong style="font-size:14px;">${escapeHtml(c.filed_by_name || '—')} <span style="font-weight:400;color:var(--muted);">vs</span> ${againstName}</strong>
+      </div>
+      <div class="admin-mcard-rows">
+        <div class="admin-mcard-row"><span>Category</span><span>${escapeHtml(c.category)}</span></div>
+        <div class="admin-mcard-row"><span>Route</span><span>${route}</span></div>
+        <div class="admin-mcard-row"><span>Status</span><span>${pillHtml(complaintTone(c.status), c.status)}</span></div>
+        <div class="admin-mcard-row"><span>Filed</span><span>${new Date(c.created_at).toLocaleDateString()}</span></div>
+      </div>
+      ${actions ? `<div class="admin-mcard-actions">${actions}</div>` : ''}
+    </div>
+  `;
 }
 
 // ADMIN — complaints filed by passengers/drivers against each other, plus
@@ -1302,6 +1632,7 @@ async function renderAdminBookings() {
 // passenger management tables. Only present on admin.html.
 async function renderAdminComplaints() {
   const tbody = document.querySelector('#admin-complaints-tbody');
+  const mobileList = document.querySelector('#admin-complaints-mobile');
   if (!tbody) return;
 
   try {
@@ -1312,45 +1643,32 @@ async function renderAdminComplaints() {
 
     if (!complaints.length) {
       tbody.innerHTML = '<tr><td colspan="7">No complaints filed yet.</td></tr>';
+      if (mobileList) mobileList.innerHTML = '<p class="admin-mcard-empty">No complaints filed yet.</p>';
       return;
     }
 
-    tbody.innerHTML = complaints.map(c => {
-      const route = c.pickup_location ? `${escapeHtml(c.pickup_location)} → ${escapeHtml(c.dropoff_location)}` : '—';
-      const tone = c.status === 'Pending' ? 'warning' : c.status === 'Reviewed' ? 'info' : 'success';
-      const againstName = escapeHtml(c.against_name || '—');
-      const actions = c.status === 'Resolved' ? '—' : `
-        <button type="button" class="btn-secondary-outline" data-action="mark-reviewed" data-complaint-id="${c.complaint_id}">Mark Reviewed</button>
-        ${c.against_account_id ? `<button type="button" class="btn-secondary-outline" data-action="issue-warning" data-account-id="${c.against_account_id}" data-target-name="${againstName}" data-complaint-id="${c.complaint_id}">Issue Warning</button>` : ''}
-      `;
-      return `
-        <tr>
-          <td>${escapeHtml(c.filed_by_name || '—')}</td>
-          <td>${againstName}</td>
-          <td>${escapeHtml(c.category)}</td>
-          <td>${route}</td>
-          <td><span class="ride-badge tone-${tone}">${escapeHtml(c.status)}</span></td>
-          <td>${new Date(c.created_at).toLocaleDateString()}</td>
-          <td>${actions}</td>
-        </tr>
-      `;
-    }).join('');
+    tbody.innerHTML = complaints.map(renderComplaintRow).join('');
+    if (mobileList) mobileList.innerHTML = complaints.map(renderComplaintCard).join('');
 
-    tbody.querySelectorAll('[data-action="mark-reviewed"]').forEach(button => {
-      button.addEventListener('click', async function() {
-        try {
-          await updateComplaintStatusRemote(this.getAttribute('data-complaint-id'), 'Reviewed');
-          renderAdminComplaints();
-        } catch (error) {
-          alert(error.message || 'Could not update complaint');
-        }
-      });
-    });
-
-    setupIssueWarningButtons(tbody);
+    wireComplaintActions(tbody);
+    if (mobileList) wireComplaintActions(mobileList);
   } catch (error) {
     console.warn('Unable to fetch complaints', error);
   }
+}
+
+function wireComplaintActions(container) {
+  container.querySelectorAll('[data-action="mark-reviewed"]').forEach(button => {
+    button.addEventListener('click', async function() {
+      try {
+        await updateComplaintStatusRemote(this.getAttribute('data-complaint-id'), 'Reviewed');
+        renderAdminComplaints();
+      } catch (error) {
+        showRideFeedback('error', 'Could not update', error.message || 'Please try again.');
+      }
+    });
+  });
+  setupIssueWarningButtons(container);
 }
 
 async function updateComplaintStatusRemote(complaintId, status, adminNotes) {
@@ -1376,8 +1694,8 @@ async function issueViolationRemote(accountId, severity, reason, complaintId) {
 }
 
 // Wires every "Issue Warning" button found inside `container` — used by the
-// Complaints panel, the driver-management table, and the passenger-management
-// table alike, all sharing the one #violation-modal.
+// Complaints panel, the driver-management table/cards, and the passenger-
+// management table/cards alike, all sharing the one #violation-modal.
 function setupIssueWarningButtons(container) {
   container.querySelectorAll('[data-action="issue-warning"]').forEach(button => {
     button.addEventListener('click', function() {
@@ -1391,13 +1709,17 @@ function setupIssueWarningButtons(container) {
 }
 
 let violationModalContext = null;
+let violationSelectedSeverity = 'Warning';
 
 function openViolationModal({ accountId, targetName, complaintId }) {
   const modal = document.querySelector('#violation-modal');
   if (!modal) return;
   violationModalContext = { accountId, complaintId };
+  violationSelectedSeverity = 'Warning';
   document.querySelector('#violation-modal-target').textContent = `Against: ${targetName || 'this account'}`;
-  document.querySelector('#violation-severity').value = 'Warning';
+  document.querySelectorAll('.admin-severity-btn').forEach(b => {
+    b.classList.toggle('is-selected', b.getAttribute('data-severity') === 'Warning');
+  });
   document.querySelector('#violation-reason').value = '';
   document.querySelector('#violation-modal-error').textContent = '';
   modal.classList.remove('hidden');
@@ -1418,9 +1740,16 @@ function setupViolationModal() {
     if (event.target === modal) closeViolationModal();
   });
 
+  document.querySelectorAll('.admin-severity-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      violationSelectedSeverity = btn.getAttribute('data-severity');
+      document.querySelectorAll('.admin-severity-btn').forEach(b => b.classList.remove('is-selected'));
+      btn.classList.add('is-selected');
+    });
+  });
+
   document.querySelector('#violation-modal-submit').addEventListener('click', async function() {
     const errorEl = document.querySelector('#violation-modal-error');
-    const severity = document.querySelector('#violation-severity').value;
     const reason = document.querySelector('#violation-reason').value.trim();
     errorEl.textContent = '';
 
@@ -1432,8 +1761,12 @@ function setupViolationModal() {
 
     this.disabled = true;
     try {
-      await issueViolationRemote(violationModalContext.accountId, severity, reason, violationModalContext.complaintId);
-      showRideFeedback('success', `${severity} issued`, 'The account has been notified on their profile.');
+      const result = await issueViolationRemote(violationModalContext.accountId, violationSelectedSeverity, reason, violationModalContext.complaintId);
+      if (result.escalated) {
+        showRideFeedback('success', 'Escalated to Violation', 'This account already had a prior warning, so this was automatically issued as a Violation instead.');
+      } else {
+        showRideFeedback('success', `${result.finalSeverity} issued`, 'The account has been notified on their profile.');
+      }
       closeViolationModal();
       renderAdminComplaints();
       renderAdminDriverManagement();
@@ -1464,6 +1797,17 @@ function escapeHtml(value) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+// The only two pickup/dropoff points in this system are the full campus
+// names ("San Isidro Campus (Tarlac State University)", "Main Campus
+// (Tarlac State University)") — too long for a route line, so shorten to
+// just the campus name for display.
+function shortLocationLabel(location) {
+  if (!location) return location;
+  if (location.startsWith('San Isidro')) return 'San Isidro';
+  if (location.startsWith('Main Campus')) return 'Main Campus';
+  return location;
 }
  
 // Centered popup used for quick ride-related confirmations (requested,
@@ -1509,10 +1853,12 @@ function showRideFeedback(type, title, message) {
  
 function getRideLifecycleSteps(status) {
   const steps = ['Pending', 'Accepted', 'Picked Up', 'In Progress', 'Completed'];
+  const shortLabels = ['Pending', 'Accept', 'Picked', 'Trip', 'Done'];
   const statusIndex = steps.indexOf(status);
- 
+
   return steps.map((step, index) => ({
     label: step,
+    shortLabel: shortLabels[index],
     active: index <= statusIndex,
     complete: index < statusIndex
   }));
@@ -1533,6 +1879,7 @@ const REVIEWS_API_URL = 'http://localhost:3000/api/reviews';
 const COMPLAINTS_API_URL = 'http://localhost:3000/api/complaints';
 const OTP_API_URL = 'http://localhost:3000/api/otp';
 const MESSAGES_API_URL = 'http://localhost:3000/api/messages';
+const SOCKET_URL = 'http://localhost:3000';
 
 // Formats a JS Date as 'YYYY-MM-DD HH:MM:SS' in local time, which is what
 // MySQL's DATETIME column expects — avoids timezone drift from ISO strings.
@@ -1638,10 +1985,14 @@ function setupAvailabilityToggle() {
   const user = getStoredUser();
   if (!isAuthenticated() || user.role !== 'driver') return;
 
+  const dot = document.querySelector('.availability-status-dot');
+
   fetch(`${RIDES_API_URL}/driver/availability`, { headers: getAuthHeaders() })
     .then(res => res.ok ? res.json() : null)
     .then(data => {
-      if (data) label.textContent = data.is_online ? 'Online — accepting rides' : 'Offline';
+      if (!data) return;
+      label.textContent = data.is_online ? 'Online' : 'Offline';
+      if (dot) dot.classList.toggle('is-online', Boolean(data.is_online));
     })
     .catch(error => console.warn('Unable to fetch availability', error));
 }
@@ -1779,15 +2130,27 @@ function openAvailableDriversModal() {
         body.innerHTML = '<p class="driver-list-empty">No drivers online right now.</p>';
         return;
       }
-      body.innerHTML = drivers.map(d => `
+      body.innerHTML = drivers.map(d => {
+        const plateText = d.plate_number || '—';
+        // Long plate numbers ("RM-09234") need a smaller font than short ones
+        // ("—") to stay inside the fixed-width box without overflowing.
+        const plateFontSize = plateText.length > 9 ? 32 : plateText.length > 6 ? 40 : 52;
+        return `
         <div class="driver-list-item">
-          <span class="driver-list-avatar">${escapeHtml((d.name || '?').charAt(0).toUpperCase())}</span>
-          <div>
-            <strong>${escapeHtml(d.name || 'Driver')}</strong>
-            <small>Plate: ${escapeHtml(d.plate_number || 'Not on file')} · Body no: ${escapeHtml(d.body_number || 'Not on file')}</small>
-          </div>
+          <span class="driver-list-icon">
+            <svg viewBox="0 0 300 200" fill="none" stroke="currentColor" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
+              <rect x="20" y="20" width="260" height="160" rx="16"/>
+              <line x1="20" y1="140" x2="280" y2="140"/>
+              <line x1="70" y1="168" x2="105" y2="168"/>
+              <line x1="140" y1="168" x2="225" y2="168"/>
+              <text x="150" y="105" text-anchor="middle" dominant-baseline="middle" font-family="'Poppins', sans-serif" font-weight="800" font-size="${plateFontSize}" fill="#241414" stroke="none">${escapeHtml(plateText)}</text>
+            </svg>
+          </span>
+          <strong class="driver-list-label">${escapeHtml(d.name || 'Driver')}</strong>
+          <span class="driver-list-radio"></span>
         </div>
-      `).join('');
+      `;
+      }).join('');
     })
     .catch(error => {
       body.innerHTML = `<p class="driver-list-empty">${escapeHtml(error.message || 'Could not load drivers.')}</p>`;
@@ -1861,6 +2224,24 @@ function showConfirmModal({ title, messageHtml, confirmLabel = 'Confirm', cancel
     overlay.querySelector('.confirm-ok-btn').addEventListener('click', () => close(true));
     overlay.addEventListener('click', function(event) {
       if (event.target === overlay) close(false);
+    });
+  });
+}
+
+// The redesigned "Ride type" control is two visible buttons instead of the
+// original <select> — kept in the DOM (visually hidden) since
+// setupPassengerRideRequestForm() below still reads its .value directly;
+// these buttons just drive that same hidden select instead of replacing it.
+function setupRideTypeToggle() {
+  const buttons = document.querySelectorAll('.ride-type-btn');
+  const hiddenSelect = document.querySelector('#ride-type');
+  if (!buttons.length || !hiddenSelect) return;
+
+  buttons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      buttons.forEach(b => b.classList.remove('is-selected'));
+      btn.classList.add('is-selected');
+      hiddenSelect.value = btn.getAttribute('data-ride-type');
     });
   });
 }
@@ -2073,56 +2454,34 @@ async function renderPassengerRideStatus() {
 
   const progressSteps = getRideLifecycleSteps(activeRide.status)
     .map(step => `
-      <div class="ride-progress-step${step.active ? ' is-active' : ''}">
-        <span class="ride-progress-dot${step.complete ? ' is-complete' : step.active ? ' is-active' : ''}"></span>
-        <span class="ride-progress-label">${escapeHtml(step.label)}</span>
+      <div class="ride-progress-step${step.active ? ' is-active' : ''}${step.complete ? ' is-complete' : ''}">
+        <span class="ride-progress-dot${step.complete ? ' is-complete' : step.active ? ' is-active' : ''}">${step.complete
+          ? '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 10.5l3.5 3.5 7.5-8"/></svg>'
+          : step.active ? '<span class="ride-progress-dot-inner"></span>' : ''}</span>
+        <span class="ride-progress-label"><span class="copy-full">${escapeHtml(step.label)}</span><span class="copy-short">${escapeHtml(step.shortLabel)}</span></span>
       </div>
     `)
     .join('');
-  const nextStepText = activeRide.status === 'Pending'
-    ? (activeRide.ride_type === 'Shared'
-      ? 'Waiting for the tricycle to fill up, or for a driver to depart early.'
-      : 'Waiting for a driver to accept your request.')
-    : activeRide.status === 'Accepted'
-      ? (poolStillOpen
-        ? 'Your driver is on the way — still waiting for other students to join before you depart.'
-        : 'Your driver is on the way to your pickup point.')
-      : activeRide.status === 'Picked Up'
-        ? 'The trip is underway and the driver is heading to your destination.'
-        : activeRide.status === 'In Progress'
-          ? 'You are on your way to your destination.'
-          : activeRide.status === 'Completed'
-            ? 'The ride has been completed successfully.'
-            : 'This ride has reached a terminal state.';
+  const driverInitial = driverName.charAt(0).toUpperCase();
 
   container.innerHTML = `
     <div class="ride-status-head">
-      <div class="ride-status-summary">
-        <h4>${escapeHtml(activeRide.pickup_location)} <span class="ride-route-arrow">→</span> ${escapeHtml(activeRide.dropoff_location)}</h4>
-        <div class="ride-meta">
-          <span><strong>Ride type:</strong> ${escapeHtml(activeRide.ride_type)}</span>
-          <span><strong>Driver:</strong> ${escapeHtml(driverName)}</span>
-          ${activeRide.driver_plate ? `<span><strong>Plate number:</strong> ${escapeHtml(activeRide.driver_plate)}</span>` : ''}
-          <span><strong>Fare:</strong> ${escapeHtml(fareText)}</span>
-        </div>
-        ${fareTierRow}
-        <div class="ride-timestamps">
-          <small>${escapeHtml(scheduleText)}</small>
-          <small>Requested ${escapeHtml(createdAt)}</small>
-          <small>Last updated ${escapeHtml(updatedAt)}</small>
-        </div>
-      </div>
       <span class="ride-badge tone-${statusConfig.tone}">${escapeHtml(statusConfig.label)}</span>
-    </div>
-
-    <div class="ride-status-detail">
-      <p class="ride-description">${escapeHtml(statusConfig.description)}</p>
-      <p class="ride-next-step">${escapeHtml(nextStepText)}</p>
     </div>
 
     <div class="ride-progress">
       ${progressSteps}
     </div>
+
+    <div class="ride-driver-info">
+      <span class="ride-driver-avatar">${escapeHtml(driverInitial)}</span>
+      <div>
+        <strong>${escapeHtml(driverName)}</strong>
+        <small>${activeRide.driver_plate ? escapeHtml(activeRide.driver_plate) + ' · ' : ''}${escapeHtml(activeRide.ride_type)}</small>
+      </div>
+      <span class="fare">${escapeHtml(fareText)}</span>
+    </div>
+    ${fareTierRow}
 
     <div class="ride-actions">
       ${activeRide.driver_account_id ? `
@@ -2197,6 +2556,16 @@ const RIDE_MILESTONES = {
     icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9 9l6 6M15 9l-6 6"/></svg>',
     title: 'Your ride request was declined',
     message: "The driver wasn't able to take this trip. Feel free to request another ride."
+  },
+  Cancelled: {
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9 9l6 6M15 9l-6 6"/></svg>',
+    title: 'Your trip was cancelled',
+    message: "This ride was cancelled. Feel free to request another ride."
+  },
+  Failed: {
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><circle cx="12" cy="16.2" r="0.4" fill="currentColor"/><path d="M10.3 4.3 2.7 18a1.6 1.6 0 0 0 1.4 2.4h15.8a1.6 1.6 0 0 0 1.4-2.4L13.7 4.3a1.6 1.6 0 0 0-2.8 0z"/></svg>',
+    title: 'Your trip could not be completed',
+    message: "Something went wrong with this ride. Feel free to request another ride."
   }
 };
 
@@ -2363,13 +2732,8 @@ function openChatModal(rideId, otherPartyName) {
   document.body.appendChild(overlay);
   document.body.style.overflow = 'hidden';
 
-  let chatPollInterval = null;
-
   function closeModal() {
-    if (chatPollInterval) {
-      clearInterval(chatPollInterval);
-      chatPollInterval = null;
-    }
+    activeChatLoadMessages = null;
     overlay.remove();
     document.body.style.overflow = '';
     // The unread badge on the dashboard only clears once these re-render;
@@ -2410,7 +2774,7 @@ function openChatModal(rideId, otherPartyName) {
   });
 
   loadMessages();
-  chatPollInterval = setInterval(loadMessages, 4000);
+  activeChatLoadMessages = loadMessages;
 }
 
 async function renderBookingsList() {
@@ -2477,22 +2841,28 @@ async function renderBookingsList() {
         </div>
       </div>`;
 
+    const actionsHtml = (reviewBlock || complaintBlock)
+      ? `<div class="booking-divider"></div>
+         <div class="booking-actions">${reviewBlock}${complaintBlock}</div>`
+      : '';
+
     return `
       <article class="booking-item">
-        <div>
-          <p class="booking-route">${escapeHtml(ride.pickup_location)} <span class="ride-route-arrow">→</span> ${escapeHtml(ride.dropoff_location)}</p>
-          <div class="booking-meta">
-            <span>${escapeHtml(ride.ride_type)}</span>
-            <span>${escapeHtml(otherPartyLabel)}: ${escapeHtml(otherPartyName)}</span>
-            <span>Requested ${escapeHtml(requestedAt)}</span>
+        <div class="booking-top">
+          <div class="booking-info">
+            <p class="booking-route">${escapeHtml(shortLocationLabel(ride.pickup_location))} <span class="ride-route-arrow">→</span> ${escapeHtml(shortLocationLabel(ride.dropoff_location))}</p>
+            <div class="booking-meta">
+              <span>${escapeHtml(ride.ride_type)}</span>
+              <span>${escapeHtml(otherPartyLabel)}: ${escapeHtml(otherPartyName)}</span>
+              <span>Requested ${escapeHtml(requestedAt)}</span>
+            </div>
           </div>
-          ${reviewBlock}
-          ${complaintBlock}
+          <div class="booking-status">
+            <span class="booking-fare">${escapeHtml(fareText)}</span>
+            <span class="ride-badge tone-${statusConfig.tone}">${escapeHtml(statusConfig.label)}</span>
+          </div>
         </div>
-        <div class="booking-meta" style="align-items:center; gap:14px;">
-          <span class="booking-fare">${escapeHtml(fareText)}</span>
-          <span class="ride-badge tone-${statusConfig.tone}">${escapeHtml(statusConfig.label)}</span>
-        </div>
+        ${actionsHtml}
       </article>
     `;
   }).join('');
@@ -2678,8 +3048,16 @@ function renderActiveRideCard(group) {
   const anchor = group.riders[0];
   const statusConfig = getRideStatusConfig(anchor.status);
   const names = group.riders.map(r => escapeHtml(r.passenger_name || 'Passenger')).join(', ');
+  const allRideIds = group.riders.map(r => r.ride_id).join(',');
   const nextStatusButtons = getNextRideStatusOptions(anchor.status)
-    .map(nextStatus => `<button type="button" class="btn-secondary-outline" data-action="advance-status" data-ride-id="${anchor.ride_id}" data-next-status="${nextStatus}">${escapeHtml(nextStatus)}</button>`)
+    .map(nextStatus => nextStatus === 'Cancelled'
+      // Cancelling the whole trip must drop every rider in the pool, not just
+      // the anchor — the backend cascade deliberately excludes Cancelled (a
+      // passenger cancelling their own seat shouldn't cancel everyone else's),
+      // so when the DRIVER cancels the whole trip, every ride_id is targeted
+      // explicitly instead, same pattern as the "Decline" pool button.
+      ? `<button type="button" class="btn-secondary-outline" data-action="cancel-pool" data-ride-ids="${allRideIds}" data-next-status="${nextStatus}">${escapeHtml(nextStatus)}</button>`
+      : `<button type="button" class="btn-secondary-outline" data-action="advance-status" data-ride-id="${anchor.ride_id}" data-next-status="${nextStatus}">${escapeHtml(nextStatus)}</button>`)
     .join('');
   // One chat entry point per rider — a Shared-pool card can hold several
   // riders, each with their own ride_id and their own message thread.
@@ -2809,6 +3187,23 @@ async function renderDriverRideRequests() {
   container.querySelectorAll('[data-action="open-chat"]').forEach(button => {
     button.addEventListener('click', function() {
       openChatModal(this.getAttribute('data-ride-id'), this.getAttribute('data-other-name'));
+    });
+  });
+
+  // Driver cancelling an active trip drops every rider sharing that pool,
+  // not just one — see the comment on allRideIds in renderActiveRideCard.
+  container.querySelectorAll('[data-action="cancel-pool"]').forEach(button => {
+    button.addEventListener('click', async function() {
+      const rideIds = this.getAttribute('data-ride-ids').split(',').filter(Boolean);
+      try {
+        await Promise.all(rideIds.map(id => updateRideStatusRemote(id, 'Cancelled')));
+        showRideFeedback('info', 'Trip cancelled', 'The trip was cancelled and every rider was notified.');
+        renderPassengerRideStatus();
+        renderDriverRideRequests();
+        renderDriverDashboardStats();
+      } catch (error) {
+        showRideFeedback('error', 'Could not cancel', error.message || 'Please try again.');
+      }
     });
   });
 
@@ -4004,12 +4399,75 @@ function setupAuthForm() {
 }
 }
  
+// Live push updates (Socket.IO) replace the old setInterval polling —
+// same render/fetch functions as before, just triggered by a server push
+// instead of a timer. One connection per tab, kept in sync with login
+// state by manageRealtimeConnection() below (called from refreshAuthState,
+// so it "just works" on login, logout, and page load alike).
+let realtimeSocket = null;
+// Sole registered chat modal's own loadMessages(), if one is currently
+// open — see openChatModal()/closeModal(). Lets the global 'chat:message'
+// handler refresh whichever thread is on screen without tracking rideId.
+let activeChatLoadMessages = null;
+
+function manageRealtimeConnection() {
+  if (!isAuthenticated()) {
+    if (realtimeSocket) {
+      realtimeSocket.disconnect();
+      realtimeSocket = null;
+    }
+    return;
+  }
+  if (realtimeSocket) {
+    // A back/forward-cache restore (common when navigating between pages)
+    // kills the underlying connection but leaves this variable set — without
+    // this check, refreshAuthState()'s pageshow-triggered call would see a
+    // non-null realtimeSocket and skip reconnecting forever, silently
+    // freezing that tab's live updates until a hard refresh.
+    if (!realtimeSocket.connected) realtimeSocket.connect();
+    return;
+  }
+
+  realtimeSocket = io(SOCKET_URL, { auth: { token: getStoredUser().token } });
+
+  // Every one of these is the exact same function the old setInterval used
+  // to call — each already no-ops via its own DOM/state check when it
+  // doesn't apply to the current page or role, so one shared handler can
+  // safely call all of them without re-deriving which page/role is active.
+  realtimeSocket.on('ride:updated', function() {
+    checkRideMilestones();
+    renderPassengerRideStatus();
+    renderDriverRideRequests();
+    renderDriverMapTracking();
+    syncDriverLocationSharing();
+  });
+
+  realtimeSocket.on('driver:location', function() {
+    pollDriverLocation();
+  });
+
+  realtimeSocket.on('drivers:availability-changed', function() {
+    renderAvailableDriversIndicator();
+  });
+
+  realtimeSocket.on('driver:account-status-changed', function() {
+    syncDriverAccountStatus();
+  });
+
+  realtimeSocket.on('chat:message', function() {
+    if (activeChatLoadMessages) activeChatLoadMessages();
+    renderPassengerRideStatus();
+    renderDriverRideRequests();
+  });
+}
+
 // Bundles every function whose only job is to reflect the current
 // sessionStorage auth state onto the page (nav links, banners, dashboards).
 // Re-running these is always safe (they just re-check state and re-render),
 // unlike the setup* functions below which attach event listeners and would
 // double-fire if called twice on the same static elements.
 function refreshAuthState() {
+  manageRealtimeConnection();
   enforceDashboardAccess();
   redirectBookingIfAuthenticated();
   hideAdminLinkForNonAdmin();
@@ -4031,6 +4489,7 @@ function refreshAuthState() {
   renderAdminStats();
   renderLoyaltyStatus();
   renderDriverRating();
+  renderDriverRatingsFull();
   renderMyViolations();
   renderProfile();
   renderBookingsList();
@@ -4045,6 +4504,10 @@ document.addEventListener('DOMContentLoaded', function() {
   refreshAuthState();
   setupLoginNavLink();
   setupViolationModal();
+  setupLicenseModal();
+  setupAcceptAllForDriverPanel();
+  setupAdminPanelCollapse();
+  setupDashboardCardCollapse();
   setupNavMenu();
   setupBackToTop();
   setupHowItWorksPage();
@@ -4054,39 +4517,20 @@ document.addEventListener('DOMContentLoaded', function() {
   setupAdminLoginForm();
   setupLogoutButtons();
   setupPassengerRideRequestForm();
+  setupRideTypeToggle();
   setupProfileForm();
   setupAvailabilityToggle();
   setupAvailabilityIndicatorClick();
   setupPassengerMap();
   setupDriverMap();
 
-  // A passenger's ride status can change (driver accepts / arrives /
-  // completes) while they're just sitting on the dashboard — poll every 15s
-  // so the milestone popup shows up without needing a manual refresh.
-  if (getStoredUser().role === 'passenger') {
-    setInterval(checkRideMilestones, 15000);
-    setInterval(pollDriverLocation, 7000);
-    // Keeps the "Chat with driver" unread badge current without the
-    // passenger needing to take an action first.
-    setInterval(renderPassengerRideStatus, 15000);
-    // Drivers can log in/out (going online/offline) while the passenger is
-    // just sitting on the dashboard — keep the "N drivers available" count
-    // live instead of only reflecting whoever was online at page load.
-    setInterval(renderAvailableDriversIndicator, 15000);
-  }
-
-  // A driver's ride can go from "no active ride" to "just accepted one"
-  // without a page reload — recheck periodically so location sharing turns
-  // on/off promptly instead of only at the next full refresh.
+  // Live updates for both roles now arrive via Socket.IO (see
+  // manageRealtimeConnection(), wired into refreshAuthState() above) —
+  // ride status, driver location, chat, availability, and driver account
+  // approval all push instead of poll. Still worth one immediate check at
+  // load for whichever of these applies right now, same as before.
   if (getStoredUser().role === 'driver') {
-    setInterval(syncDriverLocationSharing, 10000);
-    setInterval(renderDriverMapTracking, 7000);
-    // Keeps each rider's unread-chat badge current on the active-ride cards.
-    setInterval(renderDriverRideRequests, 15000);
-    // Clears the "pending approval" banner on its own once an admin
-    // approves the driver mid-session, instead of requiring a re-login.
     syncDriverAccountStatus();
-    setInterval(syncDriverAccountStatus, 15000);
   }
 });
 

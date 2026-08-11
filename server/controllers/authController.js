@@ -2,6 +2,7 @@ const path = require('path');
 const db = require('../config/db');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const { emitAvailabilityChanged } = require('../socket');
 
 // REGISTER STUDENT (Passenger)
 exports.registerStudent = async (req, res) => {
@@ -287,6 +288,7 @@ exports.loginDriver = async (req, res) => {
           accountStatus: user.account_status
         }
       });
+      emitAvailabilityChanged();
     });
   });
 };

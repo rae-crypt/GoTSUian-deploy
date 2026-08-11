@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { emitRideUpdated, emitNewPendingRide, emitDriverLocation, emitAvailabilityChanged } = require('../socket');
 
 // Fare per rider, keyed by how many students end up in the tricycle.
 // Solo is always headcount 1. Shared settles into whichever headcount
@@ -50,6 +51,7 @@ exports.createRide = (req, res) => {
           (err, result) => {
             if (err) return res.status(500).json({ error: err.message });
             res.status(201).json({ message: 'Ride requested', rideId: result.insertId, fare: FARE_BY_HEADCOUNT[1] });
+            emitNewPendingRide();
           }
         );
         return;
@@ -100,7 +102,26 @@ exports.createRide = (req, res) => {
                   if (err) return res.status(500).json({ error: err.message });
                   const count = countRows[0].c;
 
-                  const respond = () => res.status(201).json({ message: 'Ride requested', rideId: result.insertId, poolId, riderCount: count });
+                  // Notifies everyone already sharing this pool (fare may
+                  // have just re-settled for them too), plus the assigned
+                  // driver if one's already committed to this trip — or, if
+                  // nobody's accepted it yet, broadcasts to every driver
+                  // browsing pending requests instead of one specific room.
+                  const notifyPool = () => {
+                    if (poolDriverId) {
+                      db.query(`SELECT passenger_account_id FROM rides WHERE pool_id = ? AND status != 'Cancelled'`, [poolId], (err, riderRows) => {
+                        if (err) return;
+                        riderRows.forEach(r => emitRideUpdated(r.passenger_account_id, poolDriverId));
+                      });
+                    } else {
+                      emitNewPendingRide();
+                    }
+                  };
+
+                  const respond = () => {
+                    res.status(201).json({ message: 'Ride requested', rideId: result.insertId, poolId, riderCount: count });
+                    notifyPool();
+                  };
 
                   // Fare re-settles across every rider already in the pool
                   // whenever the headcount changes, either because a driver
@@ -264,6 +285,14 @@ exports.updateDriverLocation = (req, res) => {
       if (err) return res.status(500).json({ error: err.message });
       if (result.affectedRows === 0) return res.status(404).json({ error: 'Driver not found' });
       res.status(200).json({ message: 'Location updated' });
+      db.query(
+        `SELECT passenger_account_id FROM rides WHERE driver_account_id = ? AND status IN ('Accepted', 'Picked Up', 'In Progress')`,
+        [accountId],
+        (err2, riderRows) => {
+          if (err2) return;
+          riderRows.forEach(r => emitDriverLocation(r.passenger_account_id));
+        }
+      );
     }
   );
 };
@@ -348,6 +377,7 @@ exports.updateDriverAvailability = (req, res) => {
       if (err) return res.status(500).json({ error: err.message });
       if (result.affectedRows === 0) return res.status(404).json({ error: 'Driver not found' });
       res.status(200).json({ is_online: isOnline });
+      emitAvailabilityChanged();
     }
   );
 };
@@ -454,6 +484,8 @@ function acceptRideInternal(rideId, driver_account_id, res) {
             return res.status(409).json({ error: 'Another driver already accepted this ride.' });
           }
           res.status(200).json({ message: 'Ride accepted' });
+          emitRideUpdated(ride.passenger_account_id, driver_account_id);
+          emitAvailabilityChanged();
         }
       );
       return;
@@ -481,12 +513,17 @@ function acceptRideInternal(rideId, driver_account_id, res) {
         // a full pool closes for good here.
         const isFull = count >= MAX_POOL_SIZE;
         const poolUpdateSql = isFull
-          ? `UPDATE ride_pools SET status = 'Closed', fare_per_rider = ?, driver_account_id = ?, closed_at = NOW() WHERE pool_id = ? AND status = 'Open'`
-          : `UPDATE ride_pools SET fare_per_rider = ?, driver_account_id = ? WHERE pool_id = ? AND status = 'Open'`;
+          ? `UPDATE ride_pools SET status = 'Closed', fare_per_rider = ?, driver_account_id = ?, closed_at = NOW() WHERE pool_id = ? AND status = 'Open' AND driver_account_id IS NULL`
+          : `UPDATE ride_pools SET fare_per_rider = ?, driver_account_id = ? WHERE pool_id = ? AND status = 'Open' AND driver_account_id IS NULL`;
 
         // Same guard as the Solo path, applied to the pool: only succeeds if
-        // the pool is still "Open" at the moment this UPDATE runs, so two
-        // drivers racing to accept the same shared pool can't both claim it.
+        // no driver has claimed it yet. Checking status = 'Open' alone isn't
+        // enough here — an early accept (under 4 riders) deliberately keeps
+        // the pool "Open" so more riders can join, so a second driver's
+        // accept would otherwise match the same row and silently overwrite
+        // the first driver's claim. driver_account_id IS NULL is what
+        // actually distinguishes "nobody's claimed this yet" from "still
+        // accepting new riders under a driver who already has."
         db.query(
           poolUpdateSql,
           [fare, driver_account_id, ride.pool_id],
@@ -501,6 +538,11 @@ function acceptRideInternal(rideId, driver_account_id, res) {
               (err) => {
                 if (err) return res.status(500).json({ error: err.message });
                 res.status(200).json({ message: 'Shared ride accepted', riderCount: count, fare, poolStillOpen: !isFull });
+                db.query(`SELECT passenger_account_id FROM rides WHERE pool_id = ? AND status != 'Cancelled'`, [ride.pool_id], (err2, riderRows) => {
+                  if (err2) return;
+                  riderRows.forEach(r => emitRideUpdated(r.passenger_account_id, driver_account_id));
+                });
+                emitAvailabilityChanged();
               }
             );
           }
@@ -539,6 +581,7 @@ exports.convertRideToSolo = (req, res) => {
           if (err) return res.status(500).json({ error: err.message });
           if (result.affectedRows === 0) return res.status(409).json({ error: 'Could not convert this ride.' });
           res.status(200).json({ message: 'Switched to Solo', fare: FARE_BY_HEADCOUNT[1] });
+          emitRideUpdated(passengerAccountId, null);
         }
       );
     });
@@ -570,13 +613,33 @@ exports.updateRideStatus = (req, res) => {
     // frontend's own loop — see the decline-pool handler in app.js), never
     // the whole-tricycle-moves-together cascade that Picked Up/Completed use.
     const cascadeToPool = !['Cancelled', 'Declined'].includes(status) && ride.pool_id;
+    // Excludes riders who already left this pool (Cancelled/Completed/Failed/
+    // Declined) — otherwise a later whole-trip status change (e.g. Picked Up)
+    // would sweep them back up and resurrect a ride they already cancelled.
     const sql = cascadeToPool
-      ? `UPDATE rides SET status = ? WHERE pool_id = ?`
+      ? `UPDATE rides SET status = ? WHERE pool_id = ? AND status NOT IN ('Cancelled', 'Completed', 'Failed', 'Declined')`
       : `UPDATE rides SET status = ? WHERE ride_id = ?`;
     const params = cascadeToPool ? [status, ride.pool_id] : [status, rideId];
 
     db.query(sql, params, (err) => {
       if (err) return res.status(500).json({ error: err.message });
+
+      // Whichever rides just changed, tell their passenger(s) + driver to
+      // re-check live instead of waiting for their next poll. A terminal
+      // status (Completed/Cancelled/Failed/Declined) also frees the driver
+      // up, so passengers watching "N drivers available" need to know too.
+      const notifyRideChange = () => {
+        const freesDriver = ['Completed', 'Cancelled', 'Failed', 'Declined'].includes(status);
+        if (cascadeToPool) {
+          db.query(`SELECT passenger_account_id FROM rides WHERE pool_id = ? AND status != 'Cancelled'`, [ride.pool_id], (err3, riderRows) => {
+            if (err3) return;
+            riderRows.forEach(r => emitRideUpdated(r.passenger_account_id, ride.driver_account_id));
+          });
+        } else {
+          emitRideUpdated(ride.passenger_account_id, ride.driver_account_id);
+        }
+        if (freesDriver) emitAvailabilityChanged();
+      };
 
       // A Shared pool accepted early (under 4 riders) stays open to new
       // joiners until this exact moment — the driver actually departing.
@@ -589,12 +652,47 @@ exports.updateRideStatus = (req, res) => {
           (err2) => {
             if (err2) return res.status(500).json({ error: err2.message });
             res.status(200).json({ message: `Ride marked as ${status}` });
+            notifyRideChange();
+          }
+        );
+        return;
+      }
+
+      // Cancelling can leave a pool with a driver still attached but zero
+      // riders left in it (everyone who was in it cancelled). An "Open" pool
+      // with a driver_account_id is exactly what findPoolSql treats as
+      // already-committed — so left alone, a totally unrelated future
+      // request on the same route would silently inherit that stale driver
+      // commitment and jump straight to "Accepted" for a trip the driver
+      // never actually agreed to. Close it once it's genuinely empty.
+      if (status === 'Cancelled' && ride.pool_id) {
+        db.query(
+          `SELECT COUNT(*) AS c FROM rides WHERE pool_id = ? AND status != 'Cancelled'`,
+          [ride.pool_id],
+          (err2, countRows) => {
+            if (err2) return res.status(500).json({ error: err2.message });
+            const remaining = countRows[0].c;
+            const finish = (err3) => {
+              if (err3) return res.status(500).json({ error: err3.message });
+              res.status(200).json({ message: `Ride marked as ${status}` });
+              notifyRideChange();
+            };
+            if (remaining === 0) {
+              db.query(
+                `UPDATE ride_pools SET status = 'Closed', closed_at = COALESCE(closed_at, NOW()) WHERE pool_id = ? AND status = 'Open'`,
+                [ride.pool_id],
+                finish
+              );
+            } else {
+              finish();
+            }
           }
         );
         return;
       }
 
       res.status(200).json({ message: `Ride marked as ${status}` });
+      notifyRideChange();
     });
   });
 };
