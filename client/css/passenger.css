@@ -1047,32 +1047,6 @@ background: var(--white);
 }
 
 
-  .hero  {
-grid-template-columns: 1fr;
-    padding: 70px 0 30px;
-}
-
-
-
-  .hero-simple  {
-margin-bottom: 40px;
-}
-
-
-
-  .hero-simple .hero-copy  {
-max-width: 720px;
-    margin: 0 auto 40px;
-}
-
-
-
-  .hero-copy h1,
-  .hero-copy p  {
-text-align: center;
-}
-
-
   .navbar  {
 position: relative;
     z-index: 60;
@@ -1316,85 +1290,6 @@ font-size: 0.78rem;
   .nav-links a.active,
   .nav-links a:hover  {
 color: var(--primary);
-}
-
-
-
-  .hero  {
-padding: 60px 0 30px;
-}
-
-
-
-  .hero-simple .hero-copy  {
-text-align: center;
-    margin: 0 auto 30px;
-    max-width: 720px;
-}
-
-
-
-  .hero-copy h1  {
-font-size: clamp(2.4rem, 7vw, 3rem);
-}
-
-
-
-  .btn-primary,
-  .btn-secondary,
-  .btn-secondary-outline  {
-width: 100%;
-    min-width: 0;
-}
-
-
-  .site-shell  {
-padding-left: 16px;
-    padding-right: 16px;
-}
-
-
-
-  .section  {
-padding: 50px 0;
-}
-
-
-
-  .form-grid,
-  .feature-grid,
-  .testimonial-grid,
-  .stats-grid,
-  .summary-grid,
-  .booking-grid,
-  .driver-grid,
-  .admin-grid,
-  .support-grid  {
-gap: 18px;
-}
-
-
-
-  .hero-copy h1  {
-font-size: clamp(2.2rem, 8vw, 2.6rem);
-}
-
-
-
-  .section-intro h2  {
-font-size: 2rem;
-}
-
-
-
-  .hero-copy p  {
-font-size: 1rem;
-}
-
-
-
-  .hero-mobile-signup  {
-display: none;
 }
 
 
@@ -2052,38 +1947,46 @@ select {
 }
 
 .driver-list-item {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 12px 0;
-  border-bottom: 1px solid rgba(127, 29, 29, 0.08);
+  gap: 16px;
+  padding: 14px 20px;
+  margin-bottom: 12px;
+  border: 1px solid #f1d9d9;
+  border-left: 5px solid var(--primary);
+  border-radius: 14px;
+  background: var(--light);
+  overflow: hidden;
 }
 
 .driver-list-item:last-child {
-  border-bottom: none;
+  margin-bottom: 0;
 }
 
-.driver-list-item strong {
-  display: block;
-  color: var(--primary);
-  font-size: 0.95rem;
-}
-
-.driver-list-item small {
-  color: var(--muted);
-}
-
-.driver-list-avatar {
+.driver-list-icon {
   flex-shrink: 0;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: rgba(127, 29, 29, 0.1);
-  color: var(--primary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  width: 120px;
+  height: 80px;
+  color: #241414;
+}
+.driver-list-icon svg { width: 100%; height: 100%; }
+
+.driver-list-label {
+  flex: 1;
+  min-width: 0;
+  font-family: 'Poppins', sans-serif;
   font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--text);
+}
+
+.driver-list-radio {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1.5px solid #9a8a8a;
 }
 
 .driver-list-loading,
@@ -2284,7 +2187,7 @@ select {
 }
 
 @media (max-width: 640px) {
-  .hero {
+  .hero.hero-simple {
     padding: 40px 0 24px;
   }
 
@@ -2292,8 +2195,54 @@ select {
     margin-bottom: 20px;
   }
 
+  .hero-simple .hero-copy {
+    max-width: 720px;
+    margin: 0 auto 24px;
+  }
+
+  .hero-copy h1 {
+    font-size: clamp(2.2rem, 8vw, 2.6rem);
+  }
+
+  .hero-copy p {
+    font-size: 1rem;
+    text-align: center;
+  }
+
   .section {
     padding: 36px 0;
+  }
+
+  .site-shell {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .section-intro h2 {
+    font-size: 2rem;
+  }
+
+  .hero-mobile-signup {
+    display: none;
+  }
+
+  .btn-primary,
+  .btn-secondary,
+  .btn-secondary-outline {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .form-grid,
+  .feature-grid,
+  .testimonial-grid,
+  .stats-grid,
+  .summary-grid,
+  .booking-grid,
+  .driver-grid,
+  .admin-grid,
+  .support-grid {
+    gap: 18px;
   }
 }
 
@@ -2603,4 +2552,255 @@ select {
 .confirm-modal-actions button {
   flex: 1;
 }
+
+/* =======================================================================
+   Passenger dashboard redesign — matches the visual language approved for
+   the admin portal (icon-badge cards, rounded pills, colored status tones)
+   so the whole app reads as one product. Scoped under body[data-page]
+   so these rules always win regardless of source order, without needing
+   to touch/remove the existing rules above.
+======================================================================= */
+body[data-page="passenger"] {
+  --tone-success: #1a7a3c;
+  --tone-success-bg: #e6f4ea;
+  --tone-warning: #b45309;
+  --tone-warning-bg: #fdf1de;
+  --tone-danger: #b91c1c;
+  --tone-danger-bg: #fbe9e9;
+  --tone-info: #2b5ea3;
+  --tone-info-bg: #e9f0fa;
+  --gt-muted: #7a4a4a;
+  --gt-shadow: 0 14px 32px -12px rgba(127, 29, 29, 0.18);
+}
+
+body[data-page="passenger"] .section { padding: 0; }
+body[data-page="passenger"] .section.passenger-layout { padding: 24px 0 60px; }
+
+body[data-page="passenger"] .hero.hero-simple {
+  background: linear-gradient(135deg, var(--primary) 0%, #5c1414 100%);
+  padding: 22px 28px;
+  display: block;
+  text-align: left;
+  grid-template-columns: none;
+}
+body[data-page="passenger"] .hero.hero-simple .hero-copy {
+  margin: 0; max-width: none; text-align: left;
+}
+body[data-page="passenger"] .hero.hero-simple .hero-badge {
+  display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 700;
+  letter-spacing: 0.04em; text-transform: uppercase; background: rgba(255,255,255,0.14);
+  padding: 5px 12px; border-radius: 999px; color: #fff8f6; border: none; margin-bottom: 10px;
+}
+body[data-page="passenger"] .hero.hero-simple .hero-badge span { display: none; }
+body[data-page="passenger"] .hero.hero-simple h1 {
+  color: #fff8f6; font-size: 21px; margin: 0 0 3px; text-align: left;
+}
+body[data-page="passenger"] .hero.hero-simple p {
+  color: rgba(255,248,246,0.85); font-size: 13px; max-width: 560px; margin: 0; text-align: left; line-height: 1.5;
+}
+@media (max-width: 900px) {
+  body[data-page="passenger"] .hero.hero-simple { padding: 18px 16px; }
+  body[data-page="passenger"] .hero.hero-simple h1 { font-size: 18px; }
+  body[data-page="passenger"] .hero.hero-simple p { font-size: 12px; }
+}
+
+body[data-page="passenger"] .passenger-layout { align-items: flex-start; gap: 20px; }
+body[data-page="passenger"] .passenger-sidebar { gap: 16px; }
+body[data-page="passenger"] .passenger-main { gap: 0; }
+
+/* ---- availability pill ---- */
+body[data-page="passenger"] .availability-indicator {
+  display: flex; align-items: center; gap: 10px; background: var(--white); border: 1px solid #f1d9d9;
+  border-radius: 999px; padding: 11px 18px; box-shadow: var(--gt-shadow); cursor: pointer;
+  font-size: 13.5px; font-weight: 600;
+}
+body[data-page="passenger"] .availability-dot {
+  width: 9px; height: 9px; border-radius: 50%; background: var(--tone-danger); flex-shrink: 0;
+  box-shadow: 0 0 0 4px var(--tone-danger-bg); transition: all 0.15s ease;
+}
+body[data-page="passenger"] .availability-dot.is-available {
+  background: var(--tone-success); box-shadow: 0 0 0 4px var(--tone-success-bg);
+}
+body[data-page="passenger"] .availability-goto { margin-left: auto; color: var(--gt-muted); font-weight: 500; font-size: 11.5px; white-space: nowrap; }
+
+/* ---- cards ---- */
+body[data-page="passenger"] .dashboard-card {
+  background: var(--white); border: 1px solid #f1d9d9; border-radius: 16px; box-shadow: var(--gt-shadow);
+  padding: 20px 20px;
+}
+body[data-page="passenger"] .dashboard-card h3 {
+  display: flex; align-items: center; gap: 10px; font-family: 'Poppins', sans-serif; font-size: 15.5px; margin: 0 0 14px;
+}
+body[data-page="passenger"] .card-icon-badge {
+  width: 30px; height: 30px; border-radius: 9px; background: var(--light); color: var(--primary);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+body[data-page="passenger"] .card-icon-badge svg { width: 15px; height: 15px; }
+body[data-page="passenger"] .card-icon-badge.tone-gold { background: #fbf3e4; color: var(--accent-gold); }
+
+/* ---- ride request form ---- */
+body[data-page="passenger"] .form-field { text-align: left; margin-bottom: 14px; }
+body[data-page="passenger"] .form-field label { display: block; font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+body[data-page="passenger"] .form-field select {
+  width: 100%; font-family: inherit; font-size: 14.5px; padding: 11px 14px; border-radius: 11px;
+  border: 1.5px solid #f1d9d9; background: var(--light); color: var(--text);
+}
+body[data-page="passenger"] .ride-type-select-hidden { display: none; }
+body[data-page="passenger"] .ride-type-toggle { display: flex; gap: 8px; }
+body[data-page="passenger"] .ride-type-btn {
+  flex: 1; font-family: inherit; font-size: 13.5px; font-weight: 700; padding: 11px; border-radius: 11px;
+  border: 1.5px solid #f1d9d9; background: var(--light); color: var(--gt-muted); text-align: center; cursor: pointer;
+}
+body[data-page="passenger"] .ride-type-btn small { display: block; font-weight: 500; opacity: 0.85; font-size: 11px; margin-top: 2px; }
+body[data-page="passenger"] .ride-type-btn.is-selected { background: var(--primary); border-color: var(--primary); color: #fff8f6; }
+body[data-page="passenger"] .field-note { display: block; font-size: 11.5px; color: var(--gt-muted); line-height: 1.5; margin: 4px 0 16px; }
+body[data-page="passenger"] #ride-request-form .btn-primary {
+  width: 100%; font-family: inherit; font-size: 15px; font-weight: 700; padding: 14px; border-radius: 12px;
+  border: none; background: var(--primary); color: #fff8f6; cursor: pointer;
+}
+
+/* ---- loyalty card ---- */
+body[data-page="passenger"] .loyalty-count { font-size: 13.5px; color: var(--gt-muted); margin: 0 0 8px; }
+body[data-page="passenger"] .loyalty-count span { color: var(--text); font-weight: 700; font-size: 15px; }
+body[data-page="passenger"] .loyalty-progress-track { height: 8px; border-radius: 999px; background: var(--light); overflow: hidden; margin-bottom: 10px; }
+body[data-page="passenger"] .loyalty-progress-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--accent-gold), #e0b354); transition: width 0.3s ease; }
+body[data-page="passenger"] .loyalty-message { font-size: 12.5px; color: var(--gt-muted); margin-bottom: 14px; line-height: 1.5; }
+body[data-page="passenger"] .loyalty-message.eligible { color: var(--tone-success); font-weight: 600; }
+body[data-page="passenger"] .rewards-teaser-link {
+  display: inline-block; font-family: inherit; font-size: 13.5px; font-weight: 700; padding: 10px 18px;
+  border-radius: 10px; border: 1.5px solid var(--primary); background: none; color: var(--primary); text-decoration: none;
+  margin-top: 0; text-align: center;
+}
+
+/* ---- map + floating ride-status card ---- */
+body[data-page="passenger"] .map-stack { position: relative; border-radius: 18px; overflow: visible; box-shadow: none; }
+body[data-page="passenger"] .passenger-map { border-radius: 18px 18px 0 0; box-shadow: var(--gt-shadow); }
+body[data-page="passenger"] .ride-status-floating {
+  border-radius: 0 0 18px 18px; box-shadow: var(--gt-shadow); margin: 0; border-top: none;
+}
+body[data-page="passenger"] .ride-status-floating h3 { font-family: 'Poppins', sans-serif; font-size: 15px; margin-bottom: 10px; }
+body[data-page="passenger"] #ride-status-empty { font-size: 13px; font-weight: 500; color: var(--gt-muted); margin: 0; }
+
+/* ---- dynamic ride-status content (rendered by renderPassengerRideStatus) ---- */
+body[data-page="passenger"] .ride-status-head { display: flex; align-items: flex-start; justify-content: flex-end; gap: 10px; margin-bottom: 12px; }
+body[data-page="passenger"] .ride-status-summary h4 { font-family: 'Poppins', sans-serif; font-size: 15px; margin: 0 0 8px; }
+body[data-page="passenger"] .ride-route-arrow { color: var(--gt-muted); }
+body[data-page="passenger"] .ride-meta { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12.5px; color: var(--gt-muted); margin-bottom: 8px; }
+body[data-page="passenger"] .ride-meta strong { color: var(--text); }
+body[data-page="passenger"] .fare-tier-row { display: flex; gap: 6px; margin: 0 0 10px; }
+body[data-page="passenger"] .fare-tier-chip { font-size: 11px; font-weight: 700; padding: 4px 9px; border-radius: 999px; background: var(--light); color: var(--gt-muted); }
+body[data-page="passenger"] .fare-tier-chip.is-active { background: var(--primary); color: #fff8f6; }
+body[data-page="passenger"] .ride-timestamps { display: flex; flex-direction: column; gap: 2px; margin: 0 0 4px; }
+body[data-page="passenger"] .ride-timestamps small { color: var(--gt-muted); font-size: 11px; }
+body[data-page="passenger"] .ride-badge {
+  display: inline-flex; align-items: center; font-size: 11.5px; font-weight: 700; padding: 5px 12px;
+  border-radius: 999px; white-space: nowrap; flex-shrink: 0;
+}
+body[data-page="passenger"] .ride-badge.tone-success { background: var(--tone-success-bg); color: var(--tone-success); }
+body[data-page="passenger"] .ride-badge.tone-warning { background: var(--tone-warning-bg); color: var(--tone-warning); }
+body[data-page="passenger"] .ride-badge.tone-danger { background: var(--tone-danger-bg); color: var(--tone-danger); }
+body[data-page="passenger"] .ride-badge.tone-info { background: var(--tone-info-bg); color: var(--tone-info); }
+body[data-page="passenger"] .ride-status-detail { margin: 0 0 14px; }
+body[data-page="passenger"] .ride-description { margin: 0 0 4px; font-size: 13px; color: var(--text); font-weight: 600; }
+body[data-page="passenger"] .ride-next-step { margin: 0; font-size: 12.5px; color: var(--gt-muted); line-height: 1.5; }
+
+/* ---- ride progress stepper ---- */
+body[data-page="passenger"] .ride-progress { display: flex; align-items: flex-start; gap: 0; margin: 0 0 16px; }
+body[data-page="passenger"] .ride-progress-step,
+body[data-page="passenger"] .ride-progress-step.is-active {
+  display: flex; flex-direction: column; align-items: center; flex: 1; padding: 0; border-radius: 0; background: none; color: inherit;
+  position: relative;
+}
+body[data-page="passenger"] .ride-progress-step:not(:last-child)::after {
+  content: ''; position: absolute; top: 10px; left: 50%; width: 100%; height: 2px; background: #f1d9d9; z-index: 0;
+}
+body[data-page="passenger"] .ride-progress-step.is-complete:not(:last-child)::after { background: var(--tone-success); }
+body[data-page="passenger"] .ride-progress-dot {
+  width: 20px; height: 20px; border-radius: 50%; background: #f1d9d9; z-index: 1; position: relative; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: var(--white);
+}
+body[data-page="passenger"] .ride-progress-dot.is-complete { background: var(--tone-success); }
+body[data-page="passenger"] .ride-progress-dot.is-complete svg { width: 11px; height: 11px; display: block; }
+body[data-page="passenger"] .ride-progress-dot.is-active:not(.is-complete) { background: var(--primary); box-shadow: 0 0 0 4px var(--light); }
+body[data-page="passenger"] .ride-progress-dot-inner { width: 6px; height: 6px; border-radius: 50%; background: var(--white); display: block; }
+body[data-page="passenger"] .ride-progress-label { font-size: 9.5px; color: var(--gt-muted); margin-top: 5px; text-align: center; font-weight: 600; }
+body[data-page="passenger"] .ride-progress-step.is-active .ride-progress-label { color: var(--text); }
+
+/* ---- driver-info box (replaces the removed route/meta/timestamp text) ---- */
+body[data-page="passenger"] .ride-driver-info {
+  display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: var(--light); border-radius: 12px; margin-bottom: 14px;
+}
+body[data-page="passenger"] .ride-driver-avatar {
+  width: 34px; height: 34px; border-radius: 50%; background: var(--accent-gold); color: #fff8f6; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; font-family: 'Poppins', sans-serif; font-weight: 600; font-size: 14px;
+}
+body[data-page="passenger"] .ride-driver-info > div { min-width: 0; flex: 1 1 auto; }
+body[data-page="passenger"] .ride-driver-info strong { display: block; font-size: 14px; overflow-wrap: break-word; }
+body[data-page="passenger"] .ride-driver-info small { display: block; color: var(--gt-muted); font-size: 12px; overflow-wrap: break-word; }
+body[data-page="passenger"] .ride-driver-info .fare {
+  margin-left: auto; flex-shrink: 0; text-align: right; font-family: 'Poppins', sans-serif; font-weight: 700; color: var(--primary); font-size: 15px; white-space: nowrap;
+}
+
+body[data-page="passenger"] .ride-actions { display: flex; gap: 10px; flex-wrap: wrap; margin: 0; }
+body[data-page="passenger"] .ride-actions .btn-secondary-outline {
+  font-family: inherit; font-size: 13.5px; font-weight: 700; padding: 11px 16px; border-radius: 11px;
+  border: 1.5px solid #f1d9d9; background: var(--white); color: var(--primary); cursor: pointer; position: relative;
+}
+body[data-page="passenger"] .chat-unread-badge {
+  display: inline-flex; align-items: center; justify-content: center; min-width: 16px; height: 16px; padding: 0 4px;
+  border-radius: 999px; background: var(--tone-danger); color: #fff; font-size: 10px; font-weight: 700; margin-left: 6px;
+}
+
+/* ---- booking history link ---- */
+body[data-page="passenger"] .dashboard-panel-link {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px; text-decoration: none; color: inherit;
+  background: var(--white); border: 1px solid #f1d9d9; border-radius: 16px; box-shadow: var(--gt-shadow); padding: 18px 22px; margin-top: 16px;
+}
+body[data-page="passenger"] .dashboard-panel-link h2 { font-family: 'Poppins', sans-serif; font-size: 15.5px; margin: 0 0 3px; }
+body[data-page="passenger"] .dashboard-panel-link p { margin: 0; font-size: 12.5px; color: var(--gt-muted); }
+
+body[data-page="passenger"] .copy-short { display: none; }
+@media (max-width: 900px) {
+  body[data-page="passenger"] .passenger-layout { display: flex; flex-direction: column; }
+  body[data-page="passenger"] .copy-full { display: none; }
+  body[data-page="passenger"] .copy-short { display: inline; }
+  body[data-page="passenger"] p.copy-short { display: block; }
+}
+
+/* ---- booking history (passenger-bookings.html) ---- */
+body[data-page="passenger"] .booking-route { font-size: 14.5px; font-weight: 700; color: var(--text); margin: 0 0 6px; }
+body[data-page="passenger"] .review-existing { font-size: 12.5px; font-weight: 600; color: var(--accent-gold); margin: 0; }
+body[data-page="passenger"] #bookings-loading { font-size: 13px; font-weight: 500; color: var(--gt-muted); }
+body[data-page="passenger"] .bookings-empty p { font-size: 13px; font-weight: 500; color: var(--gt-muted); margin: 0; }
+
+body[data-page="passenger"] .booking-item {
+  display: flex; flex-direction: column; gap: 0;
+  padding: 14px 16px; border: 1px solid #f1d9d9; border-radius: 14px;
+  background: var(--white); box-shadow: none;
+}
+body[data-page="passenger"] .booking-top { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+body[data-page="passenger"] .booking-info { min-width: 0; }
+body[data-page="passenger"] .booking-route { margin: 0; }
+body[data-page="passenger"] .booking-status { display: flex; flex-direction: row; align-items: center; gap: 10px; flex-shrink: 0; }
+body[data-page="passenger"] .booking-meta { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--gt-muted); margin-top: 4px; }
+body[data-page="passenger"] .booking-fare { font-weight: 700; color: var(--primary); font-family: 'Poppins', sans-serif; font-size: 15px; white-space: nowrap; }
+body[data-page="passenger"] .booking-divider { height: 1px; background: #f1d9d9; margin: 10px 0 8px; }
+body[data-page="passenger"] .booking-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; }
+body[data-page="passenger"] .booking-actions .review-prompt,
+body[data-page="passenger"] .booking-actions .complaint-prompt { margin-top: 0; }
+body[data-page="passenger"] .booking-actions .btn-primary { min-width: 0; padding: 8px 18px; font-size: 0.85rem; }
+@media (max-width: 640px) {
+  body[data-page="passenger"] .booking-status { align-items: center; flex-direction: row; }
+}
+
+/* ---- collapsible "All bookings" card, same treatment as the admin panels ---- */
+body[data-page="passenger"] .dashboard-card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
+body[data-page="passenger"] .dashboard-card-head h3 { margin: 0; }
+body[data-page="passenger"] .dashboard-card-toggle {
+  display: flex; width: 32px; height: 32px; border: none; background: var(--light); color: var(--primary);
+  border-radius: 50%; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
+}
+body[data-page="passenger"] .dashboard-card-toggle svg { width: 15px; height: 15px; transition: transform 0.2s ease; }
+body[data-page="passenger"] .dashboard-card.is-collapsed .dashboard-card-body { display: none; }
+body[data-page="passenger"] .dashboard-card.is-collapsed .dashboard-card-toggle svg { transform: rotate(-90deg); }
 

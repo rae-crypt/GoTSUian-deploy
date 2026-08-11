@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="../css/auth.css?v=33">
+  <link rel="stylesheet" href="../css/auth.css?v=45">
 </head>
 <body data-page="auth">
   <header>
@@ -40,8 +40,8 @@
     <section class="hero hero-simple">
       <div class="hero-copy">
         <span class="hero-badge"><span></span> Register or Login</span>
-        <h1>Choose your role to continue</h1>
-        <p>Sign up as a passenger, or login as a registered driver or admin. Passenger sign-up will send you to your dashboard instantly.</p>
+        <h1>Get your <em>first ride</em> moving.</h1>
+        <p>Sign up as a passenger, or log in as a registered driver.</p>
       </div>
     </section>
 
@@ -49,11 +49,20 @@
       <div class="auth-grid">
         <article class="auth-info-card">
           <h2>Why sign up?</h2>
-          <p>Registering keeps your rides, saved locations, and booking history in one place. Drivers can also access their dashboard for operations and ride management.</p>
-          <ul>
-            <li>Passenger dashboard for booking and ride history</li>
-            <li>Driver dashboard for trips and earnings</li>
-            <li>Create an account and start using GoTSUian today</li>
+          <p>Registering keeps your rides, saved locations, and booking history in one place.</p>
+          <ul class="auth-benefit-list">
+            <li class="auth-benefit-item">
+              <div class="auth-benefit-icon"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 11V6.5C6 5.1 7.1 4 8.5 4H11.5C12.9 4 14 5.1 14 6.5V11"/><rect x="4.5" y="11" width="11" height="4" rx="1.5"/></svg></div>
+              <div><strong>Passenger dashboard</strong><span>Book rides, track history, and rate your drivers.</span></div>
+            </li>
+            <li class="auth-benefit-item">
+              <div class="auth-benefit-icon"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10" cy="10" r="6.5"/><circle cx="10" cy="10" r="1.8"/><path d="M10 3.5V8.2M5 14L8.6 11.4M15 14L11.4 11.4"/></svg></div>
+              <div><strong>Driver dashboard</strong><span>Manage trips, track earnings, go online anytime.</span></div>
+            </li>
+            <li class="auth-benefit-item">
+              <div class="auth-benefit-icon"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 2.5L16.5 5.2V9C16.5 13 13.7 16.3 10 17.5C6.3 16.3 3.5 13 3.5 9V5.2L10 2.5Z"/><path d="M7.2 10L9.2 12L12.8 8"/></svg></div>
+              <div><strong>Verified &amp; safe</strong><span>Every account is tied to a real TSU student or driver.</span></div>
+            </li>
           </ul>
         </article>
 
@@ -64,11 +73,13 @@
           </div>
 
           <form id="register-form" class="auth-form auth-tab-content active">
-            <label for="reg-role">I am a</label>
-            <select id="reg-role" name="role" required>
-              <option value="passenger">Passenger</option>
-              <option value="driver">Driver</option>
-            </select>
+            <div class="form-field">
+              <label for="reg-role">I am a</label>
+              <select id="reg-role" name="role" required>
+                <option value="passenger">Passenger</option>
+                <option value="driver">Driver</option>
+              </select>
+            </div>
 
             <div class="form-row-2">
               <div class="form-field">
@@ -97,16 +108,18 @@
               </div>
             </div>
 
-            <div id="reg-student-section" style="display:none;">
+            <div id="reg-student-section" class="form-field" style="display:none;">
               <label for="reg-student-id">Student ID <span class="required-star">*</span></label>
               <input type="text" id="reg-student-id" name="studentId" placeholder="Enter your student ID (numbers only)">
               <small class="error-msg" id="student-id-error"></small>
             </div>
 
             <div id="reg-driver-section" style="display:none;">
-              <label for="reg-license">Driver's license number <span class="required-star">*</span></label>
-              <input type="text" id="reg-license" name="driverLicenseNo" placeholder="e.g. N01-23-456789" maxlength="13" autocomplete="off">
-              <small class="error-msg" id="license-error"></small>
+              <div class="form-field">
+                <label for="reg-license">Driver's license number <span class="required-star">*</span></label>
+                <input type="text" id="reg-license" name="driverLicenseNo" placeholder="e.g. N01-23-456789" maxlength="13" autocomplete="off">
+                <small class="error-msg" id="license-error"></small>
+              </div>
 
               <div class="form-row-2">
                 <div class="form-field">
@@ -122,10 +135,12 @@
               </div>
               <small class="field-note">Shown to passengers so they can confirm the tricycle that arrives is really yours.</small>
 
-              <label for="reg-license-file">Driver's license photo or scan <span class="required-star">*</span></label>
-              <input type="file" id="reg-license-file" name="licenseDocument" accept="image/jpeg,image/png,application/pdf">
-              <small class="error-msg" id="license-file-error"></small>
-              <small class="field-note">JPG, PNG, or PDF, up to 5MB. Your account stays pending until the admin verifies your license, MTOP, and TODA registration.</small>
+              <div class="form-field">
+                <label for="reg-license-file">Driver's license photo or scan <span class="required-star">*</span></label>
+                <input type="file" id="reg-license-file" name="licenseDocument" accept="image/jpeg,image/png,application/pdf">
+                <small class="error-msg" id="license-file-error"></small>
+                <small class="field-note">JPG, PNG, or PDF, up to 5MB. Your account stays pending until the admin verifies your license, MTOP, and TODA registration.</small>
+              </div>
             </div>
 
             <div class="form-row-2">
@@ -148,29 +163,31 @@
               <small id="strength-text"></small>
             </div>
             <div class="password-checklist" id="password-checklist">
-              <small><span class="check-item" id="check-lower">✗</span> Has lowercase letters (a-z)</small>
-              <small><span class="check-item" id="check-upper">✗</span> Has uppercase letters (A-Z)</small>
-              <small><span class="check-item" id="check-number">✗</span> Has numbers (0-9)</small>
-              <small><span class="check-item" id="check-special">✗</span> Has special character (!@#$%^&*)</small>
-              <small><span class="check-item" id="check-length">✗</span> Is at least 8 characters long</small>
+              <small><span class="check-item" id="check-lower">✗</span> Lowercase</small>
+              <small><span class="check-item" id="check-upper">✗</span> Uppercase</small>
+              <small><span class="check-item" id="check-number">✗</span> Number</small>
+              <small><span class="check-item" id="check-special">✗</span> Special character</small>
+              <small><span class="check-item" id="check-length">✗</span> 8+ characters</small>
             </div>
 
             <label class="checkbox-field">
               <input type="checkbox" id="reg-agree-terms" name="agreeTerms">
-              I have read and agree to the <a href="rules.html" target="_blank" rel="noopener">GoTSUian Code of Conduct</a>.
+              <span class="checkbox-text-full">I have read and agree to the <a href="rules.html" target="_blank" rel="noopener">GoTSUian Code of Conduct</a></span>
+              <span class="checkbox-text-short">I agree to the <a href="rules.html" target="_blank" rel="noopener">Code of Conduct</a></span>
             </label>
             <small class="error-msg" id="agree-terms-error"></small>
 
             <button type="submit" class="btn-primary" id="reg-submit-btn">Create account</button>
-            <p class="admin-login-note">Are you an admin? <a href="admin.html">Use the admin login page</a>.</p>
           </form>
 
           <form id="login-form" class="auth-form auth-tab-content">
-            <label for="login-role">I am logging in as</label>
-            <select id="login-role" name="role">
-              <option value="passenger">Passenger</option>
-              <option value="driver">Driver</option>
-            </select>
+            <div class="form-field">
+              <label for="login-role">I am logging in as</label>
+              <select id="login-role" name="role">
+                <option value="passenger">Passenger</option>
+                <option value="driver">Driver</option>
+              </select>
+            </div>
 
             <div class="form-field" id="login-email-field">
               <label for="login-email">Email address</label>
@@ -182,9 +199,11 @@
               <input type="tel" id="login-contact" name="contactNumber" placeholder="09XXXXXXXXX">
             </div>
 
-            <label for="login-password">Password</label>
-            <div class="password-input-group">
-              <input type="password" id="login-password" name="password" placeholder="Enter your password" required>
+            <div class="form-field">
+              <label for="login-password">Password</label>
+              <div class="password-input-group">
+                <input type="password" id="login-password" name="password" placeholder="Enter your password" required>
+              </div>
             </div>
 
             <div class="password-feedback">
@@ -194,16 +213,15 @@
               <small id="strength-text-login"></small>
             </div>
             <div class="password-checklist" id="password-checklist-login">
-              <small><span class="check-item" id="check-lower-login">✗</span> Has lowercase letters (a-z)</small>
-              <small><span class="check-item" id="check-upper-login">✗</span> Has uppercase letters (A-Z)</small>
-              <small><span class="check-item" id="check-number-login">✗</span> Has numbers (0-9)</small>
-              <small><span class="check-item" id="check-special-login">✗</span> Has special character (!@#$%^&*)</small>
-              <small><span class="check-item" id="check-length-login">✗</span> Is at least 8 characters long</small>
+              <small><span class="check-item" id="check-lower-login">✗</span> Lowercase</small>
+              <small><span class="check-item" id="check-upper-login">✗</span> Uppercase</small>
+              <small><span class="check-item" id="check-number-login">✗</span> Number</small>
+              <small><span class="check-item" id="check-special-login">✗</span> Special character</small>
+              <small><span class="check-item" id="check-length-login">✗</span> 8+ characters</small>
             </div>
 
             <button type="submit" class="btn-primary">Login</button>
             <small class="error-msg" id="login-error"></small>
-            <p class="admin-login-note">Are you an admin? <a href="admin.html">Use the admin login page</a>.</p>
           </form>
         </article>
       </div>
@@ -255,10 +273,12 @@
       <div>
         <h4>Quick Links</h4>
         <p><a href="index.html">Home</a> · <a href="booking.html">Booking</a> · <a href="rules.html">Rules</a> · <a href="auth.html">Login</a></p>
+        <p class="footer-staff-link"><a href="admin.html">Admin Login</a></p>
       </div>
     </div>
   </footer>
 
-  <script src="../js/app.js?v=67"></script>
+  <script src="http://localhost:3000/socket.io/socket.io.js"></script>
+  <script src="../js/app.js?v=90"></script>
 </body>
 </html>

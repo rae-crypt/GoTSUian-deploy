@@ -1,6 +1,7 @@
 const path = require('path');
 const fs = require('fs');
 const db = require('../config/db');
+const { emitDriverAccountStatus } = require('../socket');
 
 // LIST ALL DRIVERS — the admin dashboard's driver management table shows
 // every driver (not just pending ones) so the admin can also review
@@ -108,5 +109,9 @@ exports.updateDriverStatus = (req, res) => {
     if (err) return res.status(500).json({ error: err.message });
     if (result.affectedRows === 0) return res.status(404).json({ error: 'Driver not found' });
     res.status(200).json({ message: `Driver marked as ${status}` });
+    db.query(`SELECT account_id FROM tricycle_driver WHERE driver_id = ?`, [driverId], (err2, rows) => {
+      if (err2 || !rows.length) return;
+      emitDriverAccountStatus(rows[0].account_id);
+    });
   });
 };

@@ -1952,17 +1952,6 @@ display: none !important;
   }
 }
 
-/* The hamburger drawer no longer has a Login item (trimmed to 3 content
-   links), and .nav-cta is display:none below the drawer breakpoint by
-   default — without this, a logged-out mobile visitor on Home would have
-   no way to reach Login at all. Appended last so it wins by cascade order
-   over the earlier `display: none` rule. */
-@media (max-width: 720px) {
-  .nav-cta {
-    display: flex;
-  }
-}
-
 .hero-gotsuian .btn-primary {
   background: var(--accent-gold);
   color: #3a2506;
@@ -2073,3 +2062,20 @@ display: none !important;
   }
 }
 
+
+/* Small, de-emphasized fallback link for a real (non-technical) admin who
+   loses their bookmark to admin.html — deliberately NOT styled like the
+   real Quick Links above it, so it doesn't read as another public option. */
+.footer-staff-link {
+  margin: 4px 0 0;
+}
+.footer-staff-link a {
+  font-size: 0.75rem;
+  color: var(--muted);
+  opacity: 0.7;
+  text-decoration: none;
+}
+.footer-staff-link a:hover {
+  opacity: 1;
+  text-decoration: underline;
+}

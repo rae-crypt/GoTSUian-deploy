@@ -161,6 +161,7 @@ CREATE TABLE IF NOT EXISTS violations (
   complaint_id INT NULL,
   severity ENUM('Warning', 'Violation') NOT NULL,
   reason TEXT NOT NULL,
+  escalated BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (account_id) REFERENCES user_account(account_id),
   FOREIGN KEY (issued_by_admin_id) REFERENCES administrator(admin_id),
@@ -231,3 +232,10 @@ ALTER TABLE tricycle_driver ADD COLUMN body_number VARCHAR(10) NULL AFTER plate_
 -- terminal status so the passenger-side milestone popup can specifically
 -- say "the driver declined your request" instead of staying silent.
 ALTER TABLE rides MODIFY COLUMN status ENUM('Pending', 'Accepted', 'Picked Up', 'In Progress', 'Completed', 'Cancelled', 'Failed', 'Declined') NOT NULL DEFAULT 'Pending';
+
+-- === Warning escalation-on-repeat migration (run against an EXISTING database) ===
+-- Marks a violations row as auto-escalated (a 2nd Warning on the same
+-- account gets inserted as a Violation instead, per complaintController.js's
+-- issueViolation) rather than an admin directly choosing "Violation" — lets
+-- the account-standing UI label it distinctly and keeps this auditable.
+ALTER TABLE violations ADD COLUMN escalated BOOLEAN NOT NULL DEFAULT FALSE AFTER reason;

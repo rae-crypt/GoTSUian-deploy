@@ -1849,3 +1849,20 @@ gap: 12px;
   }
 }
 
+
+/* Small, de-emphasized fallback link for a real (non-technical) admin who
+   loses their bookmark to admin.html — deliberately NOT styled like the
+   real Quick Links above it, so it doesn't read as another public option. */
+.footer-staff-link {
+  margin: 4px 0 0;
+}
+.footer-staff-link a {
+  font-size: 0.75rem;
+  color: var(--muted);
+  opacity: 0.7;
+  text-decoration: none;
+}
+.footer-staff-link a:hover {
+  opacity: 1;
+  text-decoration: underline;
+}

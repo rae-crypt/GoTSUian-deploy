@@ -9,7 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <link rel="stylesheet" href="../css/driver.css?v=43">
+  <link rel="stylesheet" href="../css/driver.css?v=52">
 </head>
 <body data-page="driver">
   <header>
@@ -41,7 +41,8 @@
       <div class="hero-copy">
         <span class="hero-badge"><span></span> Driver Panel</span>
         <h1>Welcome, <span data-dashboard-welcome>Driver</span></h1>
-        <p>Manage your upcoming trips, track earnings, and stay ready to accept requests from TSU passengers.</p>
+        <p class="copy-full">Manage your upcoming trips, track earnings, and stay ready to accept requests from TSU passengers.</p>
+        <p class="copy-short">Track earnings and stay ready for requests.</p>
       </div>
     </section>
 
@@ -54,9 +55,11 @@
     </div>
 
     <div id="availability-toggle" class="availability-toggle">
+      <span class="availability-status-dot"></span>
       <div>
         <strong id="availability-label">Offline</strong>
-        <p>You're automatically online and ready to accept requests while logged in — passengers see how many drivers are around right now. Log out anytime to go offline.</p>
+        <p class="copy-full">You're automatically online and ready to accept requests while logged in — passengers see how many drivers are around right now.</p>
+        <p class="copy-short">Automatically online while logged in.</p>
       </div>
     </div>
     <p id="location-sharing-label" class="location-sharing-label"></p>
@@ -71,7 +74,7 @@
         <p id="driver-count-today">0</p>
       </article>
       <a href="#pending-requests-section" class="dashboard-card dashboard-card-link">
-        <h3>Pending requests</h3>
+        <h3><span class="copy-full">Pending requests</span><span class="copy-short">Pending</span></h3>
         <p id="driver-pending-count">0</p>
       </a>
       <article class="dashboard-card">
@@ -79,7 +82,7 @@
         <p id="driver-earnings">₱0</p>
       </article>
       <a href="driver-bookings.html" class="dashboard-card dashboard-card-link">
-        <h3>Completed rides</h3>
+        <h3><span class="copy-full">Completed rides</span><span class="copy-short">Completed</span></h3>
         <p id="driver-completed-count">0</p>
       </a>
     </section>
@@ -87,7 +90,7 @@
     <section class="section" id="pending-requests-section">
       <div class="section-intro">
         <h2>Pending ride requests</h2>
-        <p class="lead">Review new ride requests and accept the ones you can serve.</p>
+        <p class="lead copy-full">Review new ride requests and accept the ones you can serve.</p>
       </div>
       <div id="driver-ride-requests" class="driver-grid"></div>
     </section>
@@ -132,6 +135,7 @@
     </div>
   </footer>
 
-  <script src="../js/app.js?v=67"></script>
+  <script src="http://localhost:3000/socket.io/socket.io.js"></script>
+  <script src="../js/app.js?v=90"></script>
 </body>
 </html>

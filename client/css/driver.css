@@ -1023,32 +1023,6 @@ background: var(--white);
 }
 
 
-  .hero  {
-grid-template-columns: 1fr;
-    padding: 70px 0 30px;
-}
-
-
-
-  .hero-simple  {
-margin-bottom: 40px;
-}
-
-
-
-  .hero-simple .hero-copy  {
-max-width: 720px;
-    margin: 0 auto 40px;
-}
-
-
-
-  .hero-copy h1,
-  .hero-copy p  {
-text-align: center;
-}
-
-
   .navbar  {
 position: relative;
     z-index: 60;
@@ -1231,62 +1205,6 @@ font-size: 0.78rem;
   .nav-links a.active,
   .nav-links a:hover  {
 color: var(--primary);
-}
-
-
-
-  .hero  {
-padding: 60px 0 30px;
-}
-
-
-
-  .hero-simple .hero-copy  {
-text-align: center;
-    margin: 0 auto 30px;
-    max-width: 720px;
-}
-
-
-
-  .hero-copy h1  {
-font-size: clamp(2.4rem, 7vw, 3rem);
-}
-
-
-  .site-shell  {
-padding-left: 16px;
-    padding-right: 16px;
-}
-
-
-
-  .section  {
-padding: 50px 0;
-}
-
-
-
-  .hero-copy h1  {
-font-size: clamp(2.2rem, 8vw, 2.6rem);
-}
-
-
-
-  .section-intro h2  {
-font-size: 2rem;
-}
-
-
-
-  .hero-copy p  {
-font-size: 1rem;
-}
-
-
-
-  .hero-mobile-signup  {
-display: none;
 }
 
 
@@ -1551,7 +1469,7 @@ gap: 12px;
 
 
 @media (max-width: 640px) {
-  .hero {
+  .hero.hero-simple {
     padding: 40px 0 24px;
   }
 
@@ -1559,8 +1477,35 @@ gap: 12px;
     margin-bottom: 20px;
   }
 
+  .hero-simple .hero-copy {
+    max-width: 720px;
+    margin: 0 auto 24px;
+  }
+
+  .hero-copy h1 {
+    font-size: clamp(2.2rem, 8vw, 2.6rem);
+  }
+
+  .hero-copy p {
+    font-size: 1rem;
+    text-align: center;
+  }
+
   .section {
     padding: 36px 0;
+  }
+
+  .site-shell {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .section-intro h2 {
+    font-size: 2rem;
+  }
+
+  .hero-mobile-signup {
+    display: none;
   }
 }
 
@@ -2199,5 +2144,257 @@ gap: 12px;
 @keyframes modal-fade-in {
   from { opacity: 0; }
   to { opacity: 1; }
+}
+
+/* =======================================================================
+   Driver dashboard redesign — matches the visual language approved for
+   the admin portal and the passenger dashboard, so the whole app reads as
+   one product. Scoped under body[data-page] so these rules always win
+   regardless of source order, without needing to touch/remove the
+   existing rules above.
+======================================================================= */
+body[data-page="driver"] {
+  --tone-success: #1a7a3c;
+  --tone-success-bg: #e6f4ea;
+  --tone-warning: #b45309;
+  --tone-warning-bg: #fdf1de;
+  --tone-danger: #b91c1c;
+  --tone-danger-bg: #fbe9e9;
+  --tone-info: #2b5ea3;
+  --tone-info-bg: #e9f0fa;
+  --gt-muted: #7a4a4a;
+  --gt-shadow: 0 14px 32px -12px rgba(127, 29, 29, 0.18);
+}
+
+body[data-page="driver"] .section { padding: 0; }
+
+body[data-page="driver"] .hero.hero-simple {
+  background: linear-gradient(135deg, var(--primary) 0%, #5c1414 100%);
+  padding: 22px 28px;
+  display: block;
+  text-align: left;
+  grid-template-columns: none;
+}
+body[data-page="driver"] .hero.hero-simple .hero-copy {
+  margin: 0; max-width: none; text-align: left;
+}
+body[data-page="driver"] .hero.hero-simple .hero-badge {
+  display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 700;
+  letter-spacing: 0.04em; text-transform: uppercase; background: rgba(255,255,255,0.14);
+  padding: 5px 12px; border-radius: 999px; color: #fff8f6; border: none; margin-bottom: 10px;
+}
+body[data-page="driver"] .hero.hero-simple .hero-badge span { display: none; }
+body[data-page="driver"] .hero.hero-simple h1 {
+  color: #fff8f6; font-size: 21px; margin: 0 0 3px; text-align: left;
+}
+body[data-page="driver"] .hero.hero-simple p {
+  color: rgba(255,248,246,0.85); font-size: 13px; max-width: 560px; margin: 0; text-align: left; line-height: 1.5;
+}
+@media (max-width: 900px) {
+  body[data-page="driver"] .hero.hero-simple { padding: 18px 16px; }
+  body[data-page="driver"] .hero.hero-simple h1 { font-size: 18px; }
+  body[data-page="driver"] .hero.hero-simple p { font-size: 12px; }
+}
+
+/* ---- approval banner ---- */
+body[data-page="driver"] .approval-banner {
+  display: flex; gap: 12px; align-items: flex-start; background: var(--tone-warning-bg);
+  border: 1px solid #ecd4a8; border-radius: 14px; padding: 14px 18px; margin: 18px 0;
+}
+body[data-page="driver"] .approval-banner-icon { font-size: 18px; line-height: 1; }
+body[data-page="driver"] .approval-banner strong { display: block; font-size: 13.5px; color: var(--text); margin-bottom: 2px; }
+body[data-page="driver"] .approval-banner p { margin: 0; font-size: 12px; color: var(--gt-muted); line-height: 1.5; }
+
+/* ---- online status ---- */
+body[data-page="driver"] .availability-toggle {
+  display: flex; flex-direction: row; align-items: flex-start; justify-content: flex-start; gap: 12px; background: var(--white); border: 1px solid #f1d9d9;
+  border-radius: 14px; padding: 18px 20px; box-shadow: var(--gt-shadow); margin: 18px 0 6px;
+}
+body[data-page="driver"] .availability-status-dot {
+  width: 10px; height: 10px; border-radius: 50%; background: var(--tone-danger); flex-shrink: 0;
+  box-shadow: 0 0 0 4px var(--tone-danger-bg); transition: all 0.15s ease; margin-top: 4px;
+}
+body[data-page="driver"] .availability-status-dot.is-online {
+  background: var(--tone-success); box-shadow: 0 0 0 4px var(--tone-success-bg);
+}
+body[data-page="driver"] .availability-toggle strong { font-size: 14px; }
+body[data-page="driver"] .availability-toggle p { margin: 2px 0 0; font-size: 12px; color: var(--gt-muted); line-height: 1.5; max-width: none; }
+body[data-page="driver"] .location-sharing-label { font-size: 11.5px; color: var(--gt-muted); margin: 0 0 16px; }
+
+/* ---- map ---- */
+body[data-page="driver"] .map-stack { border-radius: 18px; overflow: hidden; box-shadow: var(--gt-shadow); margin: 0 0 18px; }
+body[data-page="driver"] .driver-map { border-radius: 18px; }
+
+/* ---- stat grid ---- */
+body[data-page="driver"] .dashboard-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 18px 0; }
+body[data-page="driver"] .dashboard-grid .dashboard-card {
+  background: var(--white); border: 1px solid #f1d9d9; border-radius: 14px; padding: 16px 18px; box-shadow: var(--gt-shadow);
+  text-decoration: none; color: inherit; display: block; transition: transform 0.12s ease;
+}
+body[data-page="driver"] a.dashboard-card:hover { transform: translateY(-2px); }
+body[data-page="driver"] .dashboard-grid .dashboard-card h3 {
+  font-family: 'Inter', sans-serif; font-size: 12px; color: var(--gt-muted); font-weight: 600; margin: 0 0 4px;
+}
+body[data-page="driver"] .dashboard-grid .dashboard-card p {
+  font-family: 'Poppins', sans-serif; font-size: 24px; font-weight: 700; color: var(--text); margin: 0;
+}
+
+/* ---- pending requests ---- */
+body[data-page="driver"] .section-intro { margin: 24px 0 14px; }
+body[data-page="driver"] .section-intro h2 { font-family: 'Poppins', sans-serif; font-size: 18px; margin: 0 0 3px; }
+body[data-page="driver"] .section-intro .lead { margin: 0; font-size: 13px; color: var(--gt-muted); }
+body[data-page="driver"] .driver-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin-top: 0; }
+body[data-page="driver"] .driver-card {
+  background: var(--white); border: 1px solid #f1d9d9; border-radius: 16px; box-shadow: var(--gt-shadow); padding: 18px;
+  display: block;
+}
+body[data-page="driver"] .driver-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+body[data-page="driver"] .driver-card-header h3 { font-family: 'Poppins', sans-serif; font-size: 14.5px; margin: 0 0 2px; }
+body[data-page="driver"] .driver-card-header p { margin: 0; font-size: 12.5px; color: var(--gt-muted); }
+body[data-page="driver"] .driver-card-meta { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12.5px; color: var(--gt-muted); margin-bottom: 10px; }
+body[data-page="driver"] .fare-tier-row { display: flex; gap: 6px; margin-bottom: 10px; }
+body[data-page="driver"] .fare-tier-chip { font-size: 11px; font-weight: 700; padding: 4px 9px; border-radius: 999px; background: var(--light); color: var(--gt-muted); }
+body[data-page="driver"] .fare-tier-chip.is-active { background: var(--primary); color: #fff8f6; }
+body[data-page="driver"] .driver-card-description { font-size: 12.5px; color: var(--gt-muted); margin: 0 0 14px; line-height: 1.5; }
+body[data-page="driver"] .driver-card-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+body[data-page="driver"] .driver-card-actions .btn-primary,
+body[data-page="driver"] .driver-card-actions .btn-secondary-outline {
+  flex: 1; font-family: inherit; font-size: 13.5px; font-weight: 700; padding: 11px; border-radius: 11px;
+  cursor: pointer; text-align: center; white-space: nowrap; position: relative;
+}
+body[data-page="driver"] .driver-card-actions .btn-primary { border: none; background: var(--primary); color: #fff8f6; }
+body[data-page="driver"] .driver-card-actions .btn-secondary-outline { border: 1.5px solid #f1d9d9; background: var(--white); color: var(--primary); }
+body[data-page="driver"] .driver-card-actions .btn-secondary-outline[disabled] { color: var(--gt-muted); cursor: not-allowed; }
+body[data-page="driver"] .ride-badge {
+  display: inline-flex; align-items: center; font-size: 11.5px; font-weight: 700; padding: 5px 12px;
+  border-radius: 999px; white-space: nowrap; flex-shrink: 0;
+}
+body[data-page="driver"] .ride-badge.tone-success { background: var(--tone-success-bg); color: var(--tone-success); }
+body[data-page="driver"] .ride-badge.tone-warning { background: var(--tone-warning-bg); color: var(--tone-warning); }
+body[data-page="driver"] .ride-badge.tone-danger { background: var(--tone-danger-bg); color: var(--tone-danger); }
+body[data-page="driver"] .ride-badge.tone-info { background: var(--tone-info-bg); color: var(--tone-info); }
+body[data-page="driver"] .chat-unread-badge {
+  display: inline-flex; align-items: center; justify-content: center; min-width: 16px; height: 16px; padding: 0 4px;
+  border-radius: 999px; background: var(--tone-danger); color: #fff; font-size: 10px; font-weight: 700; margin-left: 6px;
+}
+
+/* ---- rating card ---- */
+body[data-page="driver"] .request-status-stack { margin: 24px 0; }
+body[data-page="driver"] #rating-card {
+  display: block; text-decoration: none; color: inherit;
+  background: var(--white); border: 1px solid #f1d9d9; border-radius: 16px; box-shadow: var(--gt-shadow); padding: 20px;
+}
+body[data-page="driver"] #rating-card h3 { font-family: 'Poppins', sans-serif; font-size: 15.5px; margin: 0 0 12px; }
+body[data-page="driver"] .rating-summary { font-family: 'Poppins', sans-serif; font-size: 22px; font-weight: 700; color: var(--accent-gold); margin: 0 0 10px; }
+body[data-page="driver"] .rating-summary small { font-family: 'Inter', sans-serif; font-size: 12.5px; color: var(--gt-muted); font-weight: 400; }
+body[data-page="driver"] .rating-list { display: flex; flex-direction: column; gap: 4px; }
+body[data-page="driver"] .rating-item { padding: 10px 0; border: none; border-top: 1px solid #f1d9d9; border-radius: 0; }
+body[data-page="driver"] .rating-item:first-child { border-top: none; padding-top: 0; }
+body[data-page="driver"] .rating-item-stars { color: var(--accent-gold); font-size: 12px; margin: 0 0 3px; font-weight: 700; }
+body[data-page="driver"] .rating-item-stars span { color: var(--text); font-weight: 600; font-size: 12.5px; margin-left: 8px; }
+body[data-page="driver"] .rating-item-comment { margin: 0; font-size: 12.5px; color: var(--text); font-weight: 400; line-height: 1.5; }
+
+/* ---- empty-state message inside #driver-ride-requests ---- */
+body[data-page="driver"] #driver-ride-requests .dashboard-card {
+  background: var(--white); border: 1px solid #f1d9d9; border-radius: 16px; box-shadow: var(--gt-shadow); padding: 24px;
+}
+body[data-page="driver"] #driver-ride-requests .dashboard-card p {
+  font-size: 13.5px; font-weight: 600; color: var(--gt-muted); margin: 0;
+}
+
+/* ---- current status / driver tools ---- */
+body[data-page="driver"] .dashboard-details { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin: 24px 0 40px; }
+body[data-page="driver"] .dashboard-panel {
+  background: var(--white); border: 1px solid #f1d9d9; border-radius: 16px; box-shadow: var(--gt-shadow); padding: 20px;
+}
+body[data-page="driver"] .dashboard-panel h2 { font-family: 'Poppins', sans-serif; font-size: 15px; margin: 0 0 8px; }
+body[data-page="driver"] .dashboard-panel p { margin: 0; font-size: 13px; color: var(--gt-muted); line-height: 1.5; }
+body[data-page="driver"] .dashboard-panel ul { margin: 0; padding-left: 18px; font-size: 13px; color: var(--gt-muted); line-height: 1.8; }
+
+body[data-page="driver"] .copy-short { display: none; }
+@media (max-width: 900px) {
+  body[data-page="driver"] .dashboard-grid { grid-template-columns: repeat(2, 1fr); }
+  body[data-page="driver"] .driver-grid { grid-template-columns: 1fr; }
+  body[data-page="driver"] .dashboard-details { grid-template-columns: 1fr; }
+  body[data-page="driver"] .copy-full { display: none; }
+  body[data-page="driver"] .copy-short { display: inline; }
+  body[data-page="driver"] p.copy-short { display: block; }
+}
+
+/* ---- booking history + ratings (driver-bookings.html) ---- */
+body[data-page="driver"] .dashboard-card {
+  background: var(--white); border: 1px solid #f1d9d9; border-radius: 16px; box-shadow: var(--gt-shadow);
+  padding: 20px 20px;
+}
+body[data-page="driver"] .dashboard-card h3 {
+  display: flex; align-items: center; gap: 10px; font-family: 'Poppins', sans-serif; font-size: 15.5px; margin: 0 0 14px;
+}
+
+body[data-page="driver"] .booking-route { font-size: 14.5px; font-weight: 700; color: var(--text); margin: 0 0 6px; }
+body[data-page="driver"] #bookings-loading { font-size: 13px; font-weight: 500; color: var(--gt-muted); }
+body[data-page="driver"] .bookings-empty p { font-size: 13px; font-weight: 500; color: var(--gt-muted); margin: 0; }
+
+body[data-page="driver"] .booking-item {
+  display: flex; flex-direction: column; gap: 0;
+  padding: 14px 16px; border: 1px solid #f1d9d9; border-radius: 14px;
+  background: var(--white); box-shadow: none;
+}
+body[data-page="driver"] .booking-top { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+body[data-page="driver"] .booking-info { min-width: 0; }
+body[data-page="driver"] .booking-route { margin: 0; }
+body[data-page="driver"] .booking-status { display: flex; flex-direction: row; align-items: center; gap: 10px; flex-shrink: 0; }
+body[data-page="driver"] .booking-meta { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--gt-muted); margin-top: 4px; }
+body[data-page="driver"] .booking-fare { font-weight: 700; color: var(--primary); font-family: 'Poppins', sans-serif; font-size: 15px; white-space: nowrap; }
+body[data-page="driver"] .booking-divider { height: 1px; background: #f1d9d9; margin: 10px 0 8px; }
+body[data-page="driver"] .booking-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; }
+body[data-page="driver"] .booking-actions .complaint-prompt { margin-top: 0; }
+body[data-page="driver"] .booking-actions .btn-primary { min-width: 0; padding: 8px 18px; font-size: 0.85rem; }
+@media (max-width: 640px) {
+  body[data-page="driver"] .booking-status { align-items: center; flex-direction: row; }
+}
+
+/* ---- collapsible "All rides" card, same treatment as the admin panels ---- */
+body[data-page="driver"] .dashboard-card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
+body[data-page="driver"] .dashboard-card-head h3 { margin: 0; }
+body[data-page="driver"] .dashboard-card-toggle {
+  display: flex; width: 32px; height: 32px; border: none; background: var(--light); color: var(--primary);
+  border-radius: 50%; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
+}
+body[data-page="driver"] .dashboard-card-toggle svg { width: 15px; height: 15px; transition: transform 0.2s ease; }
+body[data-page="driver"] .dashboard-card.is-collapsed .dashboard-card-body { display: none; }
+body[data-page="driver"] .dashboard-card.is-collapsed .dashboard-card-toggle svg { transform: rotate(-90deg); }
+
+body[data-page="driver"] #driver-ratings-section { margin: 24px 0; display: flex; flex-direction: column; gap: 14px; }
+body[data-page="driver"] #driver-ratings-loading { font-size: 13px; font-weight: 500; color: var(--gt-muted); }
+body[data-page="driver"] #driver-ratings-details { display: flex; flex-direction: column; gap: 14px; }
+
+body[data-page="driver"] .rating-overview { display: flex; align-items: center; gap: 32px; flex-wrap: wrap; }
+body[data-page="driver"] .rating-overview-score { display: flex; flex-direction: column; align-items: center; gap: 4px; flex-shrink: 0; }
+body[data-page="driver"] .rating-big-number { font-family: 'Poppins', sans-serif; font-size: 40px; font-weight: 700; color: var(--accent-gold); line-height: 1; }
+body[data-page="driver"] .rating-star-row { color: var(--accent-gold); font-size: 16px; letter-spacing: 2px; }
+body[data-page="driver"] .rating-overview-score small { font-size: 12px; color: var(--gt-muted); }
+
+body[data-page="driver"] .rating-breakdown { flex: 1 1 220px; display: flex; flex-direction: column; gap: 6px; min-width: 200px; }
+body[data-page="driver"] .rating-breakdown-row { display: flex; align-items: center; gap: 8px; }
+body[data-page="driver"] .rating-breakdown-label { width: 24px; font-size: 11.5px; color: var(--gt-muted); font-weight: 600; flex-shrink: 0; }
+body[data-page="driver"] .rating-breakdown-bar { flex: 1 1 auto; height: 8px; border-radius: 999px; background: var(--light); overflow: hidden; }
+body[data-page="driver"] .rating-breakdown-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--accent-gold), #e0b354); transition: width 0.3s ease; }
+body[data-page="driver"] .rating-breakdown-count { width: 20px; text-align: right; font-size: 11.5px; color: var(--gt-muted); flex-shrink: 0; }
+
+body[data-page="driver"] .rating-item-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+body[data-page="driver"] .rating-item-who { display: flex; align-items: center; gap: 10px; min-width: 0; }
+body[data-page="driver"] .rating-item-avatar {
+  width: 30px; height: 30px; border-radius: 50%; background: var(--light); color: var(--primary); flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; font-family: 'Poppins', sans-serif; font-weight: 600; font-size: 13px;
+}
+body[data-page="driver"] .rating-item-meta { min-width: 0; }
+body[data-page="driver"] .rating-item-name { display: block; font-size: 12.5px; font-weight: 700; color: var(--text); }
+body[data-page="driver"] .rating-item-date { display: block; font-size: 11px; color: var(--gt-muted); }
+body[data-page="driver"] .rating-item-stars { color: var(--accent-gold); font-size: 12px; letter-spacing: 1px; flex-shrink: 0; }
+body[data-page="driver"] #driver-reviews-list .rating-item-comment em { font-style: italic; color: var(--gt-muted); }
+
+@media (max-width: 640px) {
+  body[data-page="driver"] .rating-overview { flex-direction: column; align-items: flex-start; gap: 18px; }
+  body[data-page="driver"] .rating-breakdown { width: 100%; }
 }
 

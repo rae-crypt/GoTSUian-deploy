@@ -302,6 +302,15 @@ transform: translateY(-1px);
 
 
 
+.hero.hero-simple  {
+grid-template-columns: 1fr;
+  text-align: center;
+  padding: 100px 0 60px;
+  display: block;
+}
+
+
+
 .hero-copy h1  {
 margin: 0 auto;
   font-family: 'Poppins', sans-serif;
@@ -718,32 +727,6 @@ background: var(--white);
 }
 
 
-  .hero  {
-grid-template-columns: 1fr;
-    padding: 70px 0 30px;
-}
-
-
-
-  .hero-simple  {
-margin-bottom: 40px;
-}
-
-
-
-  .hero-simple .hero-copy  {
-max-width: 720px;
-    margin: 0 auto 40px;
-}
-
-
-
-  .hero-copy h1,
-  .hero-copy p  {
-text-align: center;
-}
-
-
   .navbar  {
 position: relative;
     z-index: 60;
@@ -1008,71 +991,6 @@ color: var(--primary);
 
 
 
-  .hero  {
-padding: 60px 0 30px;
-}
-
-
-
-  .hero-simple .hero-copy  {
-text-align: center;
-    margin: 0 auto 30px;
-    max-width: 720px;
-}
-
-
-
-  .hero-copy h1  {
-font-size: clamp(2.4rem, 7vw, 3rem);
-}
-
-
-
-  .btn-primary,
-  .btn-secondary,
-  .btn-secondary-outline  {
-width: 100%;
-    min-width: 0;
-}
-
-
-  .site-shell  {
-padding-left: 16px;
-    padding-right: 16px;
-}
-
-
-
-  .section  {
-padding: 50px 0;
-}
-
-
-
-  .hero-copy h1  {
-font-size: clamp(2.2rem, 8vw, 2.6rem);
-}
-
-
-
-  .section-intro h2  {
-font-size: 2rem;
-}
-
-
-
-  .hero-copy p  {
-font-size: 1rem;
-}
-
-
-
-  .hero-mobile-signup  {
-display: none;
-}
-
-
-
 .hero-actions  {
 margin-top: 30px;
   display: flex;
@@ -1176,7 +1094,7 @@ gap: 12px;
 
 
 @media (max-width: 640px) {
-  .hero {
+  .hero.hero-simple {
     padding: 40px 0 24px;
   }
 
@@ -1184,8 +1102,42 @@ gap: 12px;
     margin-bottom: 20px;
   }
 
+  .hero-simple .hero-copy {
+    max-width: 720px;
+    margin: 0 auto 24px;
+  }
+
+  .hero-copy h1 {
+    font-size: clamp(2.2rem, 8vw, 2.6rem);
+  }
+
+  .hero-copy p {
+    font-size: 1rem;
+    text-align: center;
+  }
+
   .section {
     padding: 36px 0;
+  }
+
+  .site-shell {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .section-intro h2 {
+    font-size: 2rem;
+  }
+
+  .hero-mobile-signup {
+    display: none;
+  }
+
+  .btn-primary,
+  .btn-secondary,
+  .btn-secondary-outline {
+    width: 100%;
+    min-width: 0;
   }
 }
 
@@ -1278,3 +1230,20 @@ gap: 12px;
   text-transform: capitalize;
 }
 
+
+/* Small, de-emphasized fallback link for a real (non-technical) admin who
+   loses their bookmark to admin.html — deliberately NOT styled like the
+   real Quick Links above it, so it doesn't read as another public option. */
+.footer-staff-link {
+  margin: 4px 0 0;
+}
+.footer-staff-link a {
+  font-size: 0.75rem;
+  color: var(--muted);
+  opacity: 0.7;
+  text-decoration: none;
+}
+.footer-staff-link a:hover {
+  opacity: 1;
+  text-decoration: underline;
+}

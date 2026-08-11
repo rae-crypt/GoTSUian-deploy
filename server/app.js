@@ -1,6 +1,8 @@
 const express = require('express');
+const http = require('http');
 const cors = require('cors');
 const db = require('./config/db');
+const { initSocket } = require('./socket');
 const authRoutes = require('./routes/authRoutes');
 const rideRoutes = require('./routes/rideRoutes');
 const adminRoutes = require('./routes/adminRoutes');
@@ -61,6 +63,9 @@ app.use((err, req, res, next) => {
   next();
 });
 
-app.listen(PORT, () => {
+const server = http.createServer(app);
+initSocket(server);
+
+server.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
 });

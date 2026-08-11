@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="../css/passenger.css?v=41">
+  <link rel="stylesheet" href="../css/passenger.css?v=45">
 </head>
 <body data-page="passenger">
   <header>
@@ -48,13 +48,20 @@
 
     <section class="section">
       <article class="dashboard-card">
-        <h3>All bookings</h3>
-        <p id="bookings-loading">Loading your bookings...</p>
-        <div id="bookings-empty" class="bookings-empty" style="display:none;">
-          <p>You haven't booked a ride yet.</p>
-          <a href="passenger.html" class="btn-secondary">Book your first ride</a>
+        <div class="dashboard-card-head">
+          <h3>All bookings</h3>
+          <button type="button" class="dashboard-card-toggle" aria-expanded="true" aria-label="Collapse this section">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7.5L10 12.5L15 7.5"/></svg>
+          </button>
         </div>
-        <div id="bookings-list" class="bookings-list" style="display:none;"></div>
+        <div class="dashboard-card-body">
+          <p id="bookings-loading">Loading your bookings...</p>
+          <div id="bookings-empty" class="bookings-empty" style="display:none;">
+            <p>You haven't booked a ride yet.</p>
+            <a href="passenger.html" class="btn-secondary">Book your first ride</a>
+          </div>
+          <div id="bookings-list" class="bookings-list" style="display:none;"></div>
+        </div>
       </article>
     </section>
   </main>
@@ -73,6 +80,7 @@
     </div>
   </footer>
 
-  <script src="../js/app.js?v=67"></script>
+  <script src="http://localhost:3000/socket.io/socket.io.js"></script>
+  <script src="../js/app.js?v=90"></script>
 </body>
 </html>

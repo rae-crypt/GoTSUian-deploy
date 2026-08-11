@@ -362,7 +362,7 @@ margin: 0 auto;
   font-family: 'Poppins', sans-serif;
   font-size: clamp(2.8rem, 5vw, 4.2rem);
   line-height: 1.02;
-  color: var(--primary);
+  color: var(--text);
   text-align: center;
 }
 
@@ -646,11 +646,11 @@ input,
 select,
 textarea  {
 width: 100%;
-  border: 1px solid #d1d5db;
-  border-radius: 16px;
-  padding: 14px 16px;
+  border: 1px solid #ecd3d3;
+  border-radius: 12px;
+  padding: 9px 14px;
   background: #fff;
-  color: #0f172a;
+  color: var(--text);
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -697,8 +697,8 @@ padding-top: 40px;
 
 .auth-grid  {
 display: grid;
-  gap: 32px;
-  grid-template-columns: 1fr 1.1fr;
+  gap: 28px;
+  grid-template-columns: 0.85fr 1.15fr;
   align-items: start;
 }
 
@@ -709,57 +709,88 @@ display: grid;
 .dashboard-card,
 .dashboard-panel  {
 background: var(--white);
-  border-radius: 28px;
-  border: 1px solid rgba(27, 94, 32, 0.08);
-  box-shadow: var(--shadow);
+  border-radius: 24px;
+  border: 1px solid #ecd3d3;
+  box-shadow: 0 16px 40px -18px rgba(61,20,20,0.2);
 }
 
 
 
 .auth-info-card  {
-padding: 32px;
+padding: 32px 28px;
+  position: sticky;
+  top: 20px;
 }
 
 
 
 .auth-info-card h2  {
 margin-top: 0;
+  font-size: 1.3rem;
+}
+
+
+
+.auth-info-card > p  {
+margin: 0 0 22px;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.6;
+}
+
+
+
+.auth-benefit-list  {
+list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.auth-benefit-item  {
+display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.auth-benefit-icon  {
+width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: var(--light);
   color: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
-
-
-.auth-info-card ul  {
-margin: 18px 0 0;
-  padding-left: 20px;
-  color: #475569;
+.auth-benefit-item strong  {
+display: block;
+  font-size: 0.88rem;
+  color: var(--text);
+  margin-bottom: 2px;
 }
 
-
-
-.auth-info-card li  {
-margin-bottom: 10px;
+.auth-benefit-item span  {
+font-size: 0.8rem;
+  color: var(--muted);
+  line-height: 1.5;
 }
 
 
 
 .auth-form-card  {
-padding: 32px;
+padding: 8px;
 }
 
 
 
-.auth-form label  {
+.auth-form label:not(.checkbox-field)  {
 display: block;
-  margin-bottom: 10px;
   font-weight: 700;
-}
-
-
-
-.auth-form input,
-.auth-form select  {
-margin-bottom: 18px;
 }
 
 
@@ -771,8 +802,7 @@ width: 100%;
 
 
 .admin-login-note  {
-margin-top: 16px;
-  color: #4b5563;
+color: #4b5563;
   font-size: 0.95rem;
 }
 
@@ -787,41 +817,64 @@ color: var(--primary);
 
 .auth-tabs  {
 display: flex;
-  gap: 12px;
-  margin-bottom: 24px;
-  border-bottom: 1px solid #e5e7eb;
+  gap: 4px;
+  background: var(--light);
+  border-radius: 999px;
+  padding: 5px;
+  margin: 22px 22px 0;
 }
 
 
 
 .auth-tab  {
-padding: 14px 20px;
+flex: 1;
+  padding: 10px;
   border: none;
+  border-radius: 999px;
   background: transparent;
-  color: #6b7280;
-  font-weight: 600;
+  color: var(--muted);
+  font-weight: 700;
+  font-size: 0.86rem;
   cursor: pointer;
-  border-bottom: 3px solid transparent;
   transition: all 0.2s ease;
 }
 
 
 
 .auth-tab.active  {
-color: var(--primary);
-  border-bottom-color: var(--primary);
+background: var(--primary);
+  color: var(--white);
 }
 
 
 
 .auth-tab-content  {
 display: none;
+  padding: 22px 26px 26px;
 }
 
 
 
 .auth-tab-content.active  {
-display: block;
+display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+
+
+.form-field  {
+display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+
+
+#reg-driver-section  {
+display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 
@@ -830,7 +883,6 @@ display: block;
 position: relative;
   display: flex;
   align-items: center;
-  margin-bottom: 18px;
   width: 100%;
 }
 
@@ -838,11 +890,11 @@ position: relative;
 
 .password-input-group input  {
 width: 100%;
-  border: 1px solid #d1d5db;
-  border-radius: 16px;
-  padding: 14px 54px 14px 16px;
+  border: 1px solid #ecd3d3;
+  border-radius: 12px;
+  padding: 9px 54px 9px 14px;
   background: #fff;
-  color: #0f172a;
+  color: var(--text);
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
   font-size: 1rem;
   font-family: 'Inter', sans-serif;
@@ -970,6 +1022,18 @@ display: inline-flex;
   font-weight: 700;
 }
 
+.hero-badge span  {
+width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-gold);
+}
+
+.hero-copy h1 em  {
+font-style: normal;
+  color: var(--primary);
+}
+
 
 
 
@@ -999,9 +1063,6 @@ display: grid;
 
 
 
-.auth-grid  {
-grid-template-columns: 1fr;
-}
 
 
 
@@ -1061,18 +1122,18 @@ border-color: #22c55e !important;
 
 
 .password-feedback  {
-margin-top: 8px;
-  margin-bottom: 12px;
+display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 
 
 .strength-bar-container  {
-height: 8px;
-  background: #e5e7eb;
+height: 5px;
+  background: #f1e0e0;
   border-radius: 4px;
   overflow: hidden;
-  margin-bottom: 6px;
 }
 
 
@@ -1100,62 +1161,45 @@ font-size: 0.875rem;
   font-weight: 600;
   display: block;
   color: #374151;
-  margin-bottom: 6px;
 }
 
 
 
 .password-checklist  {
-background: #fef2f2;
-  border: 1px solid #fecaca;
-  border-radius: 8px;
-  padding: 14px 14px;
-  margin-bottom: 12px;
+margin-bottom: 12px;
   transition: all 0.3s ease;
 }
 
 
 
-.password-checklist.complete  {
-background: #f0fdf4;
-  border-color: #bbf7d0;
-}
-
-
-
 .password-checklist small  {
-display: block;
-  font-size: 0.85rem;
-  color: #7f1d1d;
-  margin: 8px 0;
+display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  color: var(--muted);
+  margin: 0;
   line-height: 1.5;
   transition: color 0.2s ease;
 }
 
 
 
-.password-checklist.complete small  {
-color: #166534;
+.password-checklist small:has(.check-item.valid)  {
+color: #1a7a3c;
 }
 
 
 
 .check-item  {
 display: inline-block;
-  width: 18px;
-  height: 18px;
-  text-align: center;
-  margin-right: 8px;
-  font-weight: 700;
-  font-size: 0.8rem;
-  color: #fca5a5;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  font-size: 0;
+  flex-shrink: 0;
   transition: all 0.2s ease;
-}
-
-
-
-.check-item.valid  {
-color: #16a34a;
 }
 
 
@@ -1778,74 +1822,16 @@ gap: 12px;
   padding: 24px 0 40px;
 }
 
-.auth-info-card,
-.auth-form-card {
-  padding: 24px 28px;
-}
-
-.auth-info-card ul {
-  margin-top: 12px;
-}
-
-.auth-info-card li {
-  margin-bottom: 6px;
-}
-
-.auth-tabs {
-  margin-bottom: 16px;
-}
-
-.auth-form label {
-  margin-bottom: 6px;
-}
-
-.auth-form input,
-.auth-form select {
-  margin-bottom: 12px;
-  padding: 11px 14px;
-}
-
-.password-input-group input {
-  padding: 11px 54px 11px 14px;
-}
-
-.password-feedback {
-  margin-top: 4px;
-  margin-bottom: 8px;
-}
-
-.password-checklist {
-  padding: 10px 12px;
-  margin-bottom: 8px;
-}
-
-.admin-login-note {
-  margin-top: 10px;
-}
 
 .error-msg {
   min-height: 14px;
-  margin-top: 3px;
 }
 
 .field-note {
   display: block;
   font-size: 0.85rem;
   color: #64748b;
-  margin: -12px 0 18px;
-}
-
-/* Stacked "landscape" layout: wide info banner on top, form below it, same full width */
-.auth-info-card ul {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px 28px;
-  list-style: none;
-  padding-left: 0;
-}
-
-.auth-info-card li {
-  margin-bottom: 0;
+  margin: 0;
 }
 
 .form-row-3 {
@@ -1866,11 +1852,10 @@ gap: 12px;
   }
 }
 
-/* Match the checklist to the wide, horizontal-row style of the info card's list */
 .password-checklist {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px 28px;
+  gap: 6px 12px;
 }
 
 .password-checklist small {
@@ -1983,10 +1968,10 @@ gap: 12px;
 .checkbox-field {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
-  margin: 4px 0 0;
-  font-size: 0.88rem;
-  color: #4b5563;
+  gap: 8px;
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--muted);
   line-height: 1.5;
   cursor: pointer;
 }
@@ -2001,8 +1986,17 @@ gap: 12px;
 
 .checkbox-field a {
   color: var(--primary);
-  font-weight: 600;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.checkbox-field a:hover {
   text-decoration: underline;
+}
+
+.checkbox-text-short {
+  display: none;
 }
 
 .otp-code-input {
@@ -2037,3 +2031,64 @@ gap: 12px;
   cursor: pointer;
 }
 
+@media (max-width: 720px) {
+  .auth-grid {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+
+  .auth-info-card {
+    position: static;
+    padding: 24px 20px;
+  }
+
+  .auth-tabs {
+    margin: 18px 18px 0;
+  }
+
+  .auth-tab-content {
+    padding: 18px 20px 22px;
+  }
+
+  .checkbox-text-full {
+    display: none;
+  }
+
+  .checkbox-text-short {
+    display: inline;
+  }
+}
+
+/* Belt-and-suspenders reset: several older per-element margins in this
+   file (checklist, admin-note, etc.) kept leaking extra space on top of
+   the .auth-tab-content.active / .form-field flex `gap`, causing uneven
+   spacing between field groups. Zeroing margin on every direct child of
+   these two flex containers guarantees `gap` is the only thing that can
+   ever space them, regardless of what any other rule in this file sets —
+   the `> *` compound selector's specificity (0,2,0 / 0,1,0) wins over any
+   single-class rule wherever it appears in the cascade. */
+.auth-tab-content.active > * {
+  margin: 0;
+}
+
+.form-field > * {
+  margin: 0;
+}
+
+
+/* Small, de-emphasized fallback link for a real (non-technical) admin who
+   loses their bookmark to admin.html — deliberately NOT styled like the
+   real Quick Links above it, so it doesn't read as another public option. */
+.footer-staff-link {
+  margin: 4px 0 0;
+}
+.footer-staff-link a {
+  font-size: 0.75rem;
+  color: var(--muted);
+  opacity: 0.7;
+  text-decoration: none;
+}
+.footer-staff-link a:hover {
+  opacity: 1;
+  text-decoration: underline;
+}

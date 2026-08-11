@@ -7,214 +7,278 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="../css/admin.css?v=32">
+  <link rel="stylesheet" href="../css/admin.css?v=36">
 </head>
-<body data-page="admin">
-  <header>
-    <div class="site-shell navbar">
-      <a class="brand" href="index.html"><svg class="brand-icon" viewBox="0 0 160 190" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M80 186 C50 146 22 112 22 76 C22 39 47 12 80 12 C113 12 138 39 138 76 C138 112 110 146 80 186 Z" fill="currentColor"/></svg><span class="brand-text"><span class="brand-word">Go<span class="brand-accent">TSU</span>ian</span><small>Your Ride, Our Priority</small></span></a>
-      <nav class="nav-links">
-        <a href="#" class="nav-drawer-profile">
-          <span class="nav-drawer-avatar"></span>
-          <div class="nav-drawer-user">
-            <strong class="nav-drawer-name"></strong>
-            <small class="nav-drawer-role"></small>
-          </div>
-        </a>
-        <a href="index.html" data-page="home"><svg class="nav-row-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 10L10 4.5L16.5 10"/><path d="M5.5 8.5V16H14.5V8.5"/></svg><span>Home</span></a>
-        <a href="booking.html" data-page="booking"><svg class="nav-row-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.5" width="14" height="12" rx="2"/><path d="M3 8.5H17M7 3V6M13 3V6"/></svg><span>Booking</span></a>
-        <a href="passenger.html" data-page="passenger" class="hidden"><svg class="nav-row-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 11V6.5C6 5.1 7.1 4 8.5 4H11.5C12.9 4 14 5.1 14 6.5V11"/><rect x="4.5" y="11" width="11" height="4" rx="1.5"/><path d="M6 15V17M14 15V17"/></svg><span>Booking</span></a>
-        <a href="driver.html" data-page="driver"><svg class="nav-row-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="6.5"/><circle cx="10" cy="10" r="1.8"/><path d="M10 3.5V8.2M5 14L8.6 11.4M15 14L11.4 11.4"/></svg><span>Booking</span></a>
-        <a href="admin.html" data-page="admin"><svg class="nav-row-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 2.5L16.5 5.2V9C16.5 13 13.7 16.3 10 17.5C6.3 16.3 3.5 13 3.5 9V5.2L10 2.5Z"/><path d="M7.2 10L9.2 12L12.8 8"/></svg><span>Admin</span></a>
-        <a href="auth.html" data-page="auth"><svg class="nav-row-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.5 4V2.7C12.5 2.3 12.1 2 11.7 2H3.8C3.3 2 3 2.3 3 2.7V17.3C3 17.7 3.3 18 3.8 18H11.7C12.1 18 12.5 17.7 12.5 17.3V16"/><path d="M8 10H17.5M14.5 6.8L17.7 10L14.5 13.2"/></svg><span>Login</span></a>
-        <button type="button" class="nav-row-logout hidden" data-action="logout"><svg class="nav-row-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.5 4V2.7C12.5 2.3 12.1 2 11.7 2H3.8C3.3 2 3 2.3 3 2.7V17.3C3 17.7 3.3 18 3.8 18H11.7C12.1 18 12.5 17.7 12.5 17.3V16"/><path d="M8 10H17.5M14.5 6.8L17.7 10L14.5 13.2"/></svg><span>Logout</span></button>
-      </nav>
-      <div class="nav-cta">
-        <button data-action="logout">Logout</button>
-      </div>
-      <button class="nav-toggle" aria-label="Open navigation"><span></span><span class="nav-toggle-avatar"></span></button>
+<body data-page="admin" class="admin-portal">
+
+  <!-- Deliberately NOT the shared site nav — the admin portal is kept
+       visually separate from the public passenger/driver interface. Only
+       what an admin actually needs (brand mark, who they are, logout). -->
+  <header class="admin-topbar">
+    <div class="admin-logo">
+      <svg viewBox="0 0 160 190" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M80 186 C50 146 22 112 22 76 C22 39 47 12 80 12 C113 12 138 39 138 76 C138 112 110 146 80 186 Z" fill="currentColor"/></svg>
+      <span>GoTSUian<small>Your Ride, Our Priority</small></span>
     </div>
+    <span class="admin-chip admin-only hidden">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6l7-3z"/></svg>
+      Admin
+    </span>
+    <button type="button" class="admin-logout-btn admin-only hidden" data-action="logout">Logout</button>
   </header>
 
-  <main class="site-shell dashboard-page">
-    <section class="hero hero-simple admin-hero">
-      <div class="hero-copy">
-        <span class="hero-badge"><span></span> Admin Panel</span>
-        <h1>Welcome, <span data-dashboard-welcome>Admin</span></h1>
-        <p>Monitor rides, manage passenger and driver accounts, and keep campus transport running smoothly.</p>
-      </div>
-    </section>
+  <main>
+    <section id="admin-login-section" class="admin-login-wrap">
+      <div class="admin-login-card">
+        <div class="admin-login-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6l7-3z"/><path d="M9.2 12l2 2 3.6-4"/></svg>
+        </div>
+        <h1>Admin Login</h1>
+        <p>Enter your name and password to open the dashboard.</p>
 
-    <section id="admin-login-section" class="section section-card admin-login-section">
-      <div class="section-intro">
-        <h2>Admin login</h2>
-        <p class="lead">Enter your name and password to open the admin dashboard for monitoring and management.</p>
-      </div>
-      <div class="auth-form-card admin-login-card">
-        <form id="admin-login-form" class="auth-form">
-          <label for="admin-name">Name</label>
-          <input type="text" id="admin-name" name="admin-name" placeholder="Admin Name" required>
-
-          <label for="admin-password">Password</label>
-          <div class="password-input-group">
+        <form id="admin-login-form">
+          <div class="admin-field">
+            <label for="admin-name">Your name</label>
+            <input type="text" id="admin-name" name="admin-name" placeholder="e.g. Rica Flores" required>
+          </div>
+          <div class="admin-field">
+            <label for="admin-password">Password</label>
             <input type="password" id="admin-password" name="admin-password" placeholder="Enter your password" required>
           </div>
-
-          <button type="submit" class="btn-primary">Go to admin dashboard</button>
+          <button type="submit" class="admin-btn-primary">Sign In</button>
           <small class="error-msg" id="admin-login-error"></small>
         </form>
+
+        <div class="admin-login-footnote">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6l7-3z"/></svg>
+          <span>This page is only for GoTSUian administrators. If you're a student or driver, please use the regular sign-in page instead.</span>
+        </div>
       </div>
     </section>
 
-    <section id="admin-dashboard-section" class="section admin-dashboard-section hidden">
-      <div class="dashboard-grid">
-        <a href="#bookings-panel" class="dashboard-card dashboard-card-link">
-          <h3>Total bookings</h3>
-          <p id="admin-stat-bookings">0</p>
+    <section id="admin-dashboard-section" class="admin-dash hidden">
+      <div class="admin-welcome">
+        <h1>Welcome, <span data-dashboard-welcome>Admin</span></h1>
+        <p>Here's what's happening across GoTSUian right now.</p>
+      </div>
+
+      <div class="admin-stat-grid">
+        <a class="admin-stat-card" href="#bookings-panel">
+          <div class="admin-stat-icon tone-info">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="15" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>
+          </div>
+          <div class="num" id="admin-stat-bookings">0</div>
+          <div class="lbl">Total bookings</div>
+          <span class="admin-stat-goto">View all bookings <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 5l5 5-5 5"/></svg></span>
         </a>
-        <a href="#driver-management-panel" class="dashboard-card dashboard-card-link">
-          <h3>Registered drivers</h3>
-          <p id="admin-stat-drivers">0</p>
+        <a class="admin-stat-card" href="#driver-management-panel">
+          <div class="admin-stat-icon tone-success">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/><path d="M12 3.5V6M12 18v2.5M3.5 12H6M18 12h2.5"/></svg>
+          </div>
+          <div class="num" id="admin-stat-drivers">0</div>
+          <div class="lbl">Registered drivers</div>
+          <span class="admin-stat-goto">Manage drivers <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 5l5 5-5 5"/></svg></span>
         </a>
-        <a href="#passenger-management-panel" class="dashboard-card dashboard-card-link">
-          <h3>Active passengers</h3>
-          <p id="admin-stat-passengers">0</p>
+        <a class="admin-stat-card" href="#passenger-management-panel">
+          <div class="admin-stat-icon tone-gold">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c1-3.6 3.4-5.5 5.5-5.5s4.5 1.9 5.5 5.5"/><circle cx="17" cy="8.5" r="2.4"/><path d="M15.5 13.3c1.8.2 3.5 1.8 4.3 5"/></svg>
+          </div>
+          <div class="num" id="admin-stat-passengers">0</div>
+          <div class="lbl">Active passengers</div>
+          <span class="admin-stat-goto">View passengers <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 5l5 5-5 5"/></svg></span>
         </a>
-        <a href="#bookings-panel" class="dashboard-card dashboard-card-link">
-          <h3>Pending requests</h3>
-          <p id="admin-stat-pending">0</p>
+        <a class="admin-stat-card" href="#bookings-panel">
+          <div class="admin-stat-icon tone-warning">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.2 2"/></svg>
+          </div>
+          <div class="num" id="admin-stat-pending">0</div>
+          <div class="lbl">Pending requests</div>
+          <span class="admin-stat-goto">View bookings <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 5l5 5-5 5"/></svg></span>
         </a>
       </div>
 
-      <div class="dashboard-details">
-        <div class="dashboard-panel" id="driver-management-panel">
-          <h2>Driver management</h2>
-          <p>Review, approve, and monitor active drivers in the system. Update driver status or remove accounts when needed.</p>
-          <div class="table-card">
-            <table>
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Contact number</th>
-                  <th>License</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody id="admin-drivers-tbody">
+      <div class="admin-panel" id="driver-management-panel">
+        <div class="admin-panel-head">
+          <div class="admin-panel-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/><path d="M12 3.5V6M12 18v2.5M3.5 12H6M18 12h2.5"/></svg>
+          </div>
+          <div class="admin-panel-head-text">
+            <h2>Driver management</h2>
+            <p>Approve new drivers, or review ones already active.</p>
+          </div>
+          <button type="button" class="admin-panel-toggle" aria-expanded="true" aria-label="Collapse this section">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7.5L10 12.5L15 7.5"/></svg>
+          </button>
+          <div class="accept-all-zone">
+            <div class="accept-all-wrap">
+              <button type="button" class="admin-btn accept-all-btn tone-success">
+                Accept All Pending <span class="accept-all-count"></span>
+              </button>
+            </div>
+            <div class="accept-all-confirm">
+              <span class="msg">Approve all without checking each license first?</span>
+              <button type="button" class="admin-btn accept-all-yes tone-success">Yes, approve all</button>
+              <button type="button" class="admin-btn accept-all-cancel">Cancel</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="admin-panel-body">
+          <div class="admin-table-scroll">
+            <table class="admin-table">
+              <thead><tr><th>Driver</th><th>Contact number</th><th>License</th><th>Status</th><th>Actions</th></tr></thead>
+              <tbody id="admin-drivers-tbody" class="driver-rows">
                 <tr><td colspan="5">Loading drivers...</td></tr>
               </tbody>
             </table>
           </div>
-
+          <div class="admin-mobile-list driver-rows" id="admin-drivers-mobile">
+            <p class="admin-mcard-empty">Loading drivers...</p>
+          </div>
         </div>
-        <div class="dashboard-panel" id="passenger-management-panel">
-          <h2>Passenger management</h2>
-          <p>Monitor students and how often they've booked a ride.</p>
-          <div class="table-card">
-            <table>
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Rides booked</th>
-                  <th>Last booking</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
+      </div>
+
+      <div class="admin-panel is-collapsed" id="passenger-management-panel">
+        <div class="admin-panel-head">
+          <div class="admin-panel-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c1-3.6 3.4-5.5 5.5-5.5s4.5 1.9 5.5 5.5"/></svg>
+          </div>
+          <div class="admin-panel-head-text">
+            <h2>Passenger management</h2>
+            <p>Monitor students and how often they've booked a ride.</p>
+          </div>
+          <button type="button" class="admin-panel-toggle" aria-expanded="false" aria-label="Expand this section">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7.5L10 12.5L15 7.5"/></svg>
+          </button>
+        </div>
+
+        <div class="admin-panel-body">
+          <div class="admin-table-scroll">
+            <table class="admin-table">
+              <thead><tr><th>Name</th><th>Rides booked</th><th>Last booking</th><th>Status</th><th>Actions</th></tr></thead>
               <tbody id="admin-passengers-tbody">
                 <tr><td colspan="5">Loading passengers...</td></tr>
               </tbody>
             </table>
           </div>
+          <div class="admin-mobile-list" id="admin-passengers-mobile">
+            <p class="admin-mcard-empty">Loading passengers...</p>
+          </div>
         </div>
       </div>
 
-      <div class="dashboard-panel" id="bookings-panel">
-        <h2>All bookings</h2>
-        <p>Every ride ever requested, most recent first.</p>
-        <div class="table-card">
-          <table>
-            <thead>
-              <tr>
-                <th>Passenger</th>
-                <th>Driver</th>
-                <th>Route</th>
-                <th>Type</th>
-                <th>Fare</th>
-                <th>Status</th>
-                <th>Requested</th>
-              </tr>
-            </thead>
-            <tbody id="admin-bookings-tbody">
-              <tr><td colspan="7">Loading bookings...</td></tr>
-            </tbody>
-          </table>
+      <div class="admin-panel is-collapsed" id="bookings-panel">
+        <div class="admin-panel-head">
+          <div class="admin-panel-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="15" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>
+          </div>
+          <div class="admin-panel-head-text">
+            <h2>All bookings</h2>
+            <p>Every ride ever requested, most recent first.</p>
+          </div>
+          <button type="button" class="admin-panel-toggle" aria-expanded="false" aria-label="Expand this section">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7.5L10 12.5L15 7.5"/></svg>
+          </button>
+        </div>
+
+        <div class="admin-panel-body">
+          <div class="admin-table-scroll">
+            <table class="admin-table">
+              <thead><tr><th>Passenger</th><th>Driver</th><th>Route</th><th>Type</th><th>Fare</th><th>Status</th><th>Requested</th></tr></thead>
+              <tbody id="admin-bookings-tbody">
+                <tr><td colspan="7">Loading bookings...</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="admin-mobile-list" id="admin-bookings-mobile">
+            <p class="admin-mcard-empty">Loading bookings...</p>
+          </div>
         </div>
       </div>
 
-      <div class="dashboard-panel" id="complaints-panel">
-        <h2>Complaints</h2>
-        <p>Reports filed by passengers and drivers against each other. Review and resolve, optionally issuing a warning or violation.</p>
-        <div class="table-card">
-          <table>
-            <thead>
-              <tr>
-                <th>Filed by</th>
-                <th>Against</th>
-                <th>Category</th>
-                <th>Route</th>
-                <th>Status</th>
-                <th>Filed</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="admin-complaints-tbody">
-              <tr><td colspan="7">Loading complaints...</td></tr>
-            </tbody>
-          </table>
+      <div class="admin-panel is-collapsed" id="complaints-panel">
+        <div class="admin-panel-head">
+          <div class="admin-panel-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><circle cx="12" cy="16.2" r="0.4" fill="currentColor"/><path d="M10.3 4.3 2.7 18a1.6 1.6 0 0 0 1.4 2.4h15.8a1.6 1.6 0 0 0 1.4-2.4L13.7 4.3a1.6 1.6 0 0 0-2.8 0z"/></svg>
+          </div>
+          <div class="admin-panel-head-text">
+            <h2>Complaints</h2>
+            <p>Reports filed by passengers and drivers against each other. Review and resolve, optionally issuing a warning or violation.</p>
+          </div>
+          <button type="button" class="admin-panel-toggle" aria-expanded="false" aria-label="Expand this section">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7.5L10 12.5L15 7.5"/></svg>
+          </button>
+        </div>
+
+        <div class="admin-panel-body">
+          <div class="admin-table-scroll">
+            <table class="admin-table">
+              <thead><tr><th>Filed by</th><th>Against</th><th>Category</th><th>Route</th><th>Status</th><th>Filed</th><th>Actions</th></tr></thead>
+              <tbody id="admin-complaints-tbody">
+                <tr><td colspan="7">Loading complaints...</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="admin-mobile-list" id="admin-complaints-mobile">
+            <p class="admin-mcard-empty">Loading complaints...</p>
+          </div>
         </div>
       </div>
     </section>
   </main>
 
-  <div id="violation-modal" class="violation-modal-overlay hidden">
-    <div class="violation-modal-content">
-      <h3 id="violation-modal-title">Issue Warning / Violation</h3>
-      <p id="violation-modal-target"></p>
-      <div class="form-field">
-        <label for="violation-severity">Severity</label>
-        <select id="violation-severity">
-          <option value="Warning">Warning</option>
-          <option value="Violation">Violation</option>
-        </select>
+  <!-- License review modal -->
+  <div id="license-modal" class="admin-modal-overlay hidden">
+    <div class="admin-modal">
+      <div class="admin-modal-head">
+        <div>
+          <h3 id="license-modal-name">Driver's license</h3>
+          <p>Check the file matches the name and license number before approving.</p>
+        </div>
+        <button type="button" class="admin-modal-close" data-close-license-modal><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 5l14 14M19 5L5 19"/></svg></button>
       </div>
-      <div class="form-field">
-        <label for="violation-reason">Reason</label>
-        <textarea id="violation-reason" rows="3" placeholder="Explain why this is being issued..."></textarea>
-      </div>
-      <small class="error-msg" id="violation-modal-error"></small>
-      <div class="driver-card-actions">
-        <button type="button" class="btn-primary" id="violation-modal-submit">Issue</button>
-        <button type="button" class="btn-secondary-outline" id="violation-modal-cancel">Cancel</button>
+      <div class="admin-modal-body">
+        <div class="admin-license-preview" id="license-modal-preview">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="11" r="2"/><path d="M6 16c.5-1.6 1.6-2.5 2.5-2.5s2 .9 2.5 2.5M14 9.5h5M14 12.5h5M14 15.5h3"/></svg>
+          <strong>Loading file…</strong>
+          <small id="license-modal-hint">Uploaded at registration</small>
+        </div>
+        <small class="error-msg" id="license-modal-error"></small>
+        <div class="admin-modal-actions" id="license-modal-actions"></div>
       </div>
     </div>
   </div>
 
-  <footer class="site-shell footer">
-    <div class="footer-grid">
-      <div>
-        <h3>GoTSUian</h3>
-        <p>Built for TSU San Isidro students who need fast campus rides, real-time booking, and trusted drivers.</p>
-        <p class="footer-note">© 2026 GoTSUian. Designed for student mobility.</p>
+  <!-- Issue Warning / Violation modal (complaint review + driver/passenger table "Issue Warning") -->
+  <div id="violation-modal" class="admin-modal-overlay hidden">
+    <div class="admin-modal">
+      <div class="admin-modal-head">
+        <div>
+          <h3 id="violation-modal-title">Issue Warning / Violation</h3>
+          <p id="violation-modal-target">Against: this account</p>
+        </div>
+        <button type="button" class="admin-modal-close" id="violation-modal-cancel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 5l14 14M19 5L5 19"/></svg></button>
       </div>
-      <div>
-        <h4>Quick Links</h4>
-        <p><a href="index.html">Home</a> · <a href="booking.html">Booking</a> · <a href="rules.html">Rules</a> · <a href="auth.html">Login</a></p>
+      <div class="admin-modal-body">
+        <div class="admin-field">
+          <label>Does this need action?</label>
+          <div class="admin-severity-choice">
+            <button type="button" class="admin-severity-btn warn is-selected" data-severity="Warning">⚠ Give a Warning</button>
+            <button type="button" class="admin-severity-btn viol" data-severity="Violation">✕ Serious Violation</button>
+          </div>
+        </div>
+        <div class="admin-field" style="margin-top:16px;">
+          <label for="violation-reason">Reason (the account will see this)</label>
+          <textarea id="violation-reason" rows="3" placeholder="Explain why this is being issued..."></textarea>
+        </div>
+        <small class="error-msg" id="violation-modal-error"></small>
+        <div class="admin-modal-actions">
+          <button type="button" class="admin-btn-primary" id="violation-modal-submit">Issue</button>
+        </div>
       </div>
     </div>
-  </footer>
+  </div>
 
-  <script src="../js/app.js?v=67"></script>
+  <script src="http://localhost:3000/socket.io/socket.io.js"></script>
+  <script src="../js/app.js?v=90"></script>
 </body>
 </html>

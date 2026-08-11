@@ -669,6 +669,13 @@ display: inline-flex;
   font-weight: 700;
 }
 
+.hero-badge span  {
+width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-gold);
+}
+
 
 
 
@@ -1284,13 +1291,93 @@ gap: 12px;
   max-width: 760px;
 }
 
+@media (min-width: 641px) {
+  .hero.hero-simple {
+    display: block;
+    grid-template-columns: 1fr;
+    text-align: center;
+    padding: 40px 0 8px;
+  }
+
+  .hero.hero-simple .hero-copy {
+    max-width: none;
+    margin: 0;
+  }
+
+  .hero.hero-simple .hero-badge {
+    background: var(--white);
+    box-shadow: 0 6px 16px -8px rgba(61,20,20,0.18);
+    padding: 7px 16px 7px 10px;
+    font-size: 0.76rem;
+    margin-bottom: 16px;
+  }
+
+  .hero.hero-simple .hero-copy h1 {
+    font-size: 1.9rem;
+    line-height: 1.2;
+    color: var(--text);
+    max-width: 560px;
+    margin: 0 auto 12px;
+  }
+
+  .hero.hero-simple .hero-copy p {
+    font-size: 0.96rem;
+    line-height: 1.6;
+    color: var(--muted);
+    max-width: 520px;
+    margin: 0 auto;
+  }
+}
+
+@media (min-width: 641px) {
+  .section {
+    padding: 28px 0;
+  }
+}
+
+.rules-section-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.rules-section-head .section-intro {
+  margin: 0;
+  max-width: none;
+  text-align: left;
+}
+
+.rules-section-head .section-intro h2 {
+  font-size: 1.25rem;
+  margin: 0 0 3px;
+}
+
+.rules-section-head .section-intro p {
+  margin: 0;
+  font-size: 0.86rem;
+}
+
+.rules-section-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 13px;
+  background: var(--white);
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 8px 20px -10px rgba(61,20,20,0.25);
+}
+
 .rules-table-card {
   background: var(--white);
-  border-radius: 24px;
-  border: 1px solid rgba(27, 94, 32, 0.08);
-  box-shadow: var(--shadow);
+  border-radius: 20px;
+  border: 1px solid #ecd3d3;
+  box-shadow: 0 16px 40px -18px rgba(61,20,20,0.16);
   overflow-x: auto;
-  margin-top: 24px;
+  margin-top: 0;
 }
 
 .rules-table-card table {
@@ -1302,39 +1389,247 @@ gap: 12px;
 .rules-table-card th,
 .rules-table-card td {
   text-align: left;
-  padding: 14px 18px;
-  border-bottom: 1px solid var(--light);
   vertical-align: top;
 }
 
+.rules-table-card td {
+  padding: 16px 20px;
+  border-bottom: 1px solid #f5e3e3;
+}
+
 .rules-table-card th {
-  color: var(--primary);
+  padding: 14px 20px;
+  border-bottom: 1px solid #ecd3d3;
+  color: var(--muted);
   font-family: 'Poppins', sans-serif;
-  font-size: 0.9rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-weight: 700;
+  background: var(--light);
+}
+
+.rules-table-card th:first-child,
+.rules-table-card td:first-child {
+  font-weight: 700;
+  color: var(--text);
+  width: 24%;
+}
+
+.rules-table-card th:nth-child(2),
+.rules-table-card td:nth-child(2) {
+  width: 14%;
+}
+
+.rules-table-card td:last-child {
+  color: var(--muted);
 }
 
 .rules-table-card tr:last-child td {
   border-bottom: none;
 }
 
+.rules-table-card tbody tr {
+  transition: background 0.15s ease;
+}
+
+.rules-table-card tbody tr:hover {
+  background: var(--light);
+}
+
 .rules-severity {
-  display: inline-block;
-  padding: 0.25rem 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
   border-radius: 999px;
   font-weight: 700;
-  font-size: 0.8rem;
+  font-size: 0.74rem;
   white-space: nowrap;
 }
 
-.rules-severity.tone-warning { background: #fef3c7; color: #92400e; }
-.rules-severity.tone-violation { background: #fee2e2; color: #991b1b; }
-
-.rules-note {
-  margin-top: 24px;
-  padding: 20px 24px;
-  border-radius: 20px;
-  background: #fdf0ed;
-  color: #4b5563;
-  line-height: 1.7;
+.rules-severity::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
 }
 
+.rules-severity.tone-warning { background: rgba(107,29,29,0.08); color: var(--muted); }
+.rules-severity.tone-violation { background: rgba(127,29,29,0.1); color: var(--primary); }
+
+.rules-note {
+  margin-top: 0;
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 20px 22px;
+  border-radius: 18px;
+  background: var(--white);
+  border: 1px solid #ecd3d3;
+  box-shadow: 0 12px 30px -16px rgba(61,20,20,0.16);
+  color: #4b5563;
+  line-height: 1.7;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.rules-note:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 36px -16px rgba(61,20,20,0.24);
+}
+
+.rules-note-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--light);
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.rules-note strong {
+  color: var(--text);
+}
+
+.rules-note p {
+  margin: 4px 0 0;
+  font-size: 0.86rem;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+/* Mobile-only card-grid alternative to the table — hidden on desktop,
+   swapped in at <=640px instead of squeezing the table. Desktop keeps
+   the table exactly as implemented; this doesn't touch it. */
+.rules-legend {
+  display: none;
+}
+
+.rules-card-grid {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .rules-table-card {
+    display: none;
+  }
+
+  .rules-legend {
+    display: inline-flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 20px;
+  }
+
+  .rules-legend-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.76rem;
+    font-weight: 700;
+    padding: 6px 12px;
+    border-radius: 999px;
+  }
+
+  .rules-legend-chip::before {
+    content: '';
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  .rules-legend-chip.warning { background: rgba(107,29,29,0.06); color: var(--muted); }
+  .rules-legend-chip.violation { background: rgba(127,29,29,0.1); color: var(--primary); }
+
+  .rules-card-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .rules-card {
+    border-radius: 16px;
+    padding: 18px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: var(--white);
+    border: 1px solid #ecd3d3;
+    box-shadow: 0 10px 26px -16px rgba(61,20,20,0.14);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .rules-card:active {
+    transform: scale(0.98);
+    box-shadow: 0 4px 12px -8px rgba(61,20,20,0.16);
+  }
+
+  .rules-card-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .rules-card-top strong {
+    font-size: 0.92rem;
+    color: var(--text);
+    line-height: 1.35;
+  }
+
+  .rules-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    padding: 4px 9px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+
+  .rules-tag::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  .rules-tag.warning { background: rgba(107,29,29,0.08); color: var(--muted); }
+  .rules-tag.violation { background: rgba(127,29,29,0.16); color: #5c1414; }
+
+  .rules-card p {
+    margin: 0;
+    font-size: 0.83rem;
+    color: var(--muted);
+    line-height: 1.55;
+  }
+}
+
+
+/* Small, de-emphasized fallback link for a real (non-technical) admin who
+   loses their bookmark to admin.html — deliberately NOT styled like the
+   real Quick Links above it, so it doesn't read as another public option. */
+.footer-staff-link {
+  margin: 4px 0 0;
+}
+.footer-staff-link a {
+  font-size: 0.75rem;
+  color: var(--muted);
+  opacity: 0.7;
+  text-decoration: none;
+}
+.footer-staff-link a:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
