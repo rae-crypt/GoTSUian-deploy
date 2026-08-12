@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="../css/how-it-works.css?v=36">
+  <link rel="stylesheet" href="../css/how-it-works.css?v=40">
 </head>
 <body data-page="how-it-works">
   <header>
@@ -150,8 +150,7 @@
       <h2>Ready to ride?</h2>
       <p>Join the TSU students already using GoTSUian every day.</p>
       <div class="how-cta-actions">
-        <a class="how-btn-primary" href="booking.html">Book Your Ride</a>
-        <a class="how-btn-secondary" href="auth.html">Create Account</a>
+        <a class="how-btn-primary" href="auth.html">Book Your Ride</a>
       </div>
     </section>
   </main>
@@ -159,19 +158,27 @@
   <footer class="site-shell footer">
     <div class="footer-grid">
       <div>
-        <h3>GoTSUian</h3>
+        <div class="footer-brand"><svg viewBox="0 0 160 190" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M80 186 C50 146 22 112 22 76 C22 39 47 12 80 12 C113 12 138 39 138 76 C138 112 110 146 80 186 Z" fill="currentColor"/></svg><h3>GoTSUian</h3></div>
         <p>Built for TSU San Isidro students who need fast campus rides, real-time booking, and trusted drivers.</p>
         <p class="footer-note">© 2026 GoTSUian. Designed for student mobility.</p>
       </div>
       <div>
         <h4>Quick Links</h4>
-        <p><a href="index.html">Home</a> · <a href="booking.html">Booking</a> · <a href="rules.html">Rules</a> · <a href="auth.html">Login</a></p>
+        <div class="footer-links">
+          <a href="index.html"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 10L10 4.5L16.5 10"/><path d="M5.5 8.5V16H14.5V8.5"/></svg>Home</a>
+          <a href="rules.html"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="7"/><path d="M7.3 10.2l1.8 1.8L13 8"/></svg>Rules</a>
+          <a href="auth.html"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.5 4V2.7C12.5 2.3 12.1 2 11.7 2H3.8C3.3 2 3 2.3 3 2.7V17.3C3 17.7 3.3 18 3.8 18H11.7C12.1 18 12.5 17.7 12.5 17.3V16"/><path d="M8 10H17.5M14.5 6.8L17.7 10L14.5 13.2"/></svg>Login</a>
+        </div>
         <p class="footer-staff-link"><a href="admin.html">Admin Login</a></p>
       </div>
     </div>
+    <div class="footer-bottom">
+      <span>TSU San Isidro Campus</span>
+      <span>Made for student mobility</span>
+    </div>
   </footer>
 
-  <script src="http://localhost:3000/socket.io/socket.io.js"></script>
-  <script src="../js/app.js?v=90"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="../js/app.js?v=94"></script>
 </body>
 </html>

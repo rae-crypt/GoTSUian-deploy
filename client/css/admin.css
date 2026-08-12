@@ -2131,3 +2131,173 @@ table.admin-table tbody tr:hover { background: var(--light); }
   to { transform: translateY(0) scale(1); opacity: 1; }
 }
 
+
+/* =======================================================================
+   Logout confirmation popup — dim+blur overlay with a centered, icon-led
+   card (not the header+left-align layout used by .confirm-modal, since
+   logging out isn't a destructive action and shouldn't look like one).
+   Wired up from every [data-action="logout"] button across the app via
+   showLogoutConfirm() in app.js.
+======================================================================= */
+.logout-confirm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(20, 10, 10, 0.46);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.logout-confirm-card {
+  width: min(380px, 100%);
+  background: var(--white);
+  border-radius: 20px;
+  box-shadow: 0 24px 60px -16px rgba(127, 29, 29, 0.32);
+  padding: 28px 26px 22px;
+  text-align: center;
+  animation: logout-confirm-pop 0.22s cubic-bezier(.2, .9, .3, 1.2);
+}
+
+@keyframes logout-confirm-pop {
+  from { opacity: 0; transform: translateY(8px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.logout-confirm-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+}
+
+.logout-confirm-icon svg {
+  width: 24px;
+  height: 24px;
+  color: var(--primary);
+}
+
+.logout-confirm-card h3 {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--text);
+  margin: 0 0 8px;
+}
+
+.logout-confirm-card p {
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--muted);
+  margin: 0 0 22px;
+  max-width: 300px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.logout-confirm-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.logout-confirm-actions button {
+  flex: 1;
+  border-radius: 12px;
+  padding: 11px 14px;
+  font-family: 'Inter', sans-serif;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: filter 0.15s, background 0.15s;
+}
+
+.logout-cancel-btn {
+  background: var(--white);
+  color: var(--text);
+  border: 1.5px solid #e7d5d5;
+}
+
+.logout-cancel-btn:hover {
+  background: #fbf3f3;
+}
+
+.logout-confirm-btn {
+  background: var(--primary);
+  color: #fff8f6;
+  border: none;
+  box-shadow: 0 10px 22px -10px rgba(127, 29, 29, 0.55);
+}
+
+.logout-confirm-btn:hover {
+  filter: brightness(1.08);
+}
+
+@media (max-width: 480px) {
+  .logout-confirm-card {
+    padding: 24px 20px 20px;
+  }
+}
+
+/* Footer redesign — maroon brand gradient instead of the generic gray/
+   white default, matching the reviewed mockup. Same treatment already
+   applied on the home page; this brings every other page in line. */
+.footer {
+  background: linear-gradient(135deg, var(--primary) 0%, #5c1414 100%);
+  border-top: none;
+  padding: 48px 32px 26px;
+  border-radius: 28px 28px 0 0;
+  color: #f6d9c9;
+}
+
+.footer h3,
+.footer h4 {
+  font-family: 'Poppins', sans-serif;
+  color: #fff8f6;
+}
+
+.footer p {
+  color: #f6d9c9;
+}
+
+.footer a {
+  color: #fbe4e0;
+}
+
+.footer a:hover {
+  color: var(--accent-gold);
+}
+
+.footer-note {
+  color: rgba(246, 217, 201, 0.7);
+}
+
+.footer-staff-link a {
+  color: rgba(246, 217, 201, 0.5);
+}
+
+@media (max-width: 640px) {
+  .footer {
+    padding: 38px 20px 22px;
+    border-radius: 22px 22px 0 0;
+  }
+
+  .footer .footer-grid {
+    grid-template-columns: 1fr;
+    gap: 26px;
+  }
+}
+
+/* Defensive safety net: guarantees no page-level horizontal scroll on
+   narrow phones regardless of any single component's width quirks.
+   Nested overflow-x:auto containers (e.g. wide tables) are unaffected —
+   they scroll internally within their own box, this only stops the whole
+   PAGE from scrolling sideways. */
+body {
+  overflow-x: hidden;
+}
