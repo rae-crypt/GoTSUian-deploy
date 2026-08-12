@@ -1,0 +1,10 @@
+{
+  "name": "gotsuian",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Root package.json so hosting platforms (Railway) auto-detect this as a Node.js project and can install/run the app inside server/, while still deploying the full repo (server/ + client/ are siblings, so client/ must be included).",
+  "scripts": {
+    "install": "npm install --prefix server",
+    "start": "node server/app.js"
+  }
+}

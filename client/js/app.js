@@ -1834,6 +1834,16 @@ function escapeHtml(value) {
     .replace(/'/g, '&#39;');
 }
 
+// Masks the local part of an email for display (e.g. in the OTP modal) —
+// "gavjvorzki@gmail.com" -> "g*********@gmail.com". Keeps the first
+// character so the user can still recognize their own address.
+function maskEmail(email) {
+  const [local, domain] = String(email).split('@');
+  if (!local || !domain) return email;
+  const masked = local[0] + '*'.repeat(Math.max(local.length - 1, 1));
+  return `${masked}@${domain}`;
+}
+
 // The only two pickup/dropoff points in this system are the full campus
 // names ("San Isidro Campus (Tarlac State University)", "Main Campus
 // (Tarlac State University)") — too long for a route line, so shorten to
@@ -4179,7 +4189,7 @@ function setupAuthForm() {
           try {
             await sendRegistrationOtp(email);
             otpSent = true;
-            if (otpModalEmail) otpModalEmail.textContent = email;
+            if (otpModalEmail) otpModalEmail.textContent = maskEmail(email);
             if (otpStatusEl) otpStatusEl.textContent = '';
             if (otpModal) otpModal.classList.remove('hidden');
           } catch (error) {

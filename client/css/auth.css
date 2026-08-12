@@ -2332,3 +2332,25 @@ body {
     gap: 6px;
   }
 }
+
+/* OTP verification modal — single wide code field, plain instructional
+   copy (mentions checking spam), full-width Verify button. */
+.otp-instructions {
+  text-align: left;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.6;
+  margin: 0 0 4px;
+}
+
+.otp-instructions strong {
+  color: var(--text);
+}
+
+.otp-modal-actions {
+  justify-content: stretch;
+}
+
+.otp-verify-btn {
+  width: 100%;
+}
