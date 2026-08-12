@@ -2079,3 +2079,315 @@ display: none !important;
   opacity: 1;
   text-decoration: underline;
 }
+
+/* =======================================================================
+   Logout confirmation popup — dim+blur overlay with a centered, icon-led
+   card (not the header+left-align layout used by .confirm-modal, since
+   logging out isn't a destructive action and shouldn't look like one).
+   Wired up from every [data-action="logout"] button across the app via
+   showLogoutConfirm() in app.js.
+======================================================================= */
+.logout-confirm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(20, 10, 10, 0.46);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.logout-confirm-card {
+  width: min(380px, 100%);
+  background: var(--white);
+  border-radius: 20px;
+  box-shadow: 0 24px 60px -16px rgba(127, 29, 29, 0.32);
+  padding: 28px 26px 22px;
+  text-align: center;
+  animation: logout-confirm-pop 0.22s cubic-bezier(.2, .9, .3, 1.2);
+}
+
+@keyframes logout-confirm-pop {
+  from { opacity: 0; transform: translateY(8px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.logout-confirm-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+}
+
+.logout-confirm-icon svg {
+  width: 24px;
+  height: 24px;
+  color: var(--primary);
+}
+
+.logout-confirm-card h3 {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--text);
+  margin: 0 0 8px;
+}
+
+.logout-confirm-card p {
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--muted);
+  margin: 0 0 22px;
+  max-width: 300px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.logout-confirm-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.logout-confirm-actions button {
+  flex: 1;
+  border-radius: 12px;
+  padding: 11px 14px;
+  font-family: 'Inter', sans-serif;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: filter 0.15s, background 0.15s;
+}
+
+.logout-cancel-btn {
+  background: var(--white);
+  color: var(--text);
+  border: 1.5px solid #e7d5d5;
+}
+
+.logout-cancel-btn:hover {
+  background: #fbf3f3;
+}
+
+.logout-confirm-btn {
+  background: var(--primary);
+  color: #fff8f6;
+  border: none;
+  box-shadow: 0 10px 22px -10px rgba(127, 29, 29, 0.55);
+}
+
+.logout-confirm-btn:hover {
+  filter: brightness(1.08);
+}
+
+@media (max-width: 480px) {
+  .logout-confirm-card {
+    padding: 24px 20px 20px;
+  }
+}
+
+/* =======================================================================
+   Home hero + "Why GoTSUian" feature cards — icon badges to match the
+   dashboard's .card-icon-badge language (light-tinted square, brand-
+   maroon stroke icon) instead of raw emoji, laid out icon-above-text.
+======================================================================= */
+.feature-card {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.feature-card .feature-icon-badge {
+  background: var(--light);
+  color: var(--primary);
+  font-size: 0;
+}
+
+.feature-icon-badge svg {
+  width: 24px;
+  height: 24px;
+}
+
+/* Fixes a pre-existing leak: an orphaned, unscoped ".feature-grid
+   {grid-template-columns:1fr}" rule earlier in this file (meant to be
+   mobile-only but never got wrapped in its @media block) was forcing a
+   single column at every width, including desktop. Restated here, last
+   in the cascade, so desktop gets its 3-column grid back and only narrow
+   widths collapse to one column. */
+.feature-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 22px;
+}
+
+@media (max-width: 900px) {
+  .feature-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Match the approved mockup's type/color exactly for this section — the
+   generic site-wide grays (#4b5563 / #475569) were still winning over the
+   brand maroon-muted tone the mockup used for body copy. */
+body[data-page="home"] .section-intro h2 {
+  color: var(--text);
+}
+
+body[data-page="home"] .section p.lead {
+  color: var(--muted);
+}
+
+body[data-page="home"] .feature-card h3 {
+  font-family: 'Poppins', sans-serif;
+  color: var(--text);
+}
+
+body[data-page="home"] .feature-card p {
+  color: var(--muted);
+}
+
+/* "Book a Ride" hero CTA — the base .btn-primary is a pill (border-radius:
+   999px, no icon slot); the approved mockup used a rounded-rect button
+   with a leading icon, so restate those specific properties here rather
+   than touching the shared .btn-primary base other pages still use. */
+body[data-page="home"] .hero-gotsuian .hero-book-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 12px;
+  padding: 14px 30px;
+  font-size: 14.5px;
+  box-shadow: 0 16px 34px -10px rgba(201, 150, 46, 0.6);
+}
+
+/* Footer redesign — maroon brand gradient instead of the generic gray/
+   white default, matching the reviewed mockup (brand colors, not the
+   site's pink page background so it doesn't blend into it). */
+body[data-page="home"] .footer {
+  background: linear-gradient(135deg, var(--primary) 0%, #5c1414 100%);
+  border-top: none;
+  padding: 48px 32px 26px;
+  border-radius: 28px 28px 0 0;
+  color: #f6d9c9;
+}
+
+body[data-page="home"] .footer h3,
+body[data-page="home"] .footer h4 {
+  font-family: 'Poppins', sans-serif;
+  color: #fff8f6;
+}
+
+body[data-page="home"] .footer p {
+  color: #f6d9c9;
+}
+
+body[data-page="home"] .footer a {
+  color: #fbe4e0;
+}
+
+body[data-page="home"] .footer a:hover {
+  color: var(--accent-gold);
+}
+
+body[data-page="home"] .footer-note {
+  color: rgba(246, 217, 201, 0.7);
+}
+
+body[data-page="home"] .footer-staff-link a {
+  color: rgba(246, 217, 201, 0.5);
+}
+
+@media (max-width: 640px) {
+  body[data-page="home"] .footer {
+    padding: 38px 20px 22px;
+    border-radius: 22px 22px 0 0;
+  }
+
+  body[data-page="home"] .footer .footer-grid {
+    grid-template-columns: 1fr;
+    gap: 26px;
+  }
+}
+
+/* Defensive safety net: guarantees no page-level horizontal scroll on
+   narrow phones regardless of any single component's width quirks.
+   Nested overflow-x:auto containers (e.g. wide tables) are unaffected —
+   they scroll internally within their own box, this only stops the whole
+   PAGE from scrolling sideways. */
+body {
+  overflow-x: hidden;
+}
+
+/* Footer icon-row style — brand mark next to "GoTSUian", small line icons
+   on each Quick Link, a dashed divider before Admin Login, and a bottom
+   strip. Colors kept light/cream since the footer background stays the
+   brand maroon gradient (not white, per explicit direction). */
+.footer-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.footer-brand svg {
+  width: 15px;
+  height: 18px;
+  color: #fff8f6;
+  flex-shrink: 0;
+}
+
+.footer-brand h3 {
+  margin: 0;
+}
+
+.footer-links {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 4px 0 0;
+}
+
+.footer-links a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  width: fit-content;
+}
+
+.footer-links a svg {
+  width: 14px;
+  height: 14px;
+  opacity: 0.7;
+  flex-shrink: 0;
+}
+
+.footer-staff-link {
+  margin-top: 16px !important;
+  padding-top: 14px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.22);
+}
+
+.footer-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-top: 30px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+  font-size: 11.5px;
+  color: rgba(246, 217, 201, 0.55);
+}
+
+@media (max-width: 640px) {
+  .footer-bottom {
+    flex-direction: column;
+    text-align: center;
+    gap: 6px;
+  }
+}

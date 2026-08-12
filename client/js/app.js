@@ -348,16 +348,6 @@ function enforceDashboardAccess() {
   }
 }
 
-function redirectBookingIfAuthenticated() {
-  // booking.html is a logged-out landing/teaser page ("Sign in / Register").
-  // Without this, an already-logged-in user landing here (via the home page,
-  // a bookmark, or the browser Back button) sees a sign-in prompt again
-  // instead of being sent to the dashboard they're already signed into.
-  if (document.body.getAttribute('data-page') !== 'booking') return;
-  if (!isAuthenticated()) return;
-  redirectToDashboard(getStoredUser().role);
-}
-
 function hideAdminLinkForNonAdmin() {
   const adminLink = document.querySelector('.nav-links a[data-page="admin"]');
   const user = getStoredUser();
@@ -413,20 +403,6 @@ function updateDriverLinkVisibility() {
     driverLink.classList.remove('hidden');
   } else {
     driverLink.classList.add('hidden');
-  }
-}
-
-// booking.html redirects an already-authenticated visitor straight back to
-// their own dashboard (see redirectBookingIfAuthenticated), so once logged
-// in, "Booking" just points to the same place "Driver"/"Passenger" already
-// do — hide it to avoid a link that visibly goes nowhere new.
-function updateBookingLinkVisibility() {
-  const bookingLink = document.querySelector('.nav-links a[data-page="booking"]');
-  if (!bookingLink) return;
-  if (isAuthenticated()) {
-    bookingLink.classList.add('hidden');
-  } else {
-    bookingLink.classList.remove('hidden');
   }
 }
 
@@ -603,7 +579,33 @@ async function renderLoyaltyStatus() {
 
   document.querySelector('#loyalty-current').textContent = completedRides;
   document.querySelector('#loyalty-threshold').textContent = threshold;
-  document.querySelector('#loyalty-progress-fill').style.width = `${percent}%`;
+
+  const ringFill = document.querySelector('#loyalty-ring-fill');
+  if (ringFill) {
+    const circumference = 2 * Math.PI * 44;
+    ringFill.setAttribute('stroke-dasharray', circumference.toFixed(1));
+    ringFill.style.strokeDashoffset = circumference - (circumference * percent / 100);
+  }
+
+  const milestonesEl = document.querySelector('#loyalty-milestones');
+  if (milestonesEl) {
+    milestonesEl.innerHTML = Array.from({ length: threshold }, (_, i) =>
+      `<span class="milestone-dot${i < completedRides ? ' is-filled' : ''}"></span>`
+    ).join('');
+  }
+
+  const roleWordEl = document.querySelector('#loyalty-role-word');
+  if (roleWordEl) roleWordEl.textContent = role === 'driver' ? 'Driver' : 'Passenger';
+
+  const statsSubEl = document.querySelector('#loyalty-stats-sub');
+  if (statsSubEl) {
+    if (eligible) {
+      statsSubEl.innerHTML = 'Certificate unlocked below. 🎉';
+    } else {
+      const remaining = threshold - completedRides;
+      statsSubEl.innerHTML = `Complete <strong>${remaining} more</strong> ride${remaining === 1 ? '' : 's'} to unlock your certificate.`;
+    }
+  }
 
   const messageEl = document.querySelector('#loyalty-message');
   messageEl.classList.remove('eligible', 'in-progress');
@@ -617,25 +619,58 @@ async function renderLoyaltyStatus() {
   }
 
   const certificateEl = document.querySelector('#loyalty-certificate');
+  const downloadBtn = document.querySelector('#certificate-download-btn');
   if (certificateEl) {
     if (eligible) {
       const user = getStoredUser();
+      const headingEl = certificateEl.querySelector('#certificate-heading');
       const nameEl = certificateEl.querySelector('#certificate-name');
       const countEl = certificateEl.querySelector('#certificate-count');
       const titleEl = certificateEl.querySelector('#certificate-title');
       const dateEl = certificateEl.querySelector('#certificate-date');
+      if (headingEl) headingEl.textContent = `${title} Award`;
       if (nameEl) nameEl.textContent = user.name || 'GoTSUian Member';
       if (countEl) countEl.textContent = completedRides;
       if (titleEl) titleEl.textContent = title;
-      if (dateEl) dateEl.textContent = `Awarded ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`;
+      if (dateEl) dateEl.textContent = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
       certificateEl.style.display = 'block';
+      if (downloadBtn) downloadBtn.classList.remove('hidden');
     } else {
       certificateEl.style.display = 'none';
+      if (downloadBtn) downloadBtn.classList.add('hidden');
     }
   }
 
   loadingEl.style.display = 'none';
   detailsEl.style.display = 'block';
+}
+
+// Renders #loyalty-certificate to a PNG and downloads it — button is a
+// sibling of the certificate (not inside it), so it's never captured in
+// the exported image. Safe no-op on any page without the button/library.
+function setupCertificateDownload() {
+  const btn = document.querySelector('#certificate-download-btn');
+  if (!btn) return;
+
+  btn.addEventListener('click', async () => {
+    const certEl = document.querySelector('#loyalty-certificate');
+    if (!certEl || typeof html2canvas === 'undefined') return;
+
+    btn.disabled = true;
+    btn.classList.add('is-loading');
+    try {
+      const canvas = await html2canvas(certEl, { backgroundColor: '#fffaf3', scale: 2 });
+      const link = document.createElement('a');
+      link.download = 'GoTSUian-Loyalty-Certificate.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    } catch (error) {
+      console.warn('Unable to generate certificate image', error);
+    } finally {
+      btn.disabled = false;
+      btn.classList.remove('is-loading');
+    }
+  });
 }
 
 // DRIVER RATING — only present on driver-profile.html, so this is a safe
@@ -1872,14 +1907,14 @@ const ROUTE_SAN_ISIDRO_TO_MAIN = [[15.502749, 120.578693], [15.502711, 120.57869
 
 const ROUTE_MAIN_TO_SAN_ISIDRO = [[15.485127, 120.587373], [15.485175, 120.587098], [15.485195, 120.586982], [15.485406, 120.587016], [15.48579, 120.587079], [15.485909, 120.587099], [15.48598, 120.58707], [15.48611, 120.587077], [15.486338, 120.587107], [15.486364, 120.587108], [15.486451, 120.587129], [15.486662, 120.58718], [15.486787, 120.587238], [15.486897, 120.587301], [15.486993, 120.587365], [15.487003, 120.587371], [15.487138, 120.587465], [15.487345, 120.587621], [15.487516, 120.587758], [15.487825, 120.587502], [15.488009, 120.587303], [15.488041, 120.587265], [15.488065, 120.587238], [15.488139, 120.587161], [15.488164, 120.587168], [15.488189, 120.587165], [15.488212, 120.587153], [15.48823, 120.587134], [15.488241, 120.58711], [15.488243, 120.587084], [15.48824, 120.587067], [15.488233, 120.58705], [15.488292, 120.586981], [15.4883, 120.586929], [15.488324, 120.5869], [15.490023, 120.584808], [15.490057, 120.584763], [15.490544, 120.584188], [15.490578, 120.584154], [15.490675, 120.584059], [15.490691, 120.584042], [15.490753, 120.58402], [15.49079, 120.583975], [15.49107, 120.58369], [15.491216, 120.583549], [15.491431, 120.583359], [15.49153, 120.583272], [15.492051, 120.582844], [15.492144, 120.58277], [15.492466, 120.582514], [15.492795, 120.582274], [15.493115, 120.582043], [15.493635, 120.581669], [15.494132, 120.581319], [15.494278, 120.581216], [15.494473, 120.581078], [15.494528, 120.58104], [15.495214, 120.580539], [15.495324, 120.580459], [15.495353, 120.58044], [15.495859, 120.580102], [15.495979, 120.580019], [15.496069, 120.579956], [15.49647, 120.579675], [15.496611, 120.579576], [15.496759, 120.579476], [15.497007, 120.5793], [15.497192, 120.579176], [15.498357, 120.578363], [15.498456, 120.578293], [15.499075, 120.578494], [15.499765, 120.578717], [15.499926, 120.578773], [15.500987, 120.579112], [15.501273, 120.579205], [15.501377, 120.579232], [15.501465, 120.579232], [15.501538, 120.579205], [15.502463, 120.578762], [15.502546, 120.578722], [15.502646, 120.578686], [15.502711, 120.57869], [15.502749, 120.578693]];
 
-const RIDES_API_URL = 'http://localhost:3000/api/rides';
-const ADMIN_API_URL = 'http://localhost:3000/api/admin';
-const PROFILE_API_URL = 'http://localhost:3000/api/profile';
-const REVIEWS_API_URL = 'http://localhost:3000/api/reviews';
-const COMPLAINTS_API_URL = 'http://localhost:3000/api/complaints';
-const OTP_API_URL = 'http://localhost:3000/api/otp';
-const MESSAGES_API_URL = 'http://localhost:3000/api/messages';
-const SOCKET_URL = 'http://localhost:3000';
+const RIDES_API_URL = '/api/rides';
+const ADMIN_API_URL = '/api/admin';
+const PROFILE_API_URL = '/api/profile';
+const REVIEWS_API_URL = '/api/reviews';
+const COMPLAINTS_API_URL = '/api/complaints';
+const OTP_API_URL = '/api/otp';
+const MESSAGES_API_URL = '/api/messages';
+const SOCKET_URL = window.location.origin;
 
 // Formats a JS Date as 'YYYY-MM-DD HH:MM:SS' in local time, which is what
 // MySQL's DATETIME column expects — avoids timezone drift from ISO strings.
@@ -3247,11 +3282,58 @@ async function renderDriverDashboardStats() {
   if (completedCount) completedCount.textContent = String(completedRides.length);
 }
  
+// Logout confirmation popup — same overlay mechanics as showConfirmModal
+// (dim+blur backdrop, Esc/click-outside to dismiss) but its own centered
+// icon layout, matching the mockup reviewed and approved before this was
+// wired up. Kept separate from showConfirmModal since that one is a left-
+// aligned header+body layout and this is deliberately calmer/centered
+// (logging out isn't a destructive action, so it shouldn't look like one).
+function showLogoutConfirm() {
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
+    overlay.className = 'logout-confirm-overlay';
+    overlay.innerHTML = `
+      <div class="logout-confirm-card">
+        <div class="logout-confirm-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-3"/><path d="M10 17l5-5-5-5"/><path d="M15 12H3"/></svg>
+        </div>
+        <h3>Are you sure you want to logout?</h3>
+        <p>You'll need to sign in again to book or manage rides on this device.</p>
+        <div class="logout-confirm-actions">
+          <button type="button" class="logout-cancel-btn">Cancel</button>
+          <button type="button" class="logout-confirm-btn">Log out</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    document.body.style.overflow = 'hidden';
+
+    function close(result) {
+      overlay.remove();
+      document.body.style.overflow = '';
+      document.removeEventListener('keydown', onKeydown);
+      resolve(result);
+    }
+    function onKeydown(event) {
+      if (event.key === 'Escape') close(false);
+    }
+
+    overlay.querySelector('.logout-cancel-btn').addEventListener('click', () => close(false));
+    overlay.querySelector('.logout-confirm-btn').addEventListener('click', () => close(true));
+    overlay.addEventListener('click', function(event) {
+      if (event.target === overlay) close(false);
+    });
+    document.addEventListener('keydown', onKeydown);
+  });
+}
+
 function setupLogoutButtons() {
   const logoutButtons = document.querySelectorAll('[data-action="logout"]');
   logoutButtons.forEach(button => {
-    button.addEventListener('click', function(event) {
+    button.addEventListener('click', async function(event) {
       event.preventDefault();
+      const confirmed = await showLogoutConfirm();
+      if (!confirmed) return;
       // Best-effort: take a driver off the "available" count as soon as they
       // log out, so passengers don't see a stale online driver who's gone.
       // Fired before clearStoredUser() wipes the token this call needs.
@@ -3476,7 +3558,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
  
 // Base URL of the backend API
-const API_BASE_URL = 'http://localhost:3000/api/auth';
+const API_BASE_URL = '/api/auth';
  
 function setupAuthForm() {
   const registerForm = document.querySelector('#register-form');
@@ -4469,10 +4551,8 @@ function manageRealtimeConnection() {
 function refreshAuthState() {
   manageRealtimeConnection();
   enforceDashboardAccess();
-  redirectBookingIfAuthenticated();
   hideAdminLinkForNonAdmin();
   updateDriverLinkVisibility();
-  updateBookingLinkVisibility();
   updatePassengerLinkVisibility();
   updateHomeCtaVisibility();
   showDriverApprovalBanner();
@@ -4516,6 +4596,7 @@ document.addEventListener('DOMContentLoaded', function() {
   setupAuthForm();
   setupAdminLoginForm();
   setupLogoutButtons();
+  setupCertificateDownload();
   setupPassengerRideRequestForm();
   setupRideTypeToggle();
   setupProfileForm();

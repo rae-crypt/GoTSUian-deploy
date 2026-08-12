@@ -1,3 +1,4 @@
+const path = require('path');
 const express = require('express');
 const http = require('http');
 const cors = require('cors');
@@ -14,18 +15,26 @@ const messageRoutes = require('./routes/messageRoutes');
 
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
-// Allow the frontend (served separately by Live Server, a different origin)
-// to call this API. Without this, the browser blocks the preflight request
-// before it ever reaches the routes below.
+// Kept even though the frontend is now served from this same origin (below)
+// — harmless, and keeps things working if the client is ever opened from
+// a separate origin again (e.g. Live Server) during development.
 app.use(cors());
 
 // Middleware para ma-parse yung JSON na papasok sa requests
 app.use(express.json());
 
+// Serve the frontend from this same server/port, so relative URLs in
+// client/js/app.js (/api/..., /socket.io/...) resolve correctly no matter
+// what device/host opens the page — your PC, your phone on the same WiFi
+// via LAN IP, or through an ngrok tunnel. Previously the frontend was only
+// ever opened via Live Server on a different port, which is why every API
+// URL used to be hardcoded to http://localhost:3000.
+app.use(express.static(path.join(__dirname, '..', 'client')));
+
 app.get('/', (req, res) => {
-  res.send('GoTSUian backend is running! 🚗');
+  res.redirect('/pages/index.html');
 });
 
 // Auth routes
