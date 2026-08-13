@@ -7,7 +7,12 @@ const transporter = nodemailer.createTransport({
   auth: {
     user: process.env.GMAIL_USER,
     pass: process.env.GMAIL_APP_PASSWORD
-  }
+  },
+  // Railway's containers can't route outbound IPv6, but Gmail's SMTP
+  // hostname resolves to both an IPv6 and IPv4 address and Node tries
+  // IPv6 first by default — forcing IPv4 here avoids the ENETUNREACH/
+  // connection-timeout loop seen in production.
+  family: 4
 });
 
 module.exports = transporter;
