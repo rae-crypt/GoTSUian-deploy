@@ -1,3 +1,10 @@
+const dns = require('dns');
+// Railway's containers can't route outbound IPv6, but Node resolves
+// hostnames (Gmail's SMTP server, etc.) to IPv6 first by default — this
+// makes every outbound connection try IPv4 first instead, avoiding the
+// ENETUNREACH/connection-timeout loop seen with Gmail SMTP in production.
+dns.setDefaultResultOrder('ipv4first');
+
 const path = require('path');
 const express = require('express');
 const http = require('http');
