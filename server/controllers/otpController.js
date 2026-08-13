@@ -1,6 +1,6 @@
 const db = require('../config/db');
 const bcrypt = require('bcrypt');
-const transporter = require('../config/mailer');
+const { getTransporter } = require('../config/mailer');
 
 const SCHOOL_EMAIL_DOMAIN = '@student.tsu.edu.ph';
 const OTP_TTL_MINUTES = 10;
@@ -42,6 +42,7 @@ exports.sendOtp = async (req, res) => {
           if (err) return res.status(500).json({ error: err.message });
 
           try {
+            const transporter = await getTransporter();
             await transporter.sendMail({
               from: process.env.GMAIL_USER,
               to: email,
