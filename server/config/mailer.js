@@ -1,44 +1,38 @@
-const dns = require('dns');
-const nodemailer = require('nodemailer');
-
-// Uses a Gmail account + App Password (not the regular account password —
-// see server/.env for where GMAIL_USER / GMAIL_APP_PASSWORD are set).
+// Sends email over HTTPS via SendGrid's API instead of raw SMTP — Railway's
+// free tier blocks outbound SMTP entirely (confirmed: both port 465 and 587
+// connections to Gmail timed out identically in production), so nodemailer
+// could never work here no matter how the connection was configured. HTTPS
+// (port 443) isn't blocked, since the app's own API traffic already relies
+// on it working.
 //
-// Railway's container doesn't expose a local network interface that
-// nodemailer's own DNS-family heuristic (lib/shared/index.js) recognizes
-// as IPv4-capable, so nodemailer always resolves and connects to Gmail's
-// IPv6 address — which isn't actually routable from this container
-// (ENETUNREACH). Resolving Gmail's IPv4 address ourselves and passing it
-// as `host` skips that heuristic entirely, since nodemailer only runs its
-// own DNS resolution when `host` is a hostname, not an IP literal.
-let cachedTransporter = null;
-let cachedIp = null;
+// The "from" address is the same gotsuian.system@gmail.com verified as a
+// Single Sender in SendGrid (Settings → Sender Authentication) — SendGrid
+// rejects sends from an unverified address.
+const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
+const FROM_EMAIL = process.env.GMAIL_USER || 'gotsuian.system@gmail.com';
 
-async function getTransporter() {
-  const [ip] = await dns.promises.resolve4('smtp.gmail.com');
-
-  if (cachedTransporter && ip === cachedIp) {
-    return cachedTransporter;
-  }
-
-  cachedIp = ip;
-  cachedTransporter = nodemailer.createTransport({
-    host: ip,
-    // Port 465 (implicit TLS) connections were hanging until timeout in
-    // production — likely 465 outbound being blocked/dropped by Railway
-    // for abuse prevention, common on free-tier hosts. Port 587 (STARTTLS)
-    // is the modern mail submission port and much less commonly blocked.
-    port: 587,
-    secure: false,
-    requireTLS: true,
-    tls: { servername: 'smtp.gmail.com' },
-    auth: {
-      user: process.env.GMAIL_USER,
-      pass: process.env.GMAIL_APP_PASSWORD
-    }
+async function sendMail({ to, subject, text, html }) {
+  const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${SENDGRID_API_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      personalizations: [{ to: [{ email: to }] }],
+      from: { email: FROM_EMAIL, name: 'GoTSUian' },
+      subject,
+      content: [
+        { type: 'text/plain', value: text },
+        { type: 'text/html', value: html }
+      ]
+    })
   });
 
-  return cachedTransporter;
+  if (!response.ok) {
+    const body = await response.text().catch(() => '');
+    throw new Error(`SendGrid error ${response.status}: ${body}`);
+  }
 }
 
-module.exports = { getTransporter };
+module.exports = { sendMail };

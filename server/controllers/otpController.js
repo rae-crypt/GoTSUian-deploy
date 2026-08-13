@@ -1,6 +1,6 @@
 const db = require('../config/db');
 const bcrypt = require('bcrypt');
-const { getTransporter } = require('../config/mailer');
+const { sendMail } = require('../config/mailer');
 
 const SCHOOL_EMAIL_DOMAIN = '@student.tsu.edu.ph';
 const OTP_TTL_MINUTES = 10;
@@ -42,9 +42,7 @@ exports.sendOtp = async (req, res) => {
           if (err) return res.status(500).json({ error: err.message });
 
           try {
-            const transporter = await getTransporter();
-            await transporter.sendMail({
-              from: process.env.GMAIL_USER,
+            await sendMail({
               to: email,
               subject: 'Your GoTSUian verification code',
               text: `Your GoTSUian verification code is ${code}. It expires in ${OTP_TTL_MINUTES} minutes.`,
@@ -52,7 +50,7 @@ exports.sendOtp = async (req, res) => {
             });
             res.status(200).json({ message: 'Verification code sent' });
           } catch (mailError) {
-            console.error('Gmail send failed:', mailError.message);
+            console.error('SendGrid send failed:', mailError.message);
             res.status(502).json({ error: 'Could not send the verification email. Please try again.' });
           }
         });
