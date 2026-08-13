@@ -24,8 +24,13 @@ async function getTransporter() {
   cachedIp = ip;
   cachedTransporter = nodemailer.createTransport({
     host: ip,
-    port: 465,
-    secure: true,
+    // Port 465 (implicit TLS) connections were hanging until timeout in
+    // production — likely 465 outbound being blocked/dropped by Railway
+    // for abuse prevention, common on free-tier hosts. Port 587 (STARTTLS)
+    // is the modern mail submission port and much less commonly blocked.
+    port: 587,
+    secure: false,
+    requireTLS: true,
     tls: { servername: 'smtp.gmail.com' },
     auth: {
       user: process.env.GMAIL_USER,
