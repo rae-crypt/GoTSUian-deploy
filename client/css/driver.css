@@ -2407,7 +2407,13 @@ body[data-page="driver"] #driver-reviews-list .rating-item-comment em { font-sty
 
 @media (max-width: 640px) {
   body[data-page="driver"] .rating-overview { flex-direction: column; align-items: flex-start; gap: 18px; }
-  body[data-page="driver"] .rating-breakdown { width: 100%; }
+  /* .rating-breakdown's flex-basis of 220px is a WIDTH hint for the desktop
+     row layout (breakdown sitting beside the score). Once .rating-overview
+     switches to a column above, that same 220px gets reinterpreted as a
+     HEIGHT basis instead — forcing ~95px of dead space below the last bar
+     even though the breakdown's actual content is much shorter. Reset back
+     to auto so it only takes the height its rows need. */
+  body[data-page="driver"] .rating-breakdown { width: 100%; flex-basis: auto; }
 }
 
 
