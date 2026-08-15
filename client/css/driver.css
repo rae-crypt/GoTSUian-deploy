@@ -2316,6 +2316,10 @@ body[data-page="driver"] .warning-item-severity {
 }
 body[data-page="driver"] .warning-item-severity small { text-transform: none; font-weight: 600; }
 body[data-page="driver"] .rating-item > small { display: block; margin-top: 4px; font-size: 11px; color: var(--gt-muted); font-weight: 500; }
+/* Same landmine as .warning-item-severity above — the "all clear" empty
+   state is a plain <p class="rating-empty"> with no page-scoped override,
+   so it also fell through to ".dashboard-card p" (2rem, bold, #1f2937). */
+body[data-page="driver"] .rating-empty { margin: 0; font-size: 13px; font-weight: 500; color: var(--gt-muted); line-height: 1.5; }
 
 /* ---- empty-state message inside #driver-ride-requests ---- */
 body[data-page="driver"] #driver-ride-requests .dashboard-card {
