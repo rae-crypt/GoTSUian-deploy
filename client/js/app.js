@@ -927,6 +927,40 @@ async function renderProfile() {
   formEl.style.display = '';
 }
 
+// Profile menu page (passenger-profile.html / driver-profile.html) — the
+// identity card up top is itself the dropdown trigger for the 3 sections
+// (Profile details / Change password / Loyalty Rewards), each of which is
+// now its own real page linked from inside the dropdown, not an inline
+// swap. Safe no-op on every other page.
+function renderProfileMenuIdentity() {
+  const trigger = document.querySelector('#profile-menu-trigger');
+  if (!trigger) return;
+
+  const user = getStoredUser();
+  if (!isAuthenticated() || !user.name) return;
+
+  const avatarEl = document.querySelector('#profile-menu-avatar');
+  const nameEl = document.querySelector('#profile-menu-name');
+  const roleEl = document.querySelector('#profile-menu-role');
+  const initial = user.name.trim().charAt(0).toUpperCase() || '?';
+
+  if (avatarEl) avatarEl.textContent = initial;
+  if (nameEl) nameEl.textContent = user.name;
+  if (roleEl) roleEl.textContent = user.role === 'driver' ? 'Driver' : 'Passenger';
+}
+
+function setupProfileMenuToggle() {
+  const trigger = document.querySelector('#profile-menu-trigger');
+  const dropdown = document.querySelector('#profile-menu-dropdown');
+  if (!trigger || !dropdown) return;
+
+  trigger.addEventListener('click', () => {
+    const isOpen = trigger.getAttribute('aria-expanded') === 'true';
+    trigger.setAttribute('aria-expanded', String(!isOpen));
+    dropdown.classList.toggle('open', !isOpen);
+  });
+}
+
 function setupProfileForm() {
   const form = document.querySelector('#profile-form');
   if (!form) return;
@@ -4984,6 +5018,7 @@ function refreshAuthState() {
   renderMyViolations();
   renderAccountStanding();
   renderProfile();
+  renderProfileMenuIdentity();
   renderBookingsList();
   renderAvailableDriversIndicator();
   checkRideMilestones();
@@ -5014,6 +5049,7 @@ document.addEventListener('DOMContentLoaded', function() {
   setupRideTypeToggle();
   setupProfileForm();
   setupChangePasswordForm();
+  setupProfileMenuToggle();
   setupAvailabilityToggle();
   setupAvailabilityIndicatorClick();
   setupAccountStandingToggle();

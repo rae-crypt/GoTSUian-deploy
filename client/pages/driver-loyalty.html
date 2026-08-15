@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>GoTSUian | My Profile</title>
+  <title>GoTSUian | Loyalty Rewards</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="../css/passenger.css?v=66">
+  <link rel="stylesheet" href="../css/driver.css?v=68">
 </head>
-<body data-page="passenger">
+<body data-page="driver">
   <header>
     <div class="site-shell navbar">
       <a class="brand" href="index.html">
@@ -37,39 +37,81 @@
   </header>
 
   <main class="site-shell dashboard-page">
+    <a href="driver-profile.html" class="page-back">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.5 5L7.5 10L12.5 15"/></svg>
+      Back to Profile
+    </a>
+
     <section class="hero hero-simple">
       <div class="hero-copy">
-        <span class="hero-badge"><span></span> My Profile</span>
-        <h1>Your account, your progress</h1>
-        <p>Manage your details, password, and loyalty progress.</p>
+        <span class="hero-badge"><span></span> Loyalty Rewards</span>
+        <h1>Your loyalty progress</h1>
+        <p>Track your ride milestones and download your certificate.</p>
       </div>
     </section>
 
     <section class="section request-status-stack">
-      <button type="button" class="identity-trigger" id="profile-menu-trigger" aria-expanded="false">
-        <span class="identity-avatar" id="profile-menu-avatar"></span>
-        <span class="identity-text">
-          <strong id="profile-menu-name"></strong>
-          <span class="identity-role" id="profile-menu-role"></span>
-        </span>
-        <svg class="identity-chevron" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7.5L10 12.5L15 7.5"/></svg>
-      </button>
-      <div class="id-dropdown" id="profile-menu-dropdown">
-        <div class="id-dropdown-inner">
-          <a href="passenger-profile-details.html" class="menu-row-link">
-            <span class="menu-icon"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 10a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/><path d="M3.5 17c1.2-4 4-6 6.5-6s5.3 2 6.5 6"/></svg></span>
-            <span class="menu-headtext"><strong>Profile details</strong><span>Your name, contact info, and address</span></span>
-          </a>
-          <a href="passenger-change-password.html" class="menu-row-link">
-            <span class="menu-icon"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="9" width="12" height="8" rx="2"/><path d="M6.5 9V6.5a3.5 3.5 0 0 1 7 0V9"/></svg></span>
-            <span class="menu-headtext"><strong>Change password</strong><span>Update your account password</span></span>
-          </a>
-          <a href="passenger-loyalty.html" class="menu-row-link">
-            <span class="menu-icon"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 2.5L16.5 5.2V9C16.5 13 13.7 16.3 10 17.5C6.3 16.3 3.5 13 3.5 9V5.2L10 2.5Z"/><path d="M7.2 10L9.2 12L12.8 8"/></svg></span>
-            <span class="menu-headtext"><strong>Loyalty Rewards</strong><span>Track your ride milestones and certificate</span></span>
-          </a>
+      <article id="loyalty-card" class="dashboard-card">
+        <div class="rewards-card-head">
+          <span class="rewards-icon-badge"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 2.5L16.5 5.2V9C16.5 13 13.7 16.3 10 17.5C6.3 16.3 3.5 13 3.5 9V5.2L10 2.5Z"/><path d="M7.2 10L9.2 12L12.8 8"/></svg></span>
+          <h3>Loyalty Rewards</h3>
         </div>
-      </div>
+        <p id="loyalty-loading">Loading your ride history...</p>
+        <div id="loyalty-details" style="display:none;">
+          <div class="rewards-ring-row">
+            <div class="rewards-ring">
+              <svg viewBox="0 0 104 104">
+                <defs>
+                  <linearGradient id="loyaltyRingGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#c9962e"/>
+                    <stop offset="100%" stop-color="#e0b354"/>
+                  </linearGradient>
+                </defs>
+                <circle class="rewards-ring-track" cx="52" cy="52" r="44" fill="none" stroke-width="10"/>
+                <circle id="loyalty-ring-fill" class="rewards-ring-fill" cx="52" cy="52" r="44" fill="none" stroke-width="10"/>
+              </svg>
+              <div class="rewards-ring-center">
+                <strong><span id="loyalty-current">0</span>/<span id="loyalty-threshold">5</span></strong>
+                <small>rides</small>
+              </div>
+            </div>
+            <div class="rewards-stats">
+              <p class="rewards-stats-title">Loyal <span id="loyalty-role-word">Driver</span> status</p>
+              <p class="rewards-stats-sub" id="loyalty-stats-sub"></p>
+            </div>
+          </div>
+          <div class="rewards-milestones" id="loyalty-milestones"></div>
+          <div id="loyalty-message" class="loyalty-message"></div>
+          <div id="loyalty-certificate" class="loyalty-certificate" style="display:none;">
+            <div class="cert-border"></div>
+            <div class="cert-watermark"><svg viewBox="0 0 160 190" fill="currentColor" aria-hidden="true"><path d="M80 186 C50 146 22 112 22 76 C22 39 47 12 80 12 C113 12 138 39 138 76 C138 112 110 146 80 186 Z"/></svg></div>
+            <div class="cert-content">
+              <img class="cert-logo cert-logo-left" src="../images/tsu-logo.png" alt="Tarlac State University">
+              <img class="cert-logo cert-logo-right" src="../images/ccs-logo.webp" alt="College of Computer Studies">
+              <p class="certificate-eyebrow cert-eyebrow-top">GoTSUian &middot; Certificate of Recognition</p>
+              <h4 id="certificate-heading" class="cert-title"></h4>
+              <div class="cert-rule"></div>
+              <p class="cert-presented">This certifies that</p>
+              <p id="certificate-name" class="certificate-name cert-name"></p>
+              <p class="certificate-body cert-body">has completed <strong id="certificate-count"></strong> rides with GoTSUian and is recognized as a <strong id="certificate-title"></strong> of the TSU San Isidro community.</p>
+              <div class="cert-footer">
+                <div class="cert-footer-item">
+                  <span class="cert-footer-label">Awarded</span>
+                  <span id="certificate-date" class="cert-footer-value certificate-date"></span>
+                </div>
+                <div class="cert-footer-item right">
+                  <span class="cert-footer-label">Campus</span>
+                  <span class="cert-footer-value">San Isidro</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <button type="button" id="certificate-download-btn" class="cert-download-btn hidden">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3v10m0 0l-4-4m4 4l4-4"/><path d="M4 15v1.5A1.5 1.5 0 0 0 5.5 18h9a1.5 1.5 0 0 0 1.5-1.5V15"/></svg>
+            Download Certificate
+          </button>
+        </div>
+      </article>
     </section>
   </main>
 
@@ -96,6 +138,7 @@
   </footer>
 
   <script src="/socket.io/socket.io.js"></script>
+  <script src="https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <script src="../js/app.js?v=107"></script>
 </body>
 </html>
