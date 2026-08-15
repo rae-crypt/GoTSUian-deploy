@@ -2305,6 +2305,17 @@ body[data-page="driver"] .rating-item:first-child { border-top: none; padding-to
 body[data-page="driver"] .rating-item-stars { color: var(--accent-gold); font-size: 12px; margin: 0 0 3px; font-weight: 700; }
 body[data-page="driver"] .rating-item-stars span { color: var(--text); font-weight: 600; font-size: 12.5px; margin-left: 8px; }
 body[data-page="driver"] .rating-item-comment { margin: 0; font-size: 12.5px; color: var(--text); font-weight: 400; line-height: 1.5; }
+/* .warning-item-severity (the "Warning"/"Violation" pill on Account
+   standing entries) had no page-scoped override like its siblings above,
+   so it fell through to the ".dashboard-card p" landmine (2rem, bold,
+   #1f2937) instead of its own intended small-pill sizing — rendering as
+   an oversized, mismatched heading instead of a tag. */
+body[data-page="driver"] .warning-item-severity {
+  display: inline-block; margin: 0 0 6px; padding: 3px 11px; border-radius: 999px;
+  font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.02em; text-transform: uppercase;
+}
+body[data-page="driver"] .warning-item-severity small { text-transform: none; font-weight: 600; }
+body[data-page="driver"] .rating-item > small { display: block; margin-top: 4px; font-size: 11px; color: var(--gt-muted); font-weight: 500; }
 
 /* ---- empty-state message inside #driver-ride-requests ---- */
 body[data-page="driver"] #driver-ride-requests .dashboard-card {
