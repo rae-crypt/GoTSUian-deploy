@@ -130,6 +130,52 @@ exports.loginStudent = async (req, res) => {
   });
 };
 
+// RESET PASSWORD (Passenger) — Forgot Password's final step. Requires a
+// verified, unexpired email_otp row for the email (same check
+// registerStudent uses), created via /api/otp/send-reset + /api/otp/verify.
+exports.resetPasswordStudent = async (req, res) => {
+  const { email: rawEmail, newPassword } = req.body;
+
+  if (!rawEmail || !newPassword) {
+    return res.status(400).json({ error: 'Email and new password are required' });
+  }
+  if (newPassword.length < 8) {
+    return res.status(400).json({ error: 'Password must be at least 8 characters' });
+  }
+
+  const email = rawEmail.trim().toLowerCase();
+
+  db.query(
+    `SELECT 1 FROM email_otp WHERE email = ? AND verified = 1 AND expires_at > NOW() LIMIT 1`,
+    [email],
+    async (err, otpRows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      if (!otpRows.length) {
+        return res.status(400).json({ error: 'Please verify your email first' });
+      }
+
+      try {
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+        db.query(
+          `UPDATE user_account SET password = ? WHERE username = ? AND role = 'student'`,
+          [hashedPassword, email],
+          (err, result) => {
+            if (err) return res.status(500).json({ error: err.message });
+            if (result.affectedRows === 0) {
+              return res.status(404).json({ error: 'No passenger account found with that email' });
+            }
+            db.query(`DELETE FROM email_otp WHERE email = ?`, [email]);
+            res.status(200).json({ message: 'Password updated successfully' });
+          }
+        );
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    }
+  );
+};
+
 // REGISTER DRIVER
 exports.registerDriver = async (req, res) => {
   const {
