@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="../css/driver.css?v=63">
+  <link rel="stylesheet" href="../css/driver.css?v=64">
 </head>
 <body data-page="driver">
   <header>
@@ -44,6 +44,15 @@
         <p>Every trip you've accepted, plus the ratings and reviews passengers have left for you.</p>
       </div>
     </section>
+
+    <article id="warnings-card" class="dashboard-card" style="margin: 24px 0;">
+      <h3>Account standing</h3>
+      <p id="warnings-loading">Loading...</p>
+      <div id="warnings-details" style="display:none;">
+        <p class="rating-summary"><span id="warnings-count">0</span> <small>warning(s)/violation(s) on record</small></p>
+        <div id="warnings-list" class="rating-list"></div>
+      </div>
+    </article>
 
     <section class="section" id="driver-ratings-section">
       <p id="driver-ratings-loading">Loading your reviews...</p>
