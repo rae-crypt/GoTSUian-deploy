@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="../css/passenger.css?v=59">
+  <link rel="stylesheet" href="../css/passenger.css?v=60">
 </head>
 <body data-page="passenger">
   <header>
@@ -102,6 +102,51 @@
 
           <button type="submit" class="btn-primary">Save changes</button>
           <small class="error-msg" id="profile-error"></small>
+        </form>
+
+        <div class="profile-divider"></div>
+
+        <h4 class="profile-subsection-title">Change password</h4>
+        <form id="change-password-form" class="auth-form">
+          <div class="form-field">
+            <label for="current-password">Current password</label>
+            <div class="password-input-group">
+              <input type="password" id="current-password" name="currentPassword" placeholder="Enter your current password" required>
+              <button type="button" class="toggle-eye" data-target="current-password" aria-label="Show password">
+                <svg class="eye-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 12S5 5 12 5s10.5 7 10.5 7-3.5 7-10.5 7S1.5 12 1.5 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+                <svg class="eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18M10.6 10.6a3 3 0 0 0 4.24 4.24M6.5 6.7C3.9 8.3 2 12 2 12s3.5 7 10 7c1.8 0 3.3-.4 4.6-1.1M9.9 5.2c.7-.1 1.4-.2 2.1-.2 6.5 0 10 7 10 7s-.7 1.5-2 3"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-field">
+              <label for="new-password">New password</label>
+              <div class="password-input-group">
+                <input type="password" id="new-password" name="newPassword" placeholder="Enter a new password" required>
+                <button type="button" class="toggle-eye" data-target="new-password" aria-label="Show password">
+                  <svg class="eye-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 12S5 5 12 5s10.5 7 10.5 7-3.5 7-10.5 7S1.5 12 1.5 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+                  <svg class="eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18M10.6 10.6a3 3 0 0 0 4.24 4.24M6.5 6.7C3.9 8.3 2 12 2 12s3.5 7 10 7c1.8 0 3.3-.4 4.6-1.1M9.9 5.2c.7-.1 1.4-.2 2.1-.2 6.5 0 10 7 10 7s-.7 1.5-2 3"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="form-field">
+              <label for="confirm-new-password">Confirm new password</label>
+              <div class="password-input-group">
+                <input type="password" id="confirm-new-password" name="confirmNewPassword" placeholder="Re-enter new password" required>
+                <button type="button" class="toggle-eye" data-target="confirm-new-password" aria-label="Show password">
+                  <svg class="eye-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 12S5 5 12 5s10.5 7 10.5 7-3.5 7-10.5 7S1.5 12 1.5 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+                  <svg class="eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18M10.6 10.6a3 3 0 0 0 4.24 4.24M6.5 6.7C3.9 8.3 2 12 2 12s3.5 7 10 7c1.8 0 3.3-.4 4.6-1.1M9.9 5.2c.7-.1 1.4-.2 2.1-.2 6.5 0 10 7 10 7s-.7 1.5-2 3"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <small class="field-note">Must be at least 8 characters.</small>
+
+          <button type="submit" class="btn-primary">Change password</button>
+          <small class="error-msg" id="change-password-error"></small>
+          <small class="success-msg" id="change-password-success" style="display:none;">Password updated successfully.</small>
         </form>
       </article>
 
@@ -202,6 +247,6 @@
 
   <script src="/socket.io/socket.io.js"></script>
   <script src="https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-  <script src="../js/app.js?v=100"></script>
+  <script src="../js/app.js?v=101"></script>
 </body>
 </html>

@@ -957,7 +957,57 @@ function setupProfileForm() {
     }
   });
 }
- 
+
+// CHANGE PASSWORD — nested inside the "Profile details" card, only
+// present on passenger-profile.html, so this is a safe no-op elsewhere.
+// Passengers only for now, matching Forgot Password's scope (drivers have
+// no email on file to gate a self-service password change the same way).
+function setupChangePasswordForm() {
+  const form = document.querySelector('#change-password-form');
+  if (!form) return;
+
+  form.addEventListener('submit', async function(event) {
+    event.preventDefault();
+    const errorEl = document.querySelector('#change-password-error');
+    const successEl = document.querySelector('#change-password-success');
+    if (errorEl) errorEl.textContent = '';
+    if (successEl) successEl.style.display = 'none';
+
+    const currentPassword = document.querySelector('#current-password').value;
+    const newPassword = document.querySelector('#new-password').value;
+    const confirmNewPassword = document.querySelector('#confirm-new-password').value;
+
+    if (newPassword.length < 8) {
+      if (errorEl) errorEl.textContent = 'New password must be at least 8 characters.';
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      if (errorEl) errorEl.textContent = 'New password and confirmation do not match.';
+      return;
+    }
+
+    const submitButton = form.querySelector('button[type="submit"]');
+    if (submitButton) submitButton.disabled = true;
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/change-password/student`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ currentPassword, newPassword })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Could not change your password.');
+
+      form.reset();
+      if (successEl) successEl.style.display = 'block';
+    } catch (error) {
+      if (errorEl) errorEl.textContent = error.message;
+    } finally {
+      if (submitButton) submitButton.disabled = false;
+    }
+  });
+}
+
 // PASSENGER MAP — only present on passenger.html, so this is a safe no-op
 // everywhere else. Static markers for now (the two fixed campus points);
 // GPS tracking gets layered on top of this once the map itself works.
@@ -4942,6 +4992,7 @@ document.addEventListener('DOMContentLoaded', function() {
   setupPassengerRideRequestForm();
   setupRideTypeToggle();
   setupProfileForm();
+  setupChangePasswordForm();
   setupAvailabilityToggle();
   setupAvailabilityIndicatorClick();
   setupAccountStandingToggle();

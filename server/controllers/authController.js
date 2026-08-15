@@ -176,6 +176,50 @@ exports.resetPasswordStudent = async (req, res) => {
   );
 };
 
+// CHANGE PASSWORD (Passenger) — from their own Profile page while logged
+// in. Unlike resetPasswordStudent (Forgot Password's OTP-gated flow),
+// this doesn't need to re-prove email ownership — knowing the current
+// password already proves that.
+exports.changePasswordStudent = async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  const accountId = req.user.accountId;
+
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ error: 'Current and new password are required' });
+  }
+  if (newPassword.length < 8) {
+    return res.status(400).json({ error: 'New password must be at least 8 characters' });
+  }
+
+  db.query(
+    `SELECT password FROM user_account WHERE account_id = ? AND role = 'student'`,
+    [accountId],
+    async (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      if (!rows.length) return res.status(404).json({ error: 'Account not found' });
+
+      const passwordMatch = await bcrypt.compare(currentPassword, rows[0].password);
+      if (!passwordMatch) {
+        return res.status(401).json({ error: 'Current password is incorrect' });
+      }
+
+      try {
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        db.query(
+          `UPDATE user_account SET password = ? WHERE account_id = ?`,
+          [hashedPassword, accountId],
+          (err) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.status(200).json({ message: 'Password updated successfully' });
+          }
+        );
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    }
+  );
+};
+
 // REGISTER DRIVER
 exports.registerDriver = async (req, res) => {
   const {
