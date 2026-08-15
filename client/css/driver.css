@@ -2456,6 +2456,14 @@ body[data-page="driver"] .dashboard-card h3 {
 
 body[data-page="driver"] .booking-route { font-size: 14.5px; font-weight: 700; color: var(--text); margin: 0 0 6px; }
 body[data-page="driver"] #bookings-loading { font-size: 13px; font-weight: 500; color: var(--gt-muted); }
+/* Same ".dashboard-card p" landmine as elsewhere in this file — these
+   "Loading..." lines are plain <p> tags with no override of their own,
+   so they were rendering at 2rem/bold/dark instead of a normal loading
+   line, making a brief loading flicker look like a stuck/broken state. */
+body[data-page="driver"] #loyalty-loading,
+body[data-page="driver"] #profile-loading,
+body[data-page="driver"] #rating-loading,
+body[data-page="driver"] #standing-loading { font-size: 13px; font-weight: 500; color: var(--gt-muted); }
 body[data-page="driver"] .bookings-empty p { font-size: 13px; font-weight: 500; color: var(--gt-muted); margin: 0; }
 
 body[data-page="driver"] .booking-item {
