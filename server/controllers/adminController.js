@@ -6,14 +6,10 @@ const { emitDriverAccountStatus } = require('../socket');
 // LIST ALL DRIVERS — the admin dashboard's driver management table shows
 // every driver (not just pending ones) so the admin can also review
 // already-approved or rejected accounts, not only act on new ones.
-// is_online is a separate concept from account_status: account_status is
-// the admin's permanent approval decision (Pending/Active/Rejected),
-// is_online is whether the driver is actually logged in right now
-// (flipped by loginDriver/setupLogoutButtons) — shown as its own column.
 exports.listDrivers = (req, res) => {
   const sql = `
     SELECT driver_id, account_id, first_name, last_name, driver_license_no,
-           contact_number, account_status, is_online,
+           contact_number, account_status,
            license_document_path IS NOT NULL AS has_license_file
     FROM tricycle_driver
     ORDER BY FIELD(account_status, 'Pending', 'Active', 'Rejected'), driver_id DESC
