@@ -793,7 +793,7 @@ async function renderMyViolations() {
       <div class="rating-item">
         <p class="warning-item-severity tone-${v.severity === 'Violation' ? 'danger' : 'warning'}">${escapeHtml(v.severity)}${v.escalated ? ' <small>(auto-escalated)</small>' : ''}</p>
         <p class="rating-item-comment">${escapeHtml(v.reason)}</p>
-        <small>${new Date(v.created_at).toLocaleDateString()}</small>
+        <small>${new Date(v.created_at).toLocaleDateString()} &middot; Issued by admin</small>
       </div>
     `).join('') || '<p class="rating-empty">No warnings or violations on record. Keep it up!</p>';
 
@@ -802,6 +802,64 @@ async function renderMyViolations() {
   } catch (error) {
     console.warn('Unable to fetch account standing', error);
   }
+}
+
+// ACCOUNT STANDING (redesigned) — a collapsed, FAQ-style summary row shown
+// on the driver dashboard (between "Your rating" and "Loyalty Rewards") and
+// on the bookings page. Same /my-violations data as renderMyViolations()
+// above, but a different presentation (collapsed by default, driver-only) —
+// kept as its own function/ids rather than reworking the older Profile-page
+// card, so passenger-profile.html's still-in-use card is untouched.
+async function renderAccountStanding() {
+  const loadingEl = document.querySelector('#standing-loading');
+  const wrapEl = document.querySelector('#standing-wrap');
+  if (!loadingEl || !wrapEl) return;
+
+  const user = getStoredUser();
+  if (!isAuthenticated() || user.role !== 'driver') return;
+
+  try {
+    const res = await fetch(`${COMPLAINTS_API_URL}/my-violations`, { headers: getAuthHeaders() });
+    if (!res.ok) return;
+    const data = await res.json();
+
+    const iconEl = document.querySelector('#standing-icon');
+    const summaryEl = document.querySelector('#standing-summary');
+    const hasWarnings = data.count > 0;
+    if (iconEl) iconEl.classList.toggle('has-warnings', hasWarnings);
+    if (summaryEl) {
+      summaryEl.textContent = hasWarnings
+        ? `${data.count} warning(s)/violation(s) on record`
+        : 'No warnings or violations on record';
+    }
+
+    const listEl = document.querySelector('#standing-list');
+    if (listEl) {
+      listEl.innerHTML = data.violations.map(v => `
+        <div class="rating-item">
+          <p class="warning-item-severity tone-${v.severity === 'Violation' ? 'danger' : 'warning'}">${escapeHtml(v.severity)}${v.escalated ? ' <small>(auto-escalated)</small>' : ''}</p>
+          <p class="rating-item-comment">${escapeHtml(v.reason)}</p>
+          <small>${new Date(v.created_at).toLocaleDateString()} &middot; Issued by admin</small>
+        </div>
+      `).join('') || '<p class="rating-empty">No warnings or violations on record. Keep it up!</p>';
+    }
+
+    loadingEl.style.display = 'none';
+    wrapEl.style.display = 'block';
+  } catch (error) {
+    console.warn('Unable to fetch account standing', error);
+  }
+}
+
+function setupAccountStandingToggle() {
+  document.querySelectorAll('.standing-toggle').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const panel = btn.parentElement.querySelector('.standing-panel');
+      const isOpen = btn.getAttribute('aria-expanded') === 'true';
+      btn.setAttribute('aria-expanded', String(!isOpen));
+      if (panel) panel.classList.toggle('open', !isOpen);
+    });
+  });
 }
 
 // PROFILE — only present on passenger-profile.html, so this is a safe
@@ -4853,6 +4911,7 @@ function refreshAuthState() {
   renderDriverRating();
   renderDriverRatingsFull();
   renderMyViolations();
+  renderAccountStanding();
   renderProfile();
   renderBookingsList();
   renderAvailableDriversIndicator();
@@ -4885,6 +4944,7 @@ document.addEventListener('DOMContentLoaded', function() {
   setupProfileForm();
   setupAvailabilityToggle();
   setupAvailabilityIndicatorClick();
+  setupAccountStandingToggle();
   setupPassengerMap();
   setupDriverMap();
 
