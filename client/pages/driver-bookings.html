@@ -3,11 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="format-detection" content="telephone=no, date=no, address=no, email=no">
   <title>GoTSUian | My Rides</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="../css/driver.css?v=68">
+  <link rel="stylesheet" href="../css/driver.css?v=69">
 </head>
 <body data-page="driver">
   <header>
@@ -52,8 +53,10 @@
           <h3>Your rating</h3>
           <div class="rating-overview">
             <div class="rating-overview-score">
-              <span id="driver-ratings-average" class="rating-big-number">0.0</span>
-              <span id="driver-ratings-star-row" class="rating-star-row"></span>
+              <div class="score-line">
+                <span id="driver-ratings-average" class="rating-big-number">0.0</span>
+                <span id="driver-ratings-star-row" class="rating-star-row"></span>
+              </div>
               <small id="driver-ratings-count">0 reviews</small>
             </div>
             <div id="driver-ratings-breakdown" class="rating-breakdown"></div>
@@ -110,6 +113,6 @@
   </footer>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="../js/app.js?v=99"></script>
+  <script src="../js/app.js?v=100"></script>
 </body>
 </html>
