@@ -3553,13 +3553,20 @@ body {
 
 /* Account standing — collapsed FAQ-style row by default, expands inline
    to the violation list. Lives on passenger.html (dashboard, before
-   "Loyalty Rewards"). Same component as driver.css's version. */
-.standing-card {
+   "Loyalty Rewards"). Same component as driver.css's version.
+   Scoped with body[data-page="passenger"] (matching driver.css's
+   convention for this component) because the unscoped versions of these
+   selectors were losing to "body[data-page="passenger"] .dashboard-card"
+   (padding: 20px) elsewhere in this file — higher specificity, so the
+   card never actually got its intended padding:0, squeezing the toggle
+   button's available width and wrapping "No warnings..." onto a second
+   line that driver.css's card never did. */
+body[data-page="passenger"] .standing-card {
   padding: 0;
   overflow: hidden;
 }
 
-.standing-toggle {
+body[data-page="passenger"] .standing-toggle {
   width: 100%;
   display: flex;
   align-items: center;
@@ -3573,7 +3580,7 @@ body {
   color: inherit;
 }
 
-.standing-icon {
+body[data-page="passenger"] .standing-icon {
   width: 32px;
   height: 32px;
   border-radius: 10px;
@@ -3584,77 +3591,77 @@ body {
   color: #1a7a3c;
 }
 
-.standing-icon svg {
+body[data-page="passenger"] .standing-icon svg {
   width: 17px;
   height: 17px;
   display: none;
 }
 
-.standing-icon svg.icon-clean {
+body[data-page="passenger"] .standing-icon svg.icon-clean {
   display: block;
 }
 
-.standing-icon.has-warnings {
+body[data-page="passenger"] .standing-icon.has-warnings {
   background: #fdf1de;
   color: #b45309;
 }
 
-.standing-icon.has-warnings svg.icon-clean {
+body[data-page="passenger"] .standing-icon.has-warnings svg.icon-clean {
   display: none;
 }
 
-.standing-icon.has-warnings svg.icon-warning {
+body[data-page="passenger"] .standing-icon.has-warnings svg.icon-warning {
   display: block;
 }
 
-.standing-text {
+body[data-page="passenger"] .standing-text {
   flex: 1;
   min-width: 0;
 }
 
-.standing-text strong {
+body[data-page="passenger"] .standing-text strong {
   display: block;
   font-family: 'Poppins', sans-serif;
   font-size: 15.5px;
   color: var(--text);
 }
 
-.standing-text span {
+body[data-page="passenger"] .standing-text span {
   display: block;
   font-size: 12.5px;
-  color: var(--muted);
+  color: var(--gt-muted);
   margin-top: 2px;
 }
 
-.standing-chevron {
+body[data-page="passenger"] .standing-chevron {
   width: 18px;
   height: 18px;
-  color: var(--muted);
+  color: var(--gt-muted);
   flex-shrink: 0;
   transition: transform 0.2s ease;
 }
 
-.standing-toggle[aria-expanded="true"] .standing-chevron {
+body[data-page="passenger"] .standing-toggle[aria-expanded="true"] .standing-chevron {
   transform: rotate(180deg);
 }
 
-.standing-panel {
+body[data-page="passenger"] .standing-panel {
   max-height: 0;
   overflow: hidden;
   transition: max-height 0.25s ease;
 }
 
-.standing-panel.open {
+body[data-page="passenger"] .standing-panel.open {
   max-height: 2000px;
 }
 
-.standing-panel-inner {
+body[data-page="passenger"] .standing-panel-inner {
   padding: 0 20px 18px;
   border-top: 1px solid #f1d9d9;
   margin-top: 2px;
 }
 
-.standing-panel-inner .rating-list {
+body[data-page="passenger"] .standing-panel-inner .rating-list {
   padding-top: 12px;
 }
 
