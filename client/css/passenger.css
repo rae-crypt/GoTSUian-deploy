@@ -1572,20 +1572,6 @@ select {
   display: block;
 }
 
-.profile-divider {
-  height: 1px;
-  background: #f1d9d9;
-  margin: 22px 0;
-}
-
-.profile-subsection-title {
-  font-family: 'Poppins', sans-serif;
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--text);
-  margin: 0 0 14px;
-}
-
 .field-note {
   display: block;
   font-size: 0.85rem;
@@ -3664,6 +3650,70 @@ body[data-page="passenger"] .standing-panel-inner {
 body[data-page="passenger"] .standing-panel-inner .rating-list {
   padding-top: 12px;
 }
+
+/* ---- Profile menu — identity trigger + dropdown of Profile details /
+   Change password / Loyalty Rewards. Each is now a real separate page
+   (passenger-profile-details.html, passenger-change-password.html,
+   passenger-loyalty.html) instead of one long stacked form on
+   passenger-profile.html — clicking a row is a normal link, not a JS swap.
+   .page-back is reused on all 3 of those sub-pages. Same component as
+   driver.css's version. ---- */
+body[data-page="passenger"] .identity-trigger {
+  width: 100%; background: linear-gradient(135deg, var(--primary), var(--primary-soft));
+  border: none; border-radius: 18px; padding: 18px;
+  display: flex; align-items: center; gap: 14px;
+  color: #fff2ee; cursor: pointer; font: inherit; text-align: left;
+  box-shadow: var(--gt-shadow);
+}
+body[data-page="passenger"] .identity-avatar {
+  width: 50px; height: 50px; border-radius: 50%;
+  background: rgba(255,255,255,0.16);
+  display: grid; place-items: center;
+  font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 1.05rem;
+  flex-shrink: 0; border: 1.5px solid rgba(255,255,255,0.3);
+}
+body[data-page="passenger"] .identity-text { min-width: 0; flex: 1; }
+body[data-page="passenger"] .identity-text strong { display: block; font-family: 'Poppins', sans-serif; font-size: 1.02rem; }
+body[data-page="passenger"] .identity-role {
+  display: inline-flex; align-items: center; gap: 4px;
+  margin-top: 4px; font-size: 0.7rem; font-weight: 700;
+  letter-spacing: 0.03em; text-transform: uppercase;
+  background: rgba(255,255,255,0.16); padding: 3px 10px; border-radius: 999px;
+}
+body[data-page="passenger"] .identity-chevron { width: 20px; height: 20px; color: #fff2ee; flex-shrink: 0; transition: transform 0.25s ease; }
+body[data-page="passenger"] .identity-trigger[aria-expanded="true"] .identity-chevron { transform: rotate(180deg); }
+
+body[data-page="passenger"] .id-dropdown { max-height: 0; overflow: hidden; transition: max-height 0.3s ease; }
+body[data-page="passenger"] .id-dropdown.open { max-height: 500px; }
+body[data-page="passenger"] .id-dropdown-inner {
+  background: var(--white); border: 1px solid #f1d9d9; border-radius: 16px;
+  box-shadow: var(--gt-shadow); margin-top: 10px; overflow: hidden;
+}
+body[data-page="passenger"] .menu-row-link + .menu-row-link { border-top: 1px solid #f1d9d9; }
+body[data-page="passenger"] .menu-row-link {
+  width: 100%; display: flex; align-items: center; gap: 12px;
+  padding: 15px 16px; text-decoration: none; color: inherit;
+  transition: background 0.15s ease;
+}
+body[data-page="passenger"] .menu-row-link:hover { background: var(--light); }
+body[data-page="passenger"] .menu-icon {
+  width: 34px; height: 34px; border-radius: 10px;
+  background: var(--light); color: var(--primary);
+  display: grid; place-items: center; flex-shrink: 0;
+}
+body[data-page="passenger"] .menu-icon svg { width: 17px; height: 17px; }
+body[data-page="passenger"] .menu-headtext { flex: 1; min-width: 0; }
+body[data-page="passenger"] .menu-headtext strong { display: block; font-family: 'Poppins', sans-serif; font-size: 0.94rem; color: var(--text); }
+body[data-page="passenger"] .menu-headtext span { display: block; font-size: 0.76rem; color: var(--gt-muted); margin-top: 2px; }
+
+body[data-page="passenger"] .page-back {
+  display: inline-flex; align-items: center; gap: 6px;
+  color: var(--primary); text-decoration: none;
+  font-weight: 600; font-size: 0.85rem;
+  margin: 20px 0 14px;
+}
+body[data-page="passenger"] .page-back svg { width: 15px; height: 15px; }
+body[data-page="passenger"] .page-back:hover { text-decoration: underline; }
 
 /* "Download Certificate" button — sits below the certificate (not inside
    it) so it's never captured in the exported image. */
