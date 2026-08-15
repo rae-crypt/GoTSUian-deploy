@@ -2120,14 +2120,31 @@ function setupAvailabilityToggle() {
 
   const dot = document.querySelector('.availability-status-dot');
 
-  fetch(`${RIDES_API_URL}/driver/availability`, { headers: getAuthHeaders() })
-    .then(res => res.ok ? res.json() : null)
-    .then(data => {
-      if (!data) return;
-      label.textContent = data.is_online ? 'Online' : 'Offline';
-      if (dot) dot.classList.toggle('is-online', Boolean(data.is_online));
-    })
-    .catch(error => console.warn('Unable to fetch availability', error));
+  // Deliberately doesn't touch the label on a failed fetch — the HTML's
+  // hardcoded "Offline" default used to sit there unchanged whenever this
+  // request was slow or errored (e.g. right after the tab comes back from
+  // being backgrounded/discarded by the browser), reading as a real offline
+  // state even though the driver's actual is_online in the DB never moved.
+  function refreshAvailabilityLabel() {
+    fetch(`${RIDES_API_URL}/driver/availability`, { headers: getAuthHeaders() })
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (!data) return;
+        label.textContent = data.is_online ? 'Online' : 'Offline';
+        if (dot) dot.classList.toggle('is-online', Boolean(data.is_online));
+      })
+      .catch(error => console.warn('Unable to fetch availability', error));
+  }
+
+  label.textContent = 'Checking…';
+  refreshAvailabilityLabel();
+
+  // Re-verify whenever the driver switches back to this tab — otherwise a
+  // stale label (from before the tab was backgrounded) can sit there for
+  // the rest of the session with nothing to correct it.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') refreshAvailabilityLabel();
+  });
 }
 
 // DRIVER GPS SHARING — automatically starts sending location while the
