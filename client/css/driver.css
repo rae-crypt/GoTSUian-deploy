@@ -3026,6 +3026,39 @@ body {
   font-weight: 700;
 }
 
+/* Dashboard teaser variant (.rewards-teaser) never got the #loyalty-card
+   fix above, so it fell through to the same ".dashboard-card p" landmine
+   (2rem, bold, dark) as everything else in this file that's a plain <p>
+   with no page/card-scoped override. Also trims the ring-row/milestone
+   margins and card padding a bit — this card only needs to preview
+   status at a glance, not be the full loyalty destination. */
+.rewards-teaser.dashboard-card {
+  padding: 16px 18px;
+}
+
+.rewards-teaser .rewards-stats-title {
+  margin: 0 0 3px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.rewards-teaser .rewards-stats-sub {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--gt-muted);
+  line-height: 1.4;
+}
+
+.rewards-teaser .rewards-ring-row {
+  margin: 14px 0;
+}
+
+.rewards-teaser .rewards-milestones {
+  margin-bottom: 12px;
+}
+
 .rewards-ring-row .rewards-stats {
   flex: 1;
 }
