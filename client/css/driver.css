@@ -2416,6 +2416,35 @@ body[data-page="driver"] #driver-reviews-list .rating-item-comment em { font-sty
   body[data-page="driver"] .rating-breakdown { width: 100%; flex-basis: auto; }
 }
 
+/* ---- Account standing — collapsed FAQ-style row by default, expands
+   inline to the violation list. Lives on driver.html (dashboard, between
+   "Your rating" and "Loyalty Rewards") and driver-bookings.html. ---- */
+body[data-page="driver"] .standing-card { padding: 0; overflow: hidden; }
+body[data-page="driver"] .standing-toggle {
+  width: 100%; display: flex; align-items: center; gap: 10px;
+  padding: 16px 20px; background: none; border: none; cursor: pointer;
+  text-align: left; font: inherit; color: inherit;
+}
+body[data-page="driver"] .standing-icon {
+  width: 32px; height: 32px; border-radius: 10px; flex-shrink: 0;
+  display: grid; place-items: center;
+  background: var(--tone-success-bg); color: var(--tone-success);
+}
+body[data-page="driver"] .standing-icon svg { width: 17px; height: 17px; display: none; }
+body[data-page="driver"] .standing-icon svg.icon-clean { display: block; }
+body[data-page="driver"] .standing-icon.has-warnings { background: var(--tone-warning-bg); color: var(--tone-warning); }
+body[data-page="driver"] .standing-icon.has-warnings svg.icon-clean { display: none; }
+body[data-page="driver"] .standing-icon.has-warnings svg.icon-warning { display: block; }
+body[data-page="driver"] .standing-text { flex: 1; min-width: 0; }
+body[data-page="driver"] .standing-text strong { display: block; font-family: 'Poppins', sans-serif; font-size: 15.5px; color: var(--text); }
+body[data-page="driver"] .standing-text span { display: block; font-size: 12.5px; color: var(--gt-muted); margin-top: 2px; }
+body[data-page="driver"] .standing-chevron { width: 18px; height: 18px; color: var(--gt-muted); flex-shrink: 0; transition: transform 0.2s ease; }
+body[data-page="driver"] .standing-toggle[aria-expanded="true"] .standing-chevron { transform: rotate(180deg); }
+body[data-page="driver"] .standing-panel { max-height: 0; overflow: hidden; transition: max-height 0.25s ease; }
+body[data-page="driver"] .standing-panel.open { max-height: 2000px; }
+body[data-page="driver"] .standing-panel-inner { padding: 0 20px 18px; border-top: 1px solid #f1d9d9; margin-top: 2px; }
+body[data-page="driver"] .standing-panel-inner .rating-list { padding-top: 12px; }
+
 
 /* =======================================================================
    Logout confirmation popup — dim+blur overlay with a centered, icon-led
