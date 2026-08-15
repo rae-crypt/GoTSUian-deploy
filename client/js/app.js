@@ -958,13 +958,16 @@ function setupProfileForm() {
   });
 }
 
-// CHANGE PASSWORD — nested inside the "Profile details" card, only
-// present on passenger-profile.html, so this is a safe no-op elsewhere.
-// Passengers only for now, matching Forgot Password's scope (drivers have
-// no email on file to gate a self-service password change the same way).
+// CHANGE PASSWORD — nested inside the "Profile details" card on both
+// passenger-profile.html and driver-profile.html, so this is a safe no-op
+// elsewhere. Unlike Forgot Password (students only, since that's the only
+// role with an email on file to send an OTP to), this doesn't need email
+// at all — just the current password — so both roles get it the same way.
 function setupChangePasswordForm() {
   const form = document.querySelector('#change-password-form');
   if (!form) return;
+
+  const role = getStoredUser().role === 'driver' ? 'driver' : 'student';
 
   form.addEventListener('submit', async function(event) {
     event.preventDefault();
@@ -990,7 +993,7 @@ function setupChangePasswordForm() {
     if (submitButton) submitButton.disabled = true;
 
     try {
-      const res = await fetch(`${API_BASE_URL}/change-password/student`, {
+      const res = await fetch(`${API_BASE_URL}/change-password/${role}`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({ currentPassword, newPassword })
