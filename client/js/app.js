@@ -1334,14 +1334,12 @@ function renderDriverRow(driver) {
        <button type="button" class="admin-btn tone-danger" data-action="reject-driver" data-driver-id="${driver.driver_id}">Reject</button>`
     : `<button type="button" class="admin-btn tone-primary" data-action="view-license" data-driver-id="${driver.driver_id}">View</button>`;
 
-  const isOnline = Boolean(driver.is_online);
   return `
     <tr${isPending ? ' data-pending-row' : ''} data-driver-id="${driver.driver_id}">
       <td><div class="admin-person"><span class="admin-avatar">${initials(driver.first_name, driver.last_name)}</span><div><strong>${driverName}</strong></div></div></td>
       <td>${escapeHtml(driver.contact_number || '—')}</td>
       <td>${licenseCell}</td>
       <td>${pillHtml(statusPillTone(driver.account_status), driver.account_status)}</td>
-      <td>${pillHtml(isOnline ? 'success' : 'neutral', isOnline ? 'Online' : 'Offline')}</td>
       <td><div class="admin-actions">${approvalActions}<button type="button" class="admin-btn" data-action="issue-warning" data-account-id="${driver.account_id}" data-target-name="${driverName}">Issue Warning</button></div></td>
     </tr>
   `;
@@ -1358,7 +1356,6 @@ function renderDriverCard(driver) {
        <button class="admin-btn tone-danger" data-action="reject-driver" data-driver-id="${driver.driver_id}">Reject</button>`
     : `<button class="admin-btn tone-primary" data-action="view-license" data-driver-id="${driver.driver_id}">View</button>`;
 
-  const isOnline = Boolean(driver.is_online);
   return `
     <div class="admin-mcard"${isPending ? ' data-pending-row' : ''} data-driver-id="${driver.driver_id}">
       <div class="admin-mcard-top">
@@ -1367,7 +1364,6 @@ function renderDriverCard(driver) {
       </div>
       <div class="admin-mcard-rows">
         <div class="admin-mcard-row"><span>Contact</span><span>${escapeHtml(driver.contact_number || '—')}</span></div>
-        <div class="admin-mcard-row"><span>Online</span><span>${pillHtml(isOnline ? 'success' : 'neutral', isOnline ? 'Online' : 'Offline')}</span></div>
         ${licenseRow}
       </div>
       <div class="admin-mcard-actions">
@@ -1392,7 +1388,7 @@ async function renderAdminDriverManagement() {
   currentAdminDrivers = drivers;
 
   if (!drivers.length) {
-    tbody.innerHTML = '<tr><td colspan="6">No drivers registered yet.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5">No drivers registered yet.</td></tr>';
     if (mobileList) mobileList.innerHTML = '<p class="admin-mcard-empty">No drivers registered yet.</p>';
     updateAcceptAllVisibility(drivers);
     return;
@@ -4816,6 +4812,7 @@ function setupAuthForm() {
     const loginContactField = document.querySelector('#login-contact-field');
     const loginEmailInput = document.querySelector('#login-email');
     const loginContactInput = document.querySelector('#login-contact');
+    const forgotPasswordRow = document.querySelector('#forgot-password-row');
     const toggleLoginIdentifier = () => {
       if (!loginRoleSelect) return;
       const isDriver = loginRoleSelect.value === 'driver';
@@ -4825,6 +4822,9 @@ function setupAuthForm() {
         if (isDriver) loginEmailInput.removeAttribute('required');
         else loginEmailInput.setAttribute('required', 'required');
       }
+      // Password resets for drivers are handled manually by the admin, not
+      // self-service by email — hide the passenger-only forgot-password link.
+      if (forgotPasswordRow) forgotPasswordRow.style.display = isDriver ? 'none' : '';
     };
     if (loginRoleSelect) {
       loginRoleSelect.addEventListener('change', toggleLoginIdentifier);
