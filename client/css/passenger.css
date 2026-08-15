@@ -3492,6 +3492,29 @@ body {
   font-weight: 700;
 }
 
+/* Dashboard teaser (.rewards-teaser) is more compact than the Profile
+   page's full #loyalty-card version — same "maximize the space" tightening
+   already applied on the driver side, ported here so both dashboards
+   match. Declared after the shared rules above so it wins for .rewards-teaser
+   specifically (same specificity, later in source) without touching
+   #loyalty-card's own spacing. */
+.rewards-teaser.dashboard-card {
+  padding: 16px 18px;
+}
+
+.rewards-teaser .rewards-stats-title {
+  margin: 0 0 3px;
+  font-size: 0.92rem;
+}
+
+.rewards-teaser .rewards-ring-row {
+  margin: 14px 0;
+}
+
+.rewards-teaser .rewards-milestones {
+  margin-bottom: 12px;
+}
+
 .rewards-ring-row .rewards-stats {
   flex: 1;
 }
