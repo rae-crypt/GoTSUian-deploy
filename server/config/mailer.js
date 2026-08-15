@@ -5,11 +5,15 @@
 // (port 443) isn't blocked, since the app's own API traffic already relies
 // on it working.
 //
-// The "from" address is the same gotsuian.system@gmail.com verified as a
-// Single Sender in SendGrid (Settings → Sender Authentication) — SendGrid
-// rejects sends from an unverified address.
+// The "from" address is on gotsuian.com, a domain fully authenticated in
+// SendGrid (Settings → Sender Authentication → Domain Authentication, SPF/
+// DKIM/DMARC records added in Namecheap's DNS). Sending as
+// gotsuian.system@gmail.com (a domain SendGrid doesn't control) was
+// silently discarded by receiving mail servers even though SendGrid itself
+// reported "Delivered" — no third party can properly authenticate mail
+// claiming to be from a gmail.com address.
 const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
-const FROM_EMAIL = process.env.GMAIL_USER || 'gotsuian.system@gmail.com';
+const FROM_EMAIL = 'noreply@gotsuian.com';
 
 async function sendMail({ to, subject, text, html }) {
   const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
