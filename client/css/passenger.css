@@ -2683,7 +2683,13 @@ body[data-page="passenger"] {
 }
 
 body[data-page="passenger"] .section { padding: 0; }
-body[data-page="passenger"] .section.passenger-layout { padding: 24px 0 60px; }
+/* Bottom padding trimmed from 60px to 0 — .request-status-stack right
+   after this section already carries its own 24px top margin (added
+   below, matching driver.css's equivalent), so the old 60px was stacking
+   on top of that and leaving a much bigger gap before "Account standing"
+   than the same transition gets on the driver dashboard. */
+body[data-page="passenger"] .section.passenger-layout { padding: 24px 0 0; }
+body[data-page="passenger"] .request-status-stack { margin: 24px 0; }
 
 body[data-page="passenger"] .hero.hero-simple {
   background: linear-gradient(135deg, var(--primary) 0%, #5c1414 100%);
