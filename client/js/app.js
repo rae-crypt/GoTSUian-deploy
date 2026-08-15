@@ -740,7 +740,7 @@ async function renderDriverRatingsFull() {
         <div class="rating-breakdown-row">
           <span class="rating-breakdown-label">${star}★</span>
           <div class="rating-breakdown-bar"><div class="rating-breakdown-fill" style="width:${pct}%"></div></div>
-          <span class="rating-breakdown-count">${count}</span>
+          <span class="rating-breakdown-count${count ? ' has-count' : ''}">${count}</span>
         </div>`;
     }).join('');
 

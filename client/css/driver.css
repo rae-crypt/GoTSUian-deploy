@@ -2396,9 +2396,12 @@ body[data-page="driver"] #driver-ratings-loading { font-size: 13px; font-weight:
 body[data-page="driver"] #driver-ratings-details { display: flex; flex-direction: column; gap: 14px; }
 
 body[data-page="driver"] .rating-overview { display: flex; align-items: center; gap: 32px; flex-wrap: wrap; }
-body[data-page="driver"] .rating-overview-score { display: flex; flex-direction: column; align-items: center; gap: 4px; flex-shrink: 0; }
-body[data-page="driver"] .rating-big-number { font-family: 'Poppins', sans-serif; font-size: 40px; font-weight: 700; color: var(--accent-gold); line-height: 1; }
-body[data-page="driver"] .rating-star-row { color: var(--accent-gold); font-size: 16px; letter-spacing: 2px; }
+body[data-page="driver"] .rating-overview-score { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; flex-shrink: 0; }
+/* Star row sits beside the number ("5.0 ★★★★★" as one unit) instead of
+   stacked below it on its own disconnected-looking line. */
+body[data-page="driver"] .score-line { display: flex; align-items: baseline; gap: 10px; }
+body[data-page="driver"] .rating-big-number { font-family: 'Poppins', sans-serif; font-size: 36px; font-weight: 700; color: var(--accent-gold); line-height: 1; }
+body[data-page="driver"] .rating-star-row { color: var(--accent-gold); font-size: 15px; letter-spacing: 2px; }
 body[data-page="driver"] .rating-overview-score small { font-size: 12px; color: var(--gt-muted); }
 
 body[data-page="driver"] .rating-breakdown { flex: 1 1 220px; display: flex; flex-direction: column; gap: 6px; min-width: 200px; }
@@ -2406,7 +2409,13 @@ body[data-page="driver"] .rating-breakdown-row { display: flex; align-items: cen
 body[data-page="driver"] .rating-breakdown-label { width: 24px; font-size: 11.5px; color: var(--gt-muted); font-weight: 600; flex-shrink: 0; }
 body[data-page="driver"] .rating-breakdown-bar { flex: 1 1 auto; height: 8px; border-radius: 999px; background: var(--light); overflow: hidden; }
 body[data-page="driver"] .rating-breakdown-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--accent-gold), #e0b354); transition: width 0.3s ease; }
-body[data-page="driver"] .rating-breakdown-count { width: 20px; text-align: right; font-size: 11.5px; color: var(--gt-muted); flex-shrink: 0; }
+/* Explicit color (not inherited) so this never picks up a mobile
+   browser's auto-detected-content link styling (blue/indigo) — paired
+   with the format-detection meta tag on this page for belt-and-suspenders.
+   Rows that actually have a review get picked out in gold so it's obvious
+   at a glance which bars carry real weight vs. sitting at zero. */
+body[data-page="driver"] .rating-breakdown-count { width: 20px; text-align: right; font-size: 11.5px; color: var(--gt-muted); font-weight: 600; flex-shrink: 0; text-decoration: none; }
+body[data-page="driver"] .rating-breakdown-count.has-count { color: var(--accent-gold); font-weight: 700; }
 
 body[data-page="driver"] .rating-item-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
 body[data-page="driver"] .rating-item-who { display: flex; align-items: center; gap: 10px; min-width: 0; }
