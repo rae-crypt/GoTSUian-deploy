@@ -2363,6 +2363,16 @@ body {
   padding-right: 46px;
 }
 
+/* Edge/legacy IE add their own built-in reveal-password eye (and a clear
+   "x" button) inside type="password" inputs once text is typed — sitting
+   right next to our custom .toggle-eye and showing up as a second icon.
+   Hidden here since every password field on this page already has its
+   own custom toggle. */
+.password-input-group input[type="password"]::-ms-reveal,
+.password-input-group input[type="password"]::-ms-clear {
+  display: none;
+}
+
 .password-input-group .toggle-eye {
   position: absolute;
   right: 12px;
