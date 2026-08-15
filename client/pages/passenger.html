@@ -9,7 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <link rel="stylesheet" href="../css/passenger.css?v=78">
+  <link rel="stylesheet" href="../css/passenger.css?v=79">
 </head>
 <body data-page="passenger">
   <header>
@@ -124,6 +124,28 @@
     </section>
 
     <section class="section request-status-stack">
+      <div id="standing-card" class="dashboard-card standing-card">
+        <p id="standing-loading">Loading...</p>
+        <div id="standing-wrap" style="display:none;">
+          <button type="button" class="standing-toggle" id="standing-toggle" aria-expanded="false">
+            <span class="standing-icon" id="standing-icon">
+              <svg class="icon-clean" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10l4 4 8-8"/></svg>
+              <svg class="icon-warning" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 6v5M10 14h.01"/><circle cx="10" cy="10" r="7.2"/></svg>
+            </span>
+            <span class="standing-text">
+              <strong>Account standing</strong>
+              <span id="standing-summary">No warnings or violations on record</span>
+            </span>
+            <svg class="standing-chevron" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7.5L10 12.5L15 7.5"/></svg>
+          </button>
+          <div class="standing-panel" id="standing-panel">
+            <div class="standing-panel-inner">
+              <div id="standing-list" class="rating-list"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <article class="dashboard-card rewards-teaser">
         <div class="rewards-card-head">
           <span class="rewards-icon-badge"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 2.5L16.5 5.2V9C16.5 13 13.7 16.3 10 17.5C6.3 16.3 3.5 13 3.5 9V5.2L10 2.5Z"/><path d="M7.2 10L9.2 12L12.8 8"/></svg></span>
@@ -184,6 +206,6 @@
   </footer>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="../js/app.js?v=103"></script>
+  <script src="../js/app.js?v=104"></script>
 </body>
 </html>

@@ -805,18 +805,20 @@ async function renderMyViolations() {
 }
 
 // ACCOUNT STANDING (redesigned) — a collapsed, FAQ-style summary row shown
-// on the driver dashboard (between "Your rating" and "Loyalty Rewards") and
-// on the bookings page. Same /my-violations data as renderMyViolations()
-// above, but a different presentation (collapsed by default, driver-only) —
-// kept as its own function/ids rather than reworking the older Profile-page
-// card, so passenger-profile.html's still-in-use card is untouched.
+// on both dashboards (driver.html — between "Your rating" and "Loyalty
+// Rewards" — and passenger.html, before "Loyalty Rewards") and on the
+// driver bookings page. Same /my-violations data as renderMyViolations()
+// above, but a different presentation (collapsed by default) — kept as its
+// own function/ids rather than reworking the older Profile-page card,
+// which no longer has any markup on either profile page (both moved to
+// this redesigned dashboard version).
 async function renderAccountStanding() {
   const loadingEl = document.querySelector('#standing-loading');
   const wrapEl = document.querySelector('#standing-wrap');
   if (!loadingEl || !wrapEl) return;
 
   const user = getStoredUser();
-  if (!isAuthenticated() || user.role !== 'driver') return;
+  if (!isAuthenticated() || (user.role !== 'driver' && user.role !== 'student')) return;
 
   try {
     const res = await fetch(`${COMPLAINTS_API_URL}/my-violations`, { headers: getAuthHeaders() });
