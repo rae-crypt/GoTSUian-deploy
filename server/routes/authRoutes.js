@@ -12,5 +12,6 @@ router.post('/login/admin', authController.loginAdmin);
 router.post('/reset-password/student', authController.resetPasswordStudent);
 router.post('/change-password/student', authMiddleware, authController.changePasswordStudent);
 router.post('/change-password/driver', authMiddleware, authController.changePasswordDriver);
+router.post('/logout/student', authMiddleware, authController.logoutStudent);
 
 module.exports = router;

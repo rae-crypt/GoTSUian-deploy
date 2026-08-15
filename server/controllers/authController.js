@@ -116,17 +116,36 @@ exports.loginStudent = async (req, res) => {
       { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
     );
 
-    res.status(200).json({
-      message: 'Login successful',
-      token,
-      user: {
-        accountId: user.account_id,
-        studentId: user.student_id,
-        name: `${user.first_name} ${user.last_name}`,
-        username: user.username,
-        role: user.role
-      }
+    // Same "online the moment they log in, offline when they explicitly log
+    // out" pattern as loginDriver below — lets Admin's Passenger management
+    // panel show who's actually logged in right now instead of just who's
+    // ever booked a ride.
+    db.query(`UPDATE student SET is_online = TRUE WHERE account_id = ?`, [user.account_id], (err) => {
+      if (err) return res.status(500).json({ error: err.message });
+
+      res.status(200).json({
+        message: 'Login successful',
+        token,
+        user: {
+          accountId: user.account_id,
+          studentId: user.student_id,
+          name: `${user.first_name} ${user.last_name}`,
+          username: user.username,
+          role: user.role
+        }
+      });
     });
+  });
+};
+
+// LOGOUT STUDENT — flips is_online back off. Fired client-side right
+// before clearStoredUser() wipes the token (see setupLogoutButtons in
+// app.js), same as the driver's availability PUT on logout.
+exports.logoutStudent = (req, res) => {
+  const accountId = req.user.accountId;
+  db.query(`UPDATE student SET is_online = FALSE WHERE account_id = ?`, [accountId], (err) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.status(200).json({ message: 'Logged out' });
   });
 };
 

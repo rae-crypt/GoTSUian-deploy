@@ -1662,6 +1662,8 @@ body.admin-portal {
   --tone-danger-bg: #fbe9e9;
   --tone-info: #2b5ea3;
   --tone-info-bg: #e9f0fa;
+  --tone-neutral: #6b7280;
+  --tone-neutral-bg: #f1f2f4;
   margin: 0;
   background: var(--light);
 }
@@ -1949,6 +1951,7 @@ table.admin-table tbody tr:hover { background: var(--light); }
 .admin-pill.tone-warning { background: var(--tone-warning-bg); color: var(--tone-warning); }
 .admin-pill.tone-danger { background: var(--tone-danger-bg); color: var(--tone-danger); }
 .admin-pill.tone-info { background: var(--tone-info-bg); color: var(--tone-info); }
+.admin-pill.tone-neutral { background: var(--tone-neutral-bg); color: var(--tone-neutral); }
 .admin-pill svg { width: 7px; height: 7px; flex-shrink: 0; }
 
 .admin-actions { display: flex; gap: 8px; flex-wrap: wrap; }
