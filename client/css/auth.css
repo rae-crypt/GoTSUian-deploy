@@ -2351,12 +2351,15 @@ body {
   padding-right: 46px;
 }
 
-.toggle-eye {
+.password-input-group .toggle-eye {
   position: absolute;
   right: 12px;
   top: 50%;
   transform: translateY(-50%);
+  width: auto;
   display: flex;
+  align-items: center;
+  justify-content: center;
   background: none;
   border: none;
   padding: 4px;
