@@ -2378,7 +2378,15 @@ select {
   border-radius: 12px;
 }
 
-.rating-item-comment {
+.rating-item > small {
+  display: block;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.rating-list .rating-item-comment {
   margin: 0;
   color: var(--muted);
   font-size: 0.88rem;
@@ -3479,6 +3487,139 @@ body {
 
 .rewards-ring-row .rewards-stats {
   flex: 1;
+}
+
+/* Same ".dashboard-card p" landmine as .rewards-stats-title/-sub above —
+   these are also plain <p> tags with no override of their own, so they
+   fell through to the generic 2rem/bold/dark rule instead of their
+   intended small-pill/muted-line sizing. Needs the extra .rating-list
+   class (two classes) to actually outrank the landmine's class+tag. */
+.rating-list .warning-item-severity {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  margin: 0 0 6px;
+}
+
+.rating-list .warning-item-severity small {
+  text-transform: none;
+  font-weight: 600;
+}
+
+.rating-list .rating-empty {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+/* Account standing — collapsed FAQ-style row by default, expands inline
+   to the violation list. Lives on passenger.html (dashboard, before
+   "Loyalty Rewards"). Same component as driver.css's version. */
+.standing-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.standing-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 20px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+
+.standing-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  background: #e6f4ea;
+  color: #1a7a3c;
+}
+
+.standing-icon svg {
+  width: 17px;
+  height: 17px;
+  display: none;
+}
+
+.standing-icon svg.icon-clean {
+  display: block;
+}
+
+.standing-icon.has-warnings {
+  background: #fdf1de;
+  color: #b45309;
+}
+
+.standing-icon.has-warnings svg.icon-clean {
+  display: none;
+}
+
+.standing-icon.has-warnings svg.icon-warning {
+  display: block;
+}
+
+.standing-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.standing-text strong {
+  display: block;
+  font-family: 'Poppins', sans-serif;
+  font-size: 15.5px;
+  color: var(--text);
+}
+
+.standing-text span {
+  display: block;
+  font-size: 12.5px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.standing-chevron {
+  width: 18px;
+  height: 18px;
+  color: var(--muted);
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.standing-toggle[aria-expanded="true"] .standing-chevron {
+  transform: rotate(180deg);
+}
+
+.standing-panel {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.25s ease;
+}
+
+.standing-panel.open {
+  max-height: 2000px;
+}
+
+.standing-panel-inner {
+  padding: 0 20px 18px;
+  border-top: 1px solid #f1d9d9;
+  margin-top: 2px;
+}
+
+.standing-panel-inner .rating-list {
+  padding-top: 12px;
 }
 
 /* "Download Certificate" button — sits below the certificate (not inside
