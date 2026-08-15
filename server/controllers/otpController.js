@@ -3,6 +3,12 @@ const bcrypt = require('bcrypt');
 const { sendMail } = require('../config/mailer');
 
 const SCHOOL_EMAIL_DOMAIN = '@student.tsu.edu.ph';
+// TEMPORARY: also allow @gmail.com while TSU's Outlook system silently
+// drops mail from gotsuian.com (brand-new domain, no sending reputation
+// yet with TSU's mail filtering) — lets groupmates/adviser actually reach
+// the dashboard for testing. Remove once TSU IT whitelists the domain or
+// its reputation builds up, so only SCHOOL_EMAIL_DOMAIN is accepted again.
+const TESTING_ALLOWED_DOMAIN = '@gmail.com';
 const OTP_TTL_MINUTES = 10;
 const VERIFIED_GRACE_MINUTES = 15;
 const MAX_ATTEMPTS = 5;
@@ -17,7 +23,7 @@ function generateCode() {
 exports.sendOtp = async (req, res) => {
   const email = (req.body.email || '').trim().toLowerCase();
 
-  if (!email || !email.endsWith(SCHOOL_EMAIL_DOMAIN)) {
+  if (!email || (!email.endsWith(SCHOOL_EMAIL_DOMAIN) && !email.endsWith(TESTING_ALLOWED_DOMAIN))) {
     return res.status(400).json({ error: `Please use a valid ${SCHOOL_EMAIL_DOMAIN} email` });
   }
 
