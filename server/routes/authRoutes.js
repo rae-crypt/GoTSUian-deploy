@@ -8,5 +8,6 @@ router.post('/login/student', authController.loginStudent);
 router.post('/register/driver', uploadLicense.single('licenseDocument'), authController.registerDriver);
 router.post('/login/driver', authController.loginDriver);
 router.post('/login/admin', authController.loginAdmin);
+router.post('/reset-password/student', authController.resetPasswordStudent);
 
 module.exports = router;

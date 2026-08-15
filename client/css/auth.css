@@ -1999,20 +1999,6 @@ gap: 12px;
   display: none;
 }
 
-.otp-code-input {
-  display: block;
-  width: 100%;
-  margin: 20px 0 8px;
-  padding: 12px;
-  font-size: 1.5rem;
-  letter-spacing: 10px;
-  text-align: center;
-  font-variant-numeric: tabular-nums;
-  border: 1px solid rgba(127, 29, 29, 0.18);
-  border-radius: 10px;
-  font-family: inherit;
-}
-
 .otp-modal-links {
   display: flex;
   justify-content: center;
@@ -2353,4 +2339,110 @@ body {
 
 .otp-verify-btn {
   width: 100%;
+}
+
+/* Password show/hide toggle — the eye-icon button living inside
+   .password-input-group. That wrapper already reserves 54px of padding
+   for it (see the input rule above), but a later, more specific rule
+   (`input[type="password"], input[type="text"]`) resets padding-right
+   back down to 16px, so it's re-widened here to make room for the icon. */
+.password-input-group input[type="password"],
+.password-input-group input[type="text"] {
+  padding-right: 46px;
+}
+
+.toggle-eye {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  color: var(--muted);
+}
+
+.toggle-eye svg {
+  width: 20px;
+  height: 20px;
+}
+
+.toggle-eye.is-showing {
+  color: var(--primary);
+}
+
+.toggle-eye .eye-off {
+  display: none;
+}
+
+.toggle-eye.is-showing .eye-on {
+  display: none;
+}
+
+.toggle-eye.is-showing .eye-off {
+  display: block;
+}
+
+/* Redesigned OTP input — 6 individual digit boxes with auto-advance
+   (see setupOtpDigitInputs in app.js) instead of one wide masked field,
+   plus a live countdown matching the server's 10-minute expiry. */
+.otp-digit-row {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin: 20px 0 8px;
+}
+
+.otp-digit {
+  width: 44px;
+  height: 54px;
+  border: 1.5px solid rgba(127, 29, 29, 0.18);
+  border-radius: 10px;
+  text-align: center;
+  font-size: 1.4rem;
+  font-weight: 600;
+  font-family: 'Poppins', sans-serif;
+  color: var(--primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.otp-digit:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(127, 29, 29, 0.12);
+}
+
+.otp-timer {
+  display: block;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin: 4px 0 14px;
+}
+
+.otp-timer strong {
+  color: var(--primary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Forgot Password link on the Login form, and its 3-step reset modal
+   (shares .auth-modal / .form-field / .otp-modal-links / .btn-primary /
+   .btn-link with the rest of the auth page — no new modal chrome needed). */
+.forgot-password-row {
+  text-align: right;
+  margin: 6px 0 0;
+}
+
+@media (max-width: 480px) {
+  .otp-digit {
+    width: 38px;
+    height: 48px;
+    font-size: 1.2rem;
+  }
+
+  .otp-digit-row {
+    gap: 6px;
+  }
 }

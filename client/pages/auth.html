@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="../css/auth.css?v=50">
+  <link rel="stylesheet" href="../css/auth.css?v=51">
 </head>
 <body data-page="auth">
   <header>
@@ -146,12 +146,24 @@
             <div class="form-row-2">
               <div class="form-field">
                 <label for="reg-password">Password <span class="required-star">*</span></label>
-                <input type="password" id="reg-password" name="password" placeholder="Enter a password" required>
+                <div class="password-input-group">
+                  <input type="password" id="reg-password" name="password" placeholder="Enter a password" required>
+                  <button type="button" class="toggle-eye" data-target="reg-password" aria-label="Show password">
+                    <svg class="eye-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 12S5 5 12 5s10.5 7 10.5 7-3.5 7-10.5 7S1.5 12 1.5 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+                    <svg class="eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18M10.6 10.6a3 3 0 0 0 4.24 4.24M6.5 6.7C3.9 8.3 2 12 2 12s3.5 7 10 7c1.8 0 3.3-.4 4.6-1.1M9.9 5.2c.7-.1 1.4-.2 2.1-.2 6.5 0 10 7 10 7s-.7 1.5-2 3"/></svg>
+                  </button>
+                </div>
                 <small class="error-msg" id="password-error"></small>
               </div>
               <div class="form-field">
                 <label for="reg-password-confirm">Confirm password <span class="required-star">*</span></label>
-                <input type="password" id="reg-password-confirm" name="passwordConfirm" placeholder="Re-enter your password" required>
+                <div class="password-input-group">
+                  <input type="password" id="reg-password-confirm" name="passwordConfirm" placeholder="Re-enter your password" required>
+                  <button type="button" class="toggle-eye" data-target="reg-password-confirm" aria-label="Show password">
+                    <svg class="eye-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 12S5 5 12 5s10.5 7 10.5 7-3.5 7-10.5 7S1.5 12 1.5 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+                    <svg class="eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18M10.6 10.6a3 3 0 0 0 4.24 4.24M6.5 6.7C3.9 8.3 2 12 2 12s3.5 7 10 7c1.8 0 3.3-.4 4.6-1.1M9.9 5.2c.7-.1 1.4-.2 2.1-.2 6.5 0 10 7 10 7s-.7 1.5-2 3"/></svg>
+                  </button>
+                </div>
                 <small class="error-msg" id="password-confirm-error"></small>
               </div>
             </div>
@@ -203,7 +215,12 @@
               <label for="login-password">Password</label>
               <div class="password-input-group">
                 <input type="password" id="login-password" name="password" placeholder="Enter your password" required>
+                <button type="button" class="toggle-eye" data-target="login-password" aria-label="Show password">
+                  <svg class="eye-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 12S5 5 12 5s10.5 7 10.5 7-3.5 7-10.5 7S1.5 12 1.5 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+                  <svg class="eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18M10.6 10.6a3 3 0 0 0 4.24 4.24M6.5 6.7C3.9 8.3 2 12 2 12s3.5 7 10 7c1.8 0 3.3-.4 4.6-1.1M9.9 5.2c.7-.1 1.4-.2 2.1-.2 6.5 0 10 7 10 7s-.7 1.5-2 3"/></svg>
+                </button>
               </div>
+              <p class="forgot-password-row"><button type="button" id="forgot-password-link" class="btn-link">Forgot password?</button></p>
             </div>
 
             <div class="password-feedback">
@@ -247,7 +264,15 @@
     <div id="otp-modal" class="auth-modal hidden">
       <div class="auth-modal-content otp-modal-content">
         <p class="otp-instructions">Enter the verification code sent to <strong id="otp-modal-email"></strong>. If it doesn't appear within a few minutes, check your spam folder.</p>
-        <input type="text" id="reg-otp-code" name="otpCode" placeholder="000000" maxlength="6" inputmode="numeric" autocomplete="one-time-code" class="otp-code-input">
+        <div class="otp-digit-row" id="reg-otp-digits">
+          <input type="text" class="otp-digit" inputmode="numeric" maxlength="1" autocomplete="one-time-code">
+          <input type="text" class="otp-digit" inputmode="numeric" maxlength="1">
+          <input type="text" class="otp-digit" inputmode="numeric" maxlength="1">
+          <input type="text" class="otp-digit" inputmode="numeric" maxlength="1">
+          <input type="text" class="otp-digit" inputmode="numeric" maxlength="1">
+          <input type="text" class="otp-digit" inputmode="numeric" maxlength="1">
+        </div>
+        <small class="otp-timer" id="otp-timer"></small>
         <small class="error-msg" id="otp-error"></small>
         <small class="modal-small-text" id="otp-status"></small>
         <div class="modal-actions otp-modal-actions">
@@ -257,6 +282,70 @@
           <button type="button" id="reg-resend-otp" class="btn-link">Resend code</button>
           <button type="button" id="otp-cancel-btn" class="btn-link">Cancel</button>
         </p>
+      </div>
+    </div>
+
+    <!-- Forgot Password Modal (passengers only) -->
+    <div id="forgot-password-modal" class="auth-modal hidden">
+      <div class="auth-modal-content">
+        <div id="reset-step-1">
+          <h2>Reset your password</h2>
+          <p>Enter your email and we'll send a reset code.</p>
+          <div class="form-field">
+            <label for="reset-email">Email address</label>
+            <input type="email" id="reset-email" placeholder="jane@gmail.com">
+          </div>
+          <small class="error-msg" id="reset-email-error"></small>
+          <div class="modal-actions otp-modal-actions">
+            <button type="button" id="reset-send-btn" class="btn-primary otp-verify-btn">Send reset code</button>
+          </div>
+          <p class="otp-modal-links">
+            <button type="button" id="reset-cancel-btn-1" class="btn-link">Cancel</button>
+          </p>
+        </div>
+
+        <div id="reset-step-2" class="hidden">
+          <h2>Check your email</h2>
+          <p class="otp-instructions">Enter the code sent to <strong id="reset-modal-email"></strong>, then set a new password.</p>
+          <div class="otp-digit-row" id="reset-otp-digits">
+            <input type="text" class="otp-digit" inputmode="numeric" maxlength="1" autocomplete="one-time-code">
+            <input type="text" class="otp-digit" inputmode="numeric" maxlength="1">
+            <input type="text" class="otp-digit" inputmode="numeric" maxlength="1">
+            <input type="text" class="otp-digit" inputmode="numeric" maxlength="1">
+            <input type="text" class="otp-digit" inputmode="numeric" maxlength="1">
+            <input type="text" class="otp-digit" inputmode="numeric" maxlength="1">
+          </div>
+          <small class="otp-timer" id="reset-otp-timer"></small>
+          <div class="form-field" style="text-align:left; margin-top:14px;">
+            <label for="reset-new-password">New password</label>
+            <div class="password-input-group">
+              <input type="password" id="reset-new-password" placeholder="8+ characters">
+              <button type="button" class="toggle-eye" data-target="reset-new-password" aria-label="Show password">
+                <svg class="eye-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 12S5 5 12 5s10.5 7 10.5 7-3.5 7-10.5 7S1.5 12 1.5 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+                <svg class="eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18M10.6 10.6a3 3 0 0 0 4.24 4.24M6.5 6.7C3.9 8.3 2 12 2 12s3.5 7 10 7c1.8 0 3.3-.4 4.6-1.1M9.9 5.2c.7-.1 1.4-.2 2.1-.2 6.5 0 10 7 10 7s-.7 1.5-2 3"/></svg>
+              </button>
+            </div>
+          </div>
+          <small class="error-msg" id="reset-step2-error"></small>
+          <div class="modal-actions otp-modal-actions">
+            <button type="button" id="reset-submit-btn" class="btn-primary otp-verify-btn">Reset password</button>
+          </div>
+          <p class="otp-modal-links">
+            <button type="button" id="reset-resend-btn" class="btn-link">Resend code</button>
+            <button type="button" id="reset-cancel-btn-2" class="btn-link">Cancel</button>
+          </p>
+        </div>
+
+        <div id="reset-step-3" class="hidden">
+          <div class="auth-modal-icon neutral">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+          </div>
+          <h2>Password updated!</h2>
+          <p>You can now log in with your new password.</p>
+          <div class="modal-actions">
+            <button type="button" id="reset-done-btn" class="btn-primary">Back to Login</button>
+          </div>
+        </div>
       </div>
     </div>
   </main>
@@ -285,6 +374,6 @@
   </footer>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="../js/app.js?v=96"></script>
+  <script src="../js/app.js?v=97"></script>
 </body>
 </html>

@@ -1844,6 +1844,94 @@ function maskEmail(email) {
   return `${masked}@${domain}`;
 }
 
+// Show/hide toggle for password fields — wires up every `.toggle-eye`
+// button on the page once; each button's `data-target` names the input
+// it controls. No-op on pages with no such buttons (only auth.html has any).
+function setupPasswordToggles() {
+  document.querySelectorAll('.toggle-eye').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const input = document.querySelector(`#${btn.dataset.target}`);
+      if (!input) return;
+      const showing = btn.classList.toggle('is-showing');
+      input.type = showing ? 'text' : 'password';
+      btn.setAttribute('aria-label', showing ? 'Hide password' : 'Show password');
+    });
+  });
+}
+
+// Individual-digit-box OTP input — auto-advances focus as each digit is
+// typed, moves back on Backspace from an empty box, and accepts a pasted
+// 6-digit code in one go. Shared by the registration OTP modal and the
+// Forgot Password modal's code step.
+function setupOtpDigitInputs(containerSelector) {
+  const container = document.querySelector(containerSelector);
+  if (!container) return;
+  const boxes = Array.from(container.querySelectorAll('.otp-digit'));
+
+  boxes.forEach((box, i) => {
+    box.addEventListener('input', () => {
+      box.value = box.value.replace(/[^0-9]/g, '').slice(0, 1);
+      if (box.value && boxes[i + 1]) boxes[i + 1].focus();
+    });
+    box.addEventListener('keydown', (event) => {
+      if (event.key === 'Backspace' && !box.value && boxes[i - 1]) {
+        boxes[i - 1].focus();
+      }
+    });
+    box.addEventListener('paste', (event) => {
+      const pasted = (event.clipboardData || window.clipboardData).getData('text').replace(/[^0-9]/g, '');
+      if (!pasted) return;
+      event.preventDefault();
+      pasted.slice(0, boxes.length).split('').forEach((digit, idx) => {
+        if (boxes[idx]) boxes[idx].value = digit;
+      });
+      const nextEmpty = boxes.find((box) => !box.value);
+      (nextEmpty || boxes[boxes.length - 1]).focus();
+    });
+  });
+}
+
+function getOtpDigitValue(containerSelector) {
+  const container = document.querySelector(containerSelector);
+  if (!container) return '';
+  return Array.from(container.querySelectorAll('.otp-digit')).map((box) => box.value).join('');
+}
+
+function clearOtpDigitInputs(containerSelector) {
+  const container = document.querySelector(containerSelector);
+  if (!container) return;
+  container.querySelectorAll('.otp-digit').forEach((box) => { box.value = ''; });
+}
+
+// Live "code expires in mm:ss" countdown, matching the server's
+// OTP_TTL_MINUTES (10 minutes = 600s) in otpController.js. Returns a stop
+// function so a Resend click can cancel the previous countdown before
+// starting a fresh one.
+function startOtpCountdown(displayEl, seconds) {
+  if (!displayEl) return () => {};
+  let remaining = seconds;
+
+  const render = () => {
+    const m = Math.floor(remaining / 60).toString().padStart(2, '0');
+    const s = (remaining % 60).toString().padStart(2, '0');
+    displayEl.innerHTML = remaining > 0
+      ? `Code expires in <strong>${m}:${s}</strong>`
+      : 'Code expired — request a new one';
+  };
+
+  render();
+  const intervalId = setInterval(() => {
+    remaining -= 1;
+    if (remaining <= 0) {
+      clearInterval(intervalId);
+      remaining = 0;
+    }
+    render();
+  }, 1000);
+
+  return () => clearInterval(intervalId);
+}
+
 // The only two pickup/dropoff points in this system are the full campus
 // names ("San Isidro Campus (Tarlac State University)", "Main Campus
 // (Tarlac State University)") — too long for a route line, so shorten to
@@ -3613,11 +3701,14 @@ function setupAuthForm() {
     const licenseFileInput = document.querySelector('#reg-license-file');
     const otpModal = document.querySelector('#otp-modal');
     const otpModalEmail = document.querySelector('#otp-modal-email');
-    const otpCodeInput = document.querySelector('#reg-otp-code');
     const otpStatusEl = document.querySelector('#otp-status');
     const otpVerifyBtn = document.querySelector('#otp-verify-btn');
     const otpCancelBtn = document.querySelector('#otp-cancel-btn');
     const resendOtpBtn = document.querySelector('#reg-resend-otp');
+    const OTP_TTL_SECONDS = 600; // matches OTP_TTL_MINUTES in otpController.js
+
+    setupOtpDigitInputs('#reg-otp-digits');
+    let stopRegOtpCountdown = () => {};
 
     // Passenger registration is two steps: send a code, then verify it
     // before the account is actually created (see authController.registerStudent,
@@ -3631,7 +3722,8 @@ function setupAuthForm() {
       otpSent = false;
       otpVerified = false;
       if (otpModal) otpModal.classList.add('hidden');
-      if (otpCodeInput) otpCodeInput.value = '';
+      clearOtpDigitInputs('#reg-otp-digits');
+      stopRegOtpCountdown();
       const otpErrorEl = document.querySelector('#otp-error');
       if (otpErrorEl) otpErrorEl.textContent = '';
       if (otpStatusEl) otpStatusEl.textContent = '';
@@ -3658,6 +3750,9 @@ function setupAuthForm() {
         try {
           await sendRegistrationOtp(targetEmail);
           if (otpStatusEl) otpStatusEl.textContent = 'New code sent!';
+          clearOtpDigitInputs('#reg-otp-digits');
+          stopRegOtpCountdown();
+          stopRegOtpCountdown = startOtpCountdown(document.querySelector('#otp-timer'), OTP_TTL_SECONDS);
         } catch (error) {
           if (otpStatusEl) otpStatusEl.textContent = '';
           if (otpErrorEl) otpErrorEl.textContent = error.message;
@@ -3682,6 +3777,160 @@ function setupAuthForm() {
     // different, now-stale, email).
     if (emailInput) emailInput.addEventListener('input', resetOtpState);
     if (roleSelect) roleSelect.addEventListener('change', resetOtpState);
+
+    // FORGOT PASSWORD (passenger only) — 3-step popup: enter email, enter
+    // code + new password, success. Reuses the same digit-box/countdown
+    // helpers as the registration OTP modal above, and the server's
+    // existing /api/otp/verify for the code-check step (purpose-agnostic —
+    // it just marks an email_otp row verified either way).
+    const forgotPasswordLink = document.querySelector('#forgot-password-link');
+    const forgotModal = document.querySelector('#forgot-password-modal');
+    const resetStep1 = document.querySelector('#reset-step-1');
+    const resetStep2 = document.querySelector('#reset-step-2');
+    const resetStep3 = document.querySelector('#reset-step-3');
+    const resetEmailInput = document.querySelector('#reset-email');
+    const resetModalEmail = document.querySelector('#reset-modal-email');
+    const resetNewPasswordInput = document.querySelector('#reset-new-password');
+
+    let resetEmail = '';
+    let stopResetCountdown = () => {};
+
+    setupOtpDigitInputs('#reset-otp-digits');
+
+    function showResetStep(step) {
+      [resetStep1, resetStep2, resetStep3].forEach((el) => { if (el) el.classList.add('hidden'); });
+      const target = step === 1 ? resetStep1 : step === 2 ? resetStep2 : resetStep3;
+      if (target) target.classList.remove('hidden');
+    }
+
+    function resetForgotPasswordState() {
+      resetEmail = '';
+      stopResetCountdown();
+      if (resetEmailInput) resetEmailInput.value = '';
+      if (resetNewPasswordInput) resetNewPasswordInput.value = '';
+      clearOtpDigitInputs('#reset-otp-digits');
+      const err1 = document.querySelector('#reset-email-error');
+      const err2 = document.querySelector('#reset-step2-error');
+      if (err1) err1.textContent = '';
+      if (err2) err2.textContent = '';
+      showResetStep(1);
+    }
+
+    if (forgotPasswordLink) {
+      forgotPasswordLink.addEventListener('click', () => {
+        resetForgotPasswordState();
+        if (forgotModal) forgotModal.classList.remove('hidden');
+      });
+    }
+
+    document.querySelectorAll('#reset-cancel-btn-1, #reset-cancel-btn-2').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (forgotModal) forgotModal.classList.add('hidden');
+        resetForgotPasswordState();
+      });
+    });
+
+    const resetSendBtn = document.querySelector('#reset-send-btn');
+    if (resetSendBtn) {
+      resetSendBtn.addEventListener('click', async () => {
+        const email = resetEmailInput ? resetEmailInput.value.trim().toLowerCase() : '';
+        const err1 = document.querySelector('#reset-email-error');
+        if (err1) err1.textContent = '';
+        if (!email) {
+          if (err1) err1.textContent = 'Please enter your email';
+          return;
+        }
+        try {
+          const response = await fetch(`${OTP_API_URL}/send-reset`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email })
+          });
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.error || 'Could not send reset code');
+          resetEmail = email;
+          if (resetModalEmail) resetModalEmail.textContent = maskEmail(email);
+          showResetStep(2);
+          stopResetCountdown();
+          stopResetCountdown = startOtpCountdown(document.querySelector('#reset-otp-timer'), OTP_TTL_SECONDS);
+        } catch (error) {
+          if (err1) err1.textContent = error.message;
+        }
+      });
+    }
+
+    const resetResendBtn = document.querySelector('#reset-resend-btn');
+    if (resetResendBtn) {
+      resetResendBtn.addEventListener('click', async () => {
+        if (!resetEmail) return;
+        const err2 = document.querySelector('#reset-step2-error');
+        if (err2) err2.textContent = '';
+        try {
+          const response = await fetch(`${OTP_API_URL}/send-reset`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: resetEmail })
+          });
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.error || 'Could not resend reset code');
+          clearOtpDigitInputs('#reset-otp-digits');
+          stopResetCountdown();
+          stopResetCountdown = startOtpCountdown(document.querySelector('#reset-otp-timer'), OTP_TTL_SECONDS);
+        } catch (error) {
+          if (err2) err2.textContent = error.message;
+        }
+      });
+    }
+
+    const resetSubmitBtn = document.querySelector('#reset-submit-btn');
+    if (resetSubmitBtn) {
+      resetSubmitBtn.addEventListener('click', async () => {
+        const err2 = document.querySelector('#reset-step2-error');
+        if (err2) err2.textContent = '';
+        const code = getOtpDigitValue('#reset-otp-digits');
+        const newPassword = resetNewPasswordInput ? resetNewPasswordInput.value : '';
+
+        if (code.length !== 6) {
+          if (err2) err2.textContent = 'Please enter the 6-digit code';
+          return;
+        }
+        if (newPassword.length < 8) {
+          if (err2) err2.textContent = 'Password must be at least 8 characters';
+          return;
+        }
+
+        try {
+          const verifyResponse = await fetch(`${OTP_API_URL}/verify`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: resetEmail, code })
+          });
+          const verifyData = await verifyResponse.json();
+          if (!verifyResponse.ok) throw new Error(verifyData.error || 'Incorrect code');
+
+          const resetResponse = await fetch(`${API_BASE_URL}/reset-password/student`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: resetEmail, newPassword })
+          });
+          const resetData = await resetResponse.json();
+          if (!resetResponse.ok) throw new Error(resetData.error || 'Could not reset password');
+
+          stopResetCountdown();
+          showResetStep(3);
+        } catch (error) {
+          if (err2) err2.textContent = error.message;
+        }
+      });
+    }
+
+    const resetDoneBtn = document.querySelector('#reset-done-btn');
+    if (resetDoneBtn) {
+      resetDoneBtn.addEventListener('click', () => {
+        if (forgotModal) forgotModal.classList.add('hidden');
+        resetForgotPasswordState();
+      });
+    }
 
     // Real-time validation for first name
     if (fnameInput) {
@@ -4195,14 +4444,16 @@ function setupAuthForm() {
             if (otpModalEmail) otpModalEmail.textContent = maskEmail(email);
             if (otpStatusEl) otpStatusEl.textContent = '';
             if (otpModal) otpModal.classList.remove('hidden');
+            stopRegOtpCountdown();
+            stopRegOtpCountdown = startOtpCountdown(document.querySelector('#otp-timer'), OTP_TTL_SECONDS);
           } catch (error) {
             showAuthFeedback('error', 'Could Not Send Code', error.message);
           }
           return;
         }
 
-        const code = otpCodeInput ? otpCodeInput.value.trim() : '';
-        if (!code) {
+        const code = getOtpDigitValue('#reg-otp-digits');
+        if (code.length !== 6) {
           if (otpErrorEl) otpErrorEl.textContent = 'Please enter the 6-digit code';
           return;
         }
@@ -4219,6 +4470,7 @@ function setupAuthForm() {
             return;
           }
           otpVerified = true;
+          stopRegOtpCountdown();
           if (otpModal) otpModal.classList.add('hidden');
         } catch (error) {
           if (otpErrorEl) otpErrorEl.textContent = 'Could not verify code. Please try again.';
@@ -4607,6 +4859,7 @@ document.addEventListener('DOMContentLoaded', function() {
   setupGettingStartedPage();
   highlightActiveNav();
   setupAuthForm();
+  setupPasswordToggles();
   setupAdminLoginForm();
   setupLogoutButtons();
   setupCertificateDownload();

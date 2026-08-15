@@ -17,13 +17,54 @@ function generateCode() {
   return String(Math.floor(100000 + Math.random() * 900000));
 }
 
+function isAllowedEmail(email) {
+  return email.endsWith(SCHOOL_EMAIL_DOMAIN) || email.endsWith(TESTING_ALLOWED_DOMAIN);
+}
+
+// Generates a fresh code, hashes it, and replaces any previous pending code
+// for that email — shared by sendOtp (registration) and sendResetOtp
+// (forgot password), which differ only in which existence check runs first.
+async function issueOtp(email) {
+  const code = generateCode();
+  const otpHash = await bcrypt.hash(code, 10);
+
+  await new Promise((resolve, reject) => {
+    db.query(`DELETE FROM email_otp WHERE email = ?`, [email], (err) => (err ? reject(err) : resolve()));
+  });
+
+  await new Promise((resolve, reject) => {
+    const insertSql = `
+      INSERT INTO email_otp (email, otp_hash, expires_at)
+      VALUES (?, ?, DATE_ADD(NOW(), INTERVAL ${OTP_TTL_MINUTES} MINUTE))
+    `;
+    db.query(insertSql, [email, otpHash], (err) => (err ? reject(err) : resolve()));
+  });
+
+  return code;
+}
+
+async function emailCode(email, code, res) {
+  try {
+    await sendMail({
+      to: email,
+      subject: 'Your GoTSUian verification code',
+      text: `Your GoTSUian verification code is ${code}. It expires in ${OTP_TTL_MINUTES} minutes.`,
+      html: `<p>Your GoTSUian verification code is:</p><h2 style="letter-spacing:4px;">${code}</h2><p>This code expires in ${OTP_TTL_MINUTES} minutes.</p>`
+    });
+    res.status(200).json({ message: 'Verification code sent' });
+  } catch (mailError) {
+    console.error('SendGrid send failed:', mailError.message);
+    res.status(502).json({ error: 'Could not send the verification email. Please try again.' });
+  }
+}
+
 // SEND OTP — emails a fresh 6-digit code to a @student.tsu.edu.ph address.
 // Any previous code for that email (verified or not) is invalidated, so
 // only the most recently sent code can ever be used.
 exports.sendOtp = async (req, res) => {
   const email = (req.body.email || '').trim().toLowerCase();
 
-  if (!email || (!email.endsWith(SCHOOL_EMAIL_DOMAIN) && !email.endsWith(TESTING_ALLOWED_DOMAIN))) {
+  if (!email || !isAllowedEmail(email)) {
     return res.status(400).json({ error: `Please use a valid ${SCHOOL_EMAIL_DOMAIN} email` });
   }
 
@@ -34,33 +75,33 @@ exports.sendOtp = async (req, res) => {
     }
 
     try {
-      const code = generateCode();
-      const otpHash = await bcrypt.hash(code, 10);
+      const code = await issueOtp(email);
+      await emailCode(email, code, res);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+};
 
-      db.query(`DELETE FROM email_otp WHERE email = ?`, [email], (err) => {
-        if (err) return res.status(500).json({ error: err.message });
+// SEND RESET OTP — Forgot Password, passengers only. Opposite existence
+// check from sendOtp: the email must already belong to a registered
+// student account, not be free of one.
+exports.sendResetOtp = async (req, res) => {
+  const email = (req.body.email || '').trim().toLowerCase();
 
-        const insertSql = `
-          INSERT INTO email_otp (email, otp_hash, expires_at)
-          VALUES (?, ?, DATE_ADD(NOW(), INTERVAL ${OTP_TTL_MINUTES} MINUTE))
-        `;
-        db.query(insertSql, [email, otpHash], async (err) => {
-          if (err) return res.status(500).json({ error: err.message });
+  if (!email || !isAllowedEmail(email)) {
+    return res.status(400).json({ error: `Please use a valid ${SCHOOL_EMAIL_DOMAIN} email` });
+  }
 
-          try {
-            await sendMail({
-              to: email,
-              subject: 'Your GoTSUian verification code',
-              text: `Your GoTSUian verification code is ${code}. It expires in ${OTP_TTL_MINUTES} minutes.`,
-              html: `<p>Your GoTSUian verification code is:</p><h2 style="letter-spacing:4px;">${code}</h2><p>This code expires in ${OTP_TTL_MINUTES} minutes.</p>`
-            });
-            res.status(200).json({ message: 'Verification code sent' });
-          } catch (mailError) {
-            console.error('SendGrid send failed:', mailError.message);
-            res.status(502).json({ error: 'Could not send the verification email. Please try again.' });
-          }
-        });
-      });
+  db.query(`SELECT account_id FROM user_account WHERE username = ? AND role = 'student'`, [email], async (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!rows.length) {
+      return res.status(404).json({ error: 'No passenger account found with that email' });
+    }
+
+    try {
+      const code = await issueOtp(email);
+      await emailCode(email, code, res);
     } catch (error) {
       res.status(500).json({ error: error.message });
     }
