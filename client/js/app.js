@@ -1603,14 +1603,14 @@ function passengerInitials(name) {
 
 function renderPassengerRow(p) {
   const lastBooking = p.last_booking ? new Date(p.last_booking).toLocaleDateString() : '—';
-  const status = p.ride_count > 0 ? 'Active' : 'No bookings yet';
+  const isOnline = Boolean(p.is_online);
   const passengerName = escapeHtml(p.name);
   return `
     <tr>
       <td><div class="admin-person"><span class="admin-avatar">${passengerInitials(p.name)}</span><div><strong>${passengerName}</strong></div></div></td>
       <td>${p.ride_count}</td>
       <td>${escapeHtml(lastBooking)}</td>
-      <td>${pillHtml(p.ride_count > 0 ? 'success' : 'warning', status)}</td>
+      <td>${pillHtml(isOnline ? 'success' : 'neutral', isOnline ? 'Active' : 'Offline')}</td>
       <td><button type="button" class="admin-btn" data-action="issue-warning" data-account-id="${p.account_id}" data-target-name="${passengerName}">Issue Warning</button></td>
     </tr>
   `;
@@ -1618,13 +1618,13 @@ function renderPassengerRow(p) {
 
 function renderPassengerCard(p) {
   const lastBooking = p.last_booking ? new Date(p.last_booking).toLocaleDateString() : '—';
-  const status = p.ride_count > 0 ? 'Active' : 'No bookings yet';
+  const isOnline = Boolean(p.is_online);
   const passengerName = escapeHtml(p.name);
   return `
     <div class="admin-mcard">
       <div class="admin-mcard-top">
         <div class="admin-person"><span class="admin-avatar">${passengerInitials(p.name)}</span><div><strong>${passengerName}</strong></div></div>
-        ${pillHtml(p.ride_count > 0 ? 'success' : 'warning', status)}
+        ${pillHtml(isOnline ? 'success' : 'neutral', isOnline ? 'Active' : 'Offline')}
       </div>
       <div class="admin-mcard-rows">
         <div class="admin-mcard-row"><span>Rides booked</span><span>${p.ride_count}</span></div>
@@ -3560,14 +3560,21 @@ function setupLogoutButtons() {
       event.preventDefault();
       const confirmed = await showLogoutConfirm();
       if (!confirmed) return;
-      // Best-effort: take a driver off the "available" count as soon as they
-      // log out, so passengers don't see a stale online driver who's gone.
-      // Fired before clearStoredUser() wipes the token this call needs.
-      if (getStoredUser().role === 'driver') {
+      // Best-effort: flip the driver/passenger's is_online off as soon as
+      // they log out, so Admin's driver-availability count and Passenger
+      // management panel don't show a stale "online" account that's gone.
+      // Fired before clearStoredUser() wipes the token these calls need.
+      const loggedOutRole = getStoredUser().role;
+      if (loggedOutRole === 'driver') {
         fetch(`${RIDES_API_URL}/driver/availability`, {
           method: 'PUT',
           headers: getAuthHeaders(),
           body: JSON.stringify({ is_online: false })
+        }).catch(() => {});
+      } else if (loggedOutRole === 'student') {
+        fetch(`${API_BASE_URL}/logout/student`, {
+          method: 'POST',
+          headers: getAuthHeaders()
         }).catch(() => {});
       }
       clearStoredUser();

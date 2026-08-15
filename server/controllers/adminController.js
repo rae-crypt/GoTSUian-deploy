@@ -57,16 +57,16 @@ exports.getStats = (req, res) => {
   });
 };
 // LIST ALL PASSENGERS — every registered student, with how many rides
-// they've made and when they last booked. "Active" just means they've
-// booked at least once; there's no separate account-status field for
-// passengers the way there is for drivers.
+// they've made, when they last booked, and whether they're actually
+// logged in right now (is_online, same login/logout-flipped flag pattern
+// as tricycle_driver — see loginStudent/logoutStudent in authController.js).
 exports.listPassengers = (req, res) => {
   const sql = `
     SELECT s.account_id, CONCAT(s.first_name, ' ', s.last_name) AS name,
-           MAX(r.created_at) AS last_booking, COUNT(r.ride_id) AS ride_count
+           s.is_online, MAX(r.created_at) AS last_booking, COUNT(r.ride_id) AS ride_count
     FROM student s
     LEFT JOIN rides r ON r.passenger_account_id = s.account_id
-    GROUP BY s.account_id, s.first_name, s.last_name
+    GROUP BY s.account_id, s.first_name, s.last_name, s.is_online
     ORDER BY last_booking IS NULL, last_booking DESC
   `;
   db.query(sql, (err, rows) => {

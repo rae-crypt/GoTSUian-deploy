@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS student (
   sex ENUM('male', 'female', 'other'),
   contact_number VARCHAR(20),
   current_address VARCHAR(255),
+  is_online BOOLEAN NOT NULL DEFAULT FALSE,
   FOREIGN KEY (account_id) REFERENCES user_account(account_id) ON DELETE CASCADE
 );
 
@@ -239,3 +240,10 @@ ALTER TABLE rides MODIFY COLUMN status ENUM('Pending', 'Accepted', 'Picked Up', 
 -- issueViolation) rather than an admin directly choosing "Violation" — lets
 -- the account-standing UI label it distinctly and keeps this auditable.
 ALTER TABLE violations ADD COLUMN escalated BOOLEAN NOT NULL DEFAULT FALSE AFTER reason;
+
+-- === Passenger online-status migration (run against an EXISTING database) ===
+-- Same is_online flag tricycle_driver already has, flipped on at
+-- loginStudent and off at the new POST /api/auth/logout/student — lets
+-- Admin's Passenger management panel show who's actually logged in right
+-- now instead of the old "has ever booked a ride" heuristic.
+ALTER TABLE student ADD COLUMN is_online BOOLEAN NOT NULL DEFAULT FALSE;
