@@ -818,7 +818,12 @@ async function renderAccountStanding() {
   if (!loadingEl || !wrapEl) return;
 
   const user = getStoredUser();
-  if (!isAuthenticated() || (user.role !== 'driver' && user.role !== 'student')) return;
+  // Login normalizes the backend's "student" role to "passenger" for
+  // everything client-side (see setupAuthForm's login handler) — checking
+  // for "student" here meant this always fell through silently for
+  // passengers, leaving #standing-loading stuck forever since the function
+  // returned before ever hiding it.
+  if (!isAuthenticated() || (user.role !== 'driver' && user.role !== 'passenger')) return;
 
   try {
     const res = await fetch(`${COMPLAINTS_API_URL}/my-violations`, { headers: getAuthHeaders() });
