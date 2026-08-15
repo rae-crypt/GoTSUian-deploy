@@ -2880,6 +2880,13 @@ body[data-page="passenger"] .copy-short { display: none; }
 body[data-page="passenger"] .booking-route { font-size: 14.5px; font-weight: 700; color: var(--text); margin: 0 0 6px; }
 body[data-page="passenger"] .review-existing { font-size: 12.5px; font-weight: 600; color: var(--accent-gold); margin: 0; }
 body[data-page="passenger"] #bookings-loading { font-size: 13px; font-weight: 500; color: var(--gt-muted); }
+/* Same ".dashboard-card p" landmine as elsewhere in this file — these
+   "Loading..." lines are plain <p> tags with no override of their own,
+   so they were rendering at 2rem/bold/dark instead of a normal loading
+   line, making a brief loading flicker look like a stuck/broken state. */
+body[data-page="passenger"] #loyalty-loading,
+body[data-page="passenger"] #profile-loading,
+body[data-page="passenger"] #standing-loading { font-size: 13px; font-weight: 500; color: var(--gt-muted); }
 body[data-page="passenger"] .bookings-empty p { font-size: 13px; font-weight: 500; color: var(--gt-muted); margin: 0; }
 
 body[data-page="passenger"] .booking-item {
