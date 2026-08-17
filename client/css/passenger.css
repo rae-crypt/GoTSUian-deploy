@@ -1572,20 +1572,6 @@ select {
   display: block;
 }
 
-.profile-divider {
-  height: 1px;
-  background: #f1d9d9;
-  margin: 22px 0;
-}
-
-.profile-subsection-title {
-  font-family: 'Poppins', sans-serif;
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--text);
-  margin: 0 0 14px;
-}
-
 .field-note {
   display: block;
   font-size: 0.85rem;
@@ -3663,6 +3649,50 @@ body[data-page="passenger"] .standing-panel-inner {
 
 body[data-page="passenger"] .standing-panel-inner .rating-list {
   padding-top: 12px;
+}
+
+/* ---- Profile page — "Profile details" / "Change password" / "Loyalty
+   Rewards" as collapsible sections, same accordion pattern as the Admin
+   dashboard's panels (.admin-panel/.admin-panel-toggle in admin.css),
+   ported here with passenger.css's own tokens since admin.css isn't
+   loaded on this page. "Profile details" starts open, the other two
+   start collapsed (.is-collapsed). Same component as driver.css's
+   version. ---- */
+body[data-page="passenger"] .profile-panel {
+  background: var(--white);
+  border: 1px solid #f1d9d9;
+  border-radius: 18px;
+  box-shadow: var(--gt-shadow);
+  padding: 26px 26px 8px;
+}
+body[data-page="passenger"] .profile-panel.is-collapsed { padding-bottom: 26px; }
+body[data-page="passenger"] .profile-panel-head { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+body[data-page="passenger"] .profile-panel.is-collapsed .profile-panel-head { margin-bottom: 0; }
+body[data-page="passenger"] .profile-panel-icon {
+  width: 40px; height: 40px; border-radius: 11px;
+  background: var(--light); color: var(--primary);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+body[data-page="passenger"] .profile-panel-icon svg { width: 20px; height: 20px; }
+body[data-page="passenger"] .profile-panel-head-text { flex: 1; min-width: 0; }
+body[data-page="passenger"] .profile-panel-head-text h3 { font-family: 'Poppins', sans-serif; font-size: 17.5px; margin: 0 0 3px; color: var(--text); }
+body[data-page="passenger"] .profile-panel-head-text p { margin: 0; font-size: 13.5px; color: var(--gt-muted); line-height: 1.5; }
+body[data-page="passenger"] .profile-panel-toggle {
+  display: flex; width: 32px; height: 32px; border: none;
+  background: var(--light); color: var(--primary); border-radius: 50%;
+  align-items: center; justify-content: center; flex-shrink: 0; cursor: pointer;
+}
+body[data-page="passenger"] .profile-panel-toggle svg { width: 15px; height: 15px; transition: transform 0.2s ease; }
+body[data-page="passenger"] .profile-panel.is-collapsed .profile-panel-body { display: none; }
+body[data-page="passenger"] .profile-panel.is-collapsed .profile-panel-toggle svg { transform: rotate(-90deg); }
+body[data-page="passenger"] .profile-panel + .profile-panel { margin-top: 20px; }
+@media (max-width: 480px) {
+  body[data-page="passenger"] .profile-panel { padding: 18px 16px 16px; border-radius: 16px; }
+  body[data-page="passenger"] .profile-panel.is-collapsed { padding-bottom: 16px; }
+  body[data-page="passenger"] .profile-panel-icon { width: 34px; height: 34px; border-radius: 9px; }
+  body[data-page="passenger"] .profile-panel-icon svg { width: 17px; height: 17px; }
+  body[data-page="passenger"] .profile-panel-head-text h3 { font-size: 15.5px; }
+  body[data-page="passenger"] .profile-panel-head-text p { font-size: 12px; }
 }
 
 /* "Download Certificate" button — sits below the certificate (not inside

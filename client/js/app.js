@@ -1494,6 +1494,21 @@ function setupAdminPanelCollapse() {
   });
 }
 
+// Same collapsible-section treatment as the admin panels, applied to
+// passenger-profile.html / driver-profile.html's "Profile details" /
+// "Change password" / "Loyalty Rewards" cards. Safe no-op elsewhere.
+function setupProfilePanelCollapse() {
+  document.querySelectorAll('.profile-panel-toggle').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const panel = btn.closest('.profile-panel');
+      if (!panel) return;
+      const collapsed = panel.classList.toggle('is-collapsed');
+      btn.setAttribute('aria-expanded', String(!collapsed));
+      btn.setAttribute('aria-label', collapsed ? 'Expand this section' : 'Collapse this section');
+    });
+  });
+}
+
 // Same collapsible-section treatment as the admin panels, applied to the
 // "All bookings" / "All rides" cards — one toggle collapses the whole
 // card's body, not each individual ride.
@@ -5000,6 +5015,7 @@ document.addEventListener('DOMContentLoaded', function() {
   setupAcceptAllForDriverPanel();
   setupAdminPanelCollapse();
   setupDashboardCardCollapse();
+  setupProfilePanelCollapse();
   setupNavMenu();
   setupBackToTop();
   setupHowItWorksPage();
