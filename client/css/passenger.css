@@ -931,7 +931,7 @@ background: #f8fafc;
   border-radius: 16px;
 }
 
-/* Shows the fare ladder (₱60→₱30→₱25→₱20 as headcount grows) so it's clear
+/* Shows the fare ladder (₱60→₱35→₱25→₱20 as headcount grows) so it's clear
    at a glance how the price moves, not just the current number. */
 .fare-tier-row {
   display: flex;

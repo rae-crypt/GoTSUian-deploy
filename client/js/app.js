@@ -2897,7 +2897,7 @@ async function renderPassengerRideStatus() {
     : 'Calculating — waiting for more students to join';
   const fareTierRow = poolStillOpen ? `
     <div class="fare-tier-row">
-      <span class="fare-tier-chip${riderCountSoFar >= 2 ? ' is-active' : ''}">2 · ₱30</span>
+      <span class="fare-tier-chip${riderCountSoFar >= 2 ? ' is-active' : ''}">2 · ₱35</span>
       <span class="fare-tier-chip${riderCountSoFar >= 3 ? ' is-active' : ''}">3 · ₱25</span>
       <span class="fare-tier-chip${riderCountSoFar >= 4 ? ' is-active' : ''}">4 · ₱20</span>
     </div>
@@ -3465,7 +3465,7 @@ function renderPendingRideCard(group) {
 
   const fareTierRow = `
     <div class="fare-tier-row">
-      <span class="fare-tier-chip${riderCount >= 2 ? ' is-active' : ''}">2 · ₱30</span>
+      <span class="fare-tier-chip${riderCount >= 2 ? ' is-active' : ''}">2 · ₱35</span>
       <span class="fare-tier-chip${riderCount >= 3 ? ' is-active' : ''}">3 · ₱25</span>
       <span class="fare-tier-chip${riderCount >= 4 ? ' is-active' : ''}">4 · ₱20</span>
     </div>
@@ -3534,7 +3534,7 @@ function renderActiveRideCard(group) {
   const poolStillOpen = anchor.ride_type === 'Shared' && anchor.pool_status === 'Open' && group.riders.length < 4;
   const fareTierRow = poolStillOpen ? `
     <div class="fare-tier-row">
-      <span class="fare-tier-chip${group.riders.length >= 2 ? ' is-active' : ''}">2 · ₱30</span>
+      <span class="fare-tier-chip${group.riders.length >= 2 ? ' is-active' : ''}">2 · ₱35</span>
       <span class="fare-tier-chip${group.riders.length >= 3 ? ' is-active' : ''}">3 · ₱25</span>
       <span class="fare-tier-chip${group.riders.length >= 4 ? ' is-active' : ''}">4 · ₱20</span>
     </div>
