@@ -1,7 +1,20 @@
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
+const bcrypt = require('bcrypt');
 const db = require('../config/db');
 const { emitDriverAccountStatus } = require('../socket');
+
+// Excludes visually-ambiguous characters (0/O, 1/l/I) since this gets read
+// aloud or copied over a phone call, not typed by the person who generated it.
+const TEMP_PASSWORD_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+function generateTempPassword(length = 8) {
+  let out = '';
+  for (let i = 0; i < length; i++) {
+    out += TEMP_PASSWORD_CHARS[crypto.randomInt(TEMP_PASSWORD_CHARS.length)];
+  }
+  return out;
+}
 
 // LIST ALL DRIVERS — the admin dashboard's driver management table shows
 // every driver (not just pending ones) so the admin can also review
@@ -114,4 +127,34 @@ exports.updateDriverStatus = (req, res) => {
       emitDriverAccountStatus(rows[0].account_id);
     });
   });
+};
+
+// RESET DRIVER PASSWORD — admin-issued, since drivers have no email on file
+// for a self-service Forgot Password flow the way passengers get (that OTP
+// flow needs an inbox to send to). A driver who forgets their password
+// contacts the TODA admin directly (phone/in person — same trust model as
+// the existing approve/reject flow); admin clicks this button and relays
+// the one-time temp password from the response. It's generated fresh here
+// and never stored or logged anywhere in plaintext after this response.
+exports.resetDriverPassword = async (req, res) => {
+  const { driverId } = req.params;
+  const tempPassword = generateTempPassword();
+
+  try {
+    const hashedPassword = await bcrypt.hash(tempPassword, 10);
+    db.query(
+      `UPDATE user_account ua
+       JOIN tricycle_driver td ON ua.account_id = td.account_id
+       SET ua.password = ?
+       WHERE td.driver_id = ?`,
+      [hashedPassword, driverId],
+      (err, result) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (result.affectedRows === 0) return res.status(404).json({ error: 'Driver not found' });
+        res.status(200).json({ message: 'Password reset successfully', tempPassword });
+      }
+    );
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 };
