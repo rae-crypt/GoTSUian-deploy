@@ -1,6 +1,10 @@
 const db = require('../config/db');
 
-const VALID_CATEGORIES = ['Reckless driving', 'Rude behavior', 'Overcharging', 'Other'];
+// Categories mirror rules.html's Code of Conduct — passengers report the
+// "For Drivers" violations, drivers report the "For Students / Passengers"
+// ones, since each side can only actually witness the other's misconduct.
+const CATEGORIES_AGAINST_DRIVER = ['Reckless driving', 'Overcharging', 'Rude behavior', 'Refused service', 'Unsafe vehicle', 'Cancelled without reason', 'Other'];
+const CATEGORIES_AGAINST_PASSENGER = ['No-show', 'Rude behavior', 'Refused to pay', 'Fake booking', 'Misuse of Shared ride', 'Other'];
 
 // PASSENGER/DRIVER files a complaint, optionally against a specific person
 // and/or tied to a specific ride. Resolving it later (see updateComplaintStatus
@@ -8,9 +12,10 @@ const VALID_CATEGORIES = ['Reckless driving', 'Rude behavior', 'Overcharging', '
 exports.createComplaint = (req, res) => {
   const filed_by_account_id = req.user.accountId;
   const { against_account_id, ride_id, category, description } = req.body;
+  const validCategories = req.user.role === 'driver' ? CATEGORIES_AGAINST_PASSENGER : CATEGORIES_AGAINST_DRIVER;
 
-  if (!category || !VALID_CATEGORIES.includes(category)) {
-    return res.status(400).json({ error: `Category must be one of: ${VALID_CATEGORIES.join(', ')}` });
+  if (!category || !validCategories.includes(category)) {
+    return res.status(400).json({ error: `Category must be one of: ${validCategories.join(', ')}` });
   }
   if (!description || !description.trim()) {
     return res.status(400).json({ error: 'A description is required.' });
