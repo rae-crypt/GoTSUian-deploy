@@ -4,7 +4,7 @@ const { emitRideUpdated, emitNewPendingRide, emitDriverLocation, emitAvailabilit
 // Fare per rider, keyed by how many students end up in the tricycle.
 // Solo is always headcount 1. Shared settles into whichever headcount
 // the pool actually closes at (2, 3, or 4).
-const FARE_BY_HEADCOUNT = { 1: 60, 2: 30, 3: 25, 4: 20 };
+const FARE_BY_HEADCOUNT = { 1: 60, 2: 35, 3: 25, 4: 20 };
 const MAX_POOL_SIZE = 4;
 
 // CREATE A RIDE REQUEST
