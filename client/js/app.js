@@ -3283,16 +3283,19 @@ async function renderBookingsList() {
     // against — a driver has passenger_account_id, a passenger has
     // driver_account_id, both selected via `r.*` in rideController.
     const otherPartyAccountId = isDriver ? ride.passenger_account_id : ride.driver_account_id;
+    // Categories mirror rules.html's Code of Conduct — a driver can only
+    // witness/report the passenger-side violations listed there, and vice
+    // versa, so the dropdown must match whoever is filing the complaint.
+    const complaintCategories = isDriver
+      ? ['No-show', 'Rude behavior', 'Refused to pay', 'Fake booking', 'Misuse of Shared ride', 'Other']
+      : ['Reckless driving', 'Overcharging', 'Rude behavior', 'Refused service', 'Unsafe vehicle', 'Cancelled without reason', 'Other'];
     const complaintBlock = !otherPartyAccountId ? '' : `
       <div class="complaint-prompt" data-ride-id="${ride.ride_id}" data-against-account-id="${otherPartyAccountId}">
         <button type="button" class="btn-secondary-outline complaint-toggle">Report a concern</button>
         <div class="complaint-form" style="display:none;">
           <select class="complaint-category">
             <option value="">Select a category</option>
-            <option value="Reckless driving">Reckless driving</option>
-            <option value="Rude behavior">Rude behavior</option>
-            <option value="Overcharging">Overcharging</option>
-            <option value="Other">Other</option>
+            ${complaintCategories.map(c => `<option value="${c}">${c}</option>`).join('')}
           </select>
           <textarea class="complaint-description" rows="2" placeholder="Describe what happened..."></textarea>
           <button type="button" class="btn-primary complaint-submit">Submit report</button>
