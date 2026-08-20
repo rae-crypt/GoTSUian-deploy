@@ -2046,6 +2046,31 @@ table.admin-table tbody tr:hover { background: var(--light); }
   background: var(--white); color: var(--muted); cursor: pointer;
 }
 
+/* Reset-password result step — the one-time temp password readout, its
+   copy button, and the "shown once" note. Icon badge in the modal head
+   reuses .admin-panel-icon's sizing/shape, just needs the extra spacing
+   below it since panel heads sit inline while modal heads stack vertically. */
+.admin-modal-head-icon { margin-bottom: 10px; }
+.temp-pw-box {
+  background: var(--light);
+  border: 1.5px dashed #ecd3d3;
+  border-radius: 14px;
+  padding: 16px;
+  text-align: center;
+  margin-bottom: 6px;
+}
+.temp-pw-box span { display: block; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+.temp-pw-value { font-family: 'SFMono-Regular', Consolas, monospace; font-size: 1.3rem; font-weight: 700; letter-spacing: 0.06em; color: var(--primary); }
+.copy-row { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 10px; }
+.copy-btn {
+  display: inline-flex; align-items: center; gap: 5px; background: var(--white); border: 1px solid #f1d9d9;
+  color: var(--primary); font-size: 0.76rem; font-weight: 600; padding: 6px 12px; border-radius: 999px; cursor: pointer;
+}
+.copy-btn svg { width: 13px; height: 13px; }
+.warn-note { display: flex; gap: 8px; align-items: flex-start; background: #fdf1de; border-radius: 12px; padding: 10px 12px; margin-top: 14px; }
+.warn-note svg { width: 16px; height: 16px; color: #b45309; flex-shrink: 0; margin-top: 1px; }
+.warn-note p { margin: 0; font-size: 0.78rem; color: #92400e; line-height: 1.5; }
+
 .admin-severity-choice { display: flex; gap: 10px; }
 .admin-severity-btn {
   flex: 1; font-family: inherit; font-size: 14px; font-weight: 700;

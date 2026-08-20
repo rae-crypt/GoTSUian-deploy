@@ -1319,6 +1319,118 @@ async function resetDriverPasswordRemote(driverId) {
   return data;
 }
 
+const RESET_PW_ICONS = {
+  lock: '<rect x="4" y="9" width="12" height="8" rx="2"/><path d="M6.5 9V6.5a3.5 3.5 0 0 1 7 0V9"/>',
+  check: '<path d="M10 2.5L16.5 5.2V9C16.5 13 13.7 16.3 10 17.5C6.3 16.3 3.5 13 3.5 9V5.2L10 2.5Z"/><path d="M7.2 10L9.2 12L12.8 8"/>',
+  copy: '<rect x="7" y="7" width="9" height="9" rx="1.5"/><path d="M4 13V4.5A1.5 1.5 0 0 1 5.5 3H13"/>',
+  warn: '<path d="M10 6.5v4M10 13.2h.01"/><circle cx="10" cy="10" r="7.2"/>',
+  close: '<path d="M5 5l14 14M19 5L5 19"/>'
+};
+function resetPwSvg(icon, viewBox, strokeWidth) {
+  return `<svg viewBox="${viewBox}" fill="none" stroke="currentColor" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round">${RESET_PW_ICONS[icon]}</svg>`;
+}
+
+// Reset-password modal — built dynamically (like openChatModal/
+// showConfirmModal elsewhere) rather than a static block in admin.html,
+// since it has two states (confirm, then the one-time result) sharing one
+// overlay. Uses the real .admin-modal-* shell so it reads as native to
+// this panel, not the borrowed chat-modal one showConfirmModal uses.
+function openDriverResetPasswordModal(driverId, targetName) {
+  const overlay = document.createElement('div');
+  overlay.className = 'admin-modal-overlay';
+  overlay.style.display = 'flex';
+
+  function close() {
+    overlay.remove();
+    document.body.style.overflow = '';
+  }
+
+  function renderConfirm() {
+    overlay.innerHTML = `
+      <div class="admin-modal">
+        <div class="admin-modal-head">
+          <div>
+            <div class="admin-panel-icon admin-modal-head-icon">${resetPwSvg('lock', '0 0 20 20', '1.6')}</div>
+            <h3>Reset password?</h3>
+          </div>
+          <button type="button" class="admin-modal-close">${resetPwSvg('close', '0 0 24 24', '2')}</button>
+        </div>
+        <div class="admin-modal-body">
+          <p style="margin:0 0 18px;font-size:0.86rem;color:var(--muted);line-height:1.55;">This generates a new temporary password for <strong style="color:var(--text)">${escapeHtml(targetName)}</strong> and immediately replaces their current one. Give it to them by phone or in person.</p>
+          <div class="admin-modal-actions">
+            <button type="button" class="admin-btn-outline-full reset-pw-cancel">Cancel</button>
+            <button type="button" class="admin-btn-primary reset-pw-confirm">Reset password</button>
+          </div>
+        </div>
+      </div>
+    `;
+    overlay.querySelector('.admin-modal-close').addEventListener('click', close);
+    overlay.querySelector('.reset-pw-cancel').addEventListener('click', close);
+    overlay.querySelector('.reset-pw-confirm').addEventListener('click', async function() {
+      this.disabled = true;
+      try {
+        const data = await resetDriverPasswordRemote(driverId);
+        renderResult(data.tempPassword);
+      } catch (error) {
+        close();
+        showRideFeedback('error', 'Could not reset password', error.message || 'Please try again.');
+      }
+    });
+  }
+
+  function renderResult(tempPassword) {
+    overlay.innerHTML = `
+      <div class="admin-modal">
+        <div class="admin-modal-head">
+          <div>
+            <div class="admin-panel-icon admin-modal-head-icon" style="background:#e6f4ea;color:#1a7a3c;">${resetPwSvg('check', '0 0 20 20', '1.6')}</div>
+            <h3>New temporary password</h3>
+          </div>
+          <button type="button" class="admin-modal-close">${resetPwSvg('close', '0 0 24 24', '2')}</button>
+        </div>
+        <div class="admin-modal-body">
+          <p style="margin:0 0 14px;font-size:0.86rem;color:var(--muted);line-height:1.55;">Relay this to <strong style="color:var(--text)">${escapeHtml(targetName)}</strong> now.</p>
+          <div class="temp-pw-box">
+            <span>Temporary password</span>
+            <div class="temp-pw-value">${escapeHtml(tempPassword)}</div>
+            <div class="copy-row">
+              <button type="button" class="copy-btn">${resetPwSvg('copy', '0 0 20 20', '1.6')}Copy</button>
+            </div>
+          </div>
+          <div class="warn-note">
+            ${resetPwSvg('warn', '0 0 20 20', '1.8')}
+            <p>Shown only once — if you navigate away without copying this, you'll need to reset again.</p>
+          </div>
+          <div class="admin-modal-actions">
+            <button type="button" class="admin-btn-primary reset-pw-done" style="flex:none;width:100%;">Done</button>
+          </div>
+        </div>
+      </div>
+    `;
+    overlay.querySelector('.admin-modal-close').addEventListener('click', close);
+    overlay.querySelector('.reset-pw-done').addEventListener('click', close);
+    overlay.querySelector('.copy-btn').addEventListener('click', async function() {
+      const btn = this;
+      try {
+        await navigator.clipboard.writeText(tempPassword);
+        const original = btn.innerHTML;
+        btn.innerHTML = 'Copied';
+        setTimeout(() => { btn.innerHTML = original; }, 1400);
+      } catch (error) {
+        // Clipboard API unavailable/denied — password is still visible to select manually.
+      }
+    });
+  }
+
+  overlay.addEventListener('click', function(event) {
+    if (event.target === overlay) close();
+  });
+
+  document.body.appendChild(overlay);
+  document.body.style.overflow = 'hidden';
+  renderConfirm();
+}
+
 function initials(...parts) {
   const chars = parts.map(p => (p || '').trim().charAt(0)).join('');
   return chars.toUpperCase() || '?';
@@ -1453,32 +1565,8 @@ function wireDriverManagementActions(container) {
   });
 
   container.querySelectorAll('[data-action="reset-driver-password"]').forEach(button => {
-    button.addEventListener('click', async function() {
-      const driverId = this.getAttribute('data-driver-id');
-      const targetName = this.getAttribute('data-target-name');
-
-      const confirmed = await showConfirmModal({
-        title: 'Reset password?',
-        messageHtml: `<p>This generates a new temporary password for <strong>${escapeHtml(targetName)}</strong> and immediately replaces their current one. Give it to them by phone or in person — it won't be shown again.</p>`,
-        confirmLabel: 'Reset password',
-        cancelLabel: 'Cancel'
-      });
-      if (!confirmed) return;
-
-      try {
-        const data = await resetDriverPasswordRemote(driverId);
-        await showConfirmModal({
-          title: 'New temporary password',
-          messageHtml: `
-            <p>Relay this to <strong>${escapeHtml(targetName)}</strong> now — it's shown only once.</p>
-            <p style="margin-top:10px;padding:10px 14px;border-radius:10px;background:var(--light);font-family:'SFMono-Regular',Consolas,monospace;font-size:1.1rem;font-weight:700;letter-spacing:0.04em;text-align:center;color:var(--primary);">${escapeHtml(data.tempPassword)}</p>
-          `,
-          confirmLabel: 'Done',
-          cancelLabel: 'Close'
-        });
-      } catch (error) {
-        showRideFeedback('error', 'Could not reset password', error.message || 'Please try again.');
-      }
+    button.addEventListener('click', function() {
+      openDriverResetPasswordModal(this.getAttribute('data-driver-id'), this.getAttribute('data-target-name'));
     });
   });
 }
