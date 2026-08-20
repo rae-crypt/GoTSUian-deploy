@@ -2594,7 +2594,6 @@ body[data-page="driver"] .profile-panel-toggle {
 body[data-page="driver"] .profile-panel-toggle svg { width: 15px; height: 15px; transition: transform 0.2s ease; }
 body[data-page="driver"] .profile-panel.is-collapsed .profile-panel-body { display: none; }
 body[data-page="driver"] .profile-panel.is-collapsed .profile-panel-toggle svg { transform: rotate(-90deg); }
-body[data-page="driver"] .profile-panel + .profile-panel { margin-top: 20px; }
 @media (max-width: 480px) {
   body[data-page="driver"] .profile-panel { padding: 18px 16px 16px; border-radius: 16px; }
   body[data-page="driver"] .profile-panel.is-collapsed { padding-bottom: 16px; }
