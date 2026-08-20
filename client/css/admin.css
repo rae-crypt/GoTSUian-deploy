@@ -2146,6 +2146,76 @@ table.admin-table tbody tr:hover { background: var(--light); }
   to { transform: translateY(0) scale(1); opacity: 1; }
 }
 
+/* Generic yes/no confirm popup — same shell used by showConfirmModal() on
+   the passenger/driver dashboards (chat cancel confirmations etc.), ported
+   here since admin.html's driver-management actions (reset password) now
+   call it too. Without these, the modal still gets created and appended to
+   the DOM by the JS, but renders with zero positioning/sizing — invisible,
+   not broken-looking, which is why this was easy to miss until reported. */
+.chat-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 10, 10, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+.chat-modal {
+  background: var(--white);
+  border-radius: 20px;
+  width: 100%;
+  max-width: 420px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 2px 6px rgba(20, 10, 10, 0.06), 0 24px 48px -16px rgba(20, 10, 10, 0.35);
+  animation: chat-pop 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.chat-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px;
+  border-bottom: 1px solid rgba(127, 29, 29, 0.08);
+}
+.chat-modal-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: var(--primary);
+}
+.chat-close-btn {
+  background: none;
+  border: none;
+  font-size: 1.6rem;
+  line-height: 1;
+  cursor: pointer;
+  color: #6b7280;
+  padding: 4px;
+}
+.confirm-modal-body {
+  padding: 18px 20px 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.confirm-modal-body p {
+  margin: 0;
+  color: #4b5563;
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+.confirm-modal-actions {
+  display: flex;
+  gap: 10px;
+  padding: 20px;
+}
+.confirm-modal-actions button {
+  flex: 1;
+}
+
 
 /* =======================================================================
    Logout confirmation popup — dim+blur overlay with a centered, icon-led
