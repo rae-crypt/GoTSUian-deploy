@@ -1996,6 +1996,24 @@ function setupPasswordToggles() {
 // typed, moves back on Backspace from an empty box, and accepts a pasted
 // 6-digit code in one go. Shared by the registration OTP modal and the
 // Forgot Password modal's code step.
+// Some phone keyboards (e.g. system language set to Arabic/Persian/Hindi)
+// insert their own native numeral glyphs on the numeric keypad instead of
+// plain ASCII 0-9 — same key, different Unicode codepoint. Left alone, the
+// OTP boxes below would show/store those foreign digits, which then don't
+// match the plain-ASCII code the backend actually sent. Converts the
+// common non-Latin decimal-digit blocks (Arabic-Indic, Extended
+// Arabic-Indic/Persian, Devanagari, Bengali, CJK fullwidth) to 0-9 first.
+function normalizeDigits(str) {
+  return str.replace(/[٠-٩۰-۹०-९০-৯０-９]/g, (ch) => {
+    const code = ch.charCodeAt(0);
+    if (code >= 0x0660 && code <= 0x0669) return String(code - 0x0660);
+    if (code >= 0x06F0 && code <= 0x06F9) return String(code - 0x06F0);
+    if (code >= 0x0966 && code <= 0x096F) return String(code - 0x0966);
+    if (code >= 0x09E6 && code <= 0x09EF) return String(code - 0x09E6);
+    return String(code - 0xFF10);
+  });
+}
+
 function setupOtpDigitInputs(containerSelector) {
   const container = document.querySelector(containerSelector);
   if (!container) return;
@@ -2003,7 +2021,7 @@ function setupOtpDigitInputs(containerSelector) {
 
   boxes.forEach((box, i) => {
     box.addEventListener('input', () => {
-      box.value = box.value.replace(/[^0-9]/g, '').slice(0, 1);
+      box.value = normalizeDigits(box.value).replace(/[^0-9]/g, '').slice(0, 1);
       if (box.value && boxes[i + 1]) boxes[i + 1].focus();
     });
     box.addEventListener('keydown', (event) => {
@@ -2012,7 +2030,7 @@ function setupOtpDigitInputs(containerSelector) {
       }
     });
     box.addEventListener('paste', (event) => {
-      const pasted = (event.clipboardData || window.clipboardData).getData('text').replace(/[^0-9]/g, '');
+      const pasted = normalizeDigits((event.clipboardData || window.clipboardData).getData('text')).replace(/[^0-9]/g, '');
       if (!pasted) return;
       event.preventDefault();
       pasted.slice(0, boxes.length).split('').forEach((digit, idx) => {
