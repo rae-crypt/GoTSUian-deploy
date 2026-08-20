@@ -138,8 +138,26 @@ function setupScrollReveal() {
 // that backup was the actual cause of repeated cross-tab login hijacks —
 // any tab whose sessionStorage happened to be empty would silently adopt
 // whoever logged in elsewhere. Removed rather than patched again.)
+// "Stay signed in" (opt-in, unchecked by default) — sessionStorage is
+// still the source of truth for a tab that's already logged in, but a
+// brand-new tab/browser-restart with no sessionStorage of its own will
+// self-heal from localStorage IF the user checked the box at login (see
+// setStoredUser below). This intentionally reintroduces the localStorage
+// mechanism that was previously removed entirely after a cross-tab login
+// hijack bug — the difference this time is it's opt-in (localStorage is
+// only ever written when the checkbox is checked), so a tab that never
+// asked for persistence never gets silently overwritten by another tab's
+// login the way the old unconditional version did.
 function getStoredUser() {
-  const rawUser = sessionStorage.getItem('authUser');
+  let rawUser = sessionStorage.getItem('authUser');
+  if (!rawUser) {
+    const remembered = localStorage.getItem('authUser');
+    if (remembered && localStorage.getItem('isAuthenticated') === 'true') {
+      sessionStorage.setItem('authUser', remembered);
+      sessionStorage.setItem('isAuthenticated', 'true');
+      rawUser = remembered;
+    }
+  }
   if (!rawUser) {
     return {
       name: '',
@@ -186,6 +204,14 @@ function setStoredUser(user) {
 
   sessionStorage.setItem('authUser', JSON.stringify(payload));
   sessionStorage.setItem('isAuthenticated', 'true');
+  // Only ever mirrors into localStorage when the login form's "Stay signed
+  // in" checkbox set this flag — every other call site (re-syncing an
+  // already-active session, registration, etc.) leaves it untouched, so it
+  // keeps whatever persistence choice was made at the actual login.
+  if (localStorage.getItem('rememberMe') === 'true') {
+    localStorage.setItem('authUser', JSON.stringify(payload));
+    localStorage.setItem('isAuthenticated', 'true');
+  }
   refreshAuthState();
 }
 
@@ -199,6 +225,9 @@ function getAuthHeaders() {
 function clearStoredUser() {
   sessionStorage.removeItem('authUser');
   sessionStorage.removeItem('isAuthenticated');
+  localStorage.removeItem('authUser');
+  localStorage.removeItem('isAuthenticated');
+  localStorage.removeItem('rememberMe');
   refreshAuthState();
 }
  
@@ -5043,6 +5072,11 @@ function setupAuthForm() {
         // uses "passenger" as the role name. Normalize it here, once, right
         // where the server response comes in.
         const normalizedRole = data.user.role === 'student' ? 'passenger' : data.user.role;
+        // Set BEFORE setStoredUser so it sees the current choice — an
+        // unchecked box must overwrite a "true" left over from a previous
+        // login, not just skip setting it.
+        const rememberMe = document.querySelector('#login-remember-me');
+        localStorage.setItem('rememberMe', rememberMe && rememberMe.checked ? 'true' : 'false');
         setStoredUser({ name: data.user.name, role: normalizedRole, email: data.user.username, accountId: data.user.accountId, accountStatus: data.user.accountStatus, token: data.token });
         redirectToDashboard(normalizedRole);
 
