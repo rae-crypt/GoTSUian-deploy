@@ -21,43 +21,55 @@ if (!username || !password || !firstName || !lastName) {
 (async () => {
   const hashedPassword = await bcrypt.hash(password, 10);
 
-  db.beginTransaction((err) => {
+  db.getConnection((err, connection) => {
     if (err) {
-      console.error('Failed to start transaction:', err.message);
+      console.error('Failed to get a connection:', err.message);
       process.exit(1);
     }
 
-    const adminSql = `INSERT INTO administrator (username, password, account_status) VALUES (?, ?, 'active')`;
-    db.query(adminSql, [username, hashedPassword], (err, adminResult) => {
+    connection.beginTransaction((err) => {
       if (err) {
-        return db.rollback(() => {
-          console.error('Failed to create admin account:', err.code === 'ER_DUP_ENTRY' ? 'username already exists' : err.message);
-          process.exit(1);
-        });
+        connection.release();
+        console.error('Failed to start transaction:', err.message);
+        process.exit(1);
       }
 
-      const adminId = adminResult.insertId;
-      const profileSql = `
-        INSERT INTO administrator_profile (admin_id, first_name, middle_name, last_name, contact_number)
-        VALUES (?, ?, NULL, ?, ?)
-      `;
-      db.query(profileSql, [adminId, firstName, lastName, contactNumber || null], (err) => {
+      const adminSql = `INSERT INTO administrator (username, password, account_status) VALUES (?, ?, 'active')`;
+      connection.query(adminSql, [username, hashedPassword], (err, adminResult) => {
         if (err) {
-          return db.rollback(() => {
-            console.error('Failed to create admin profile:', err.message);
+          return connection.rollback(() => {
+            connection.release();
+            console.error('Failed to create admin account:', err.code === 'ER_DUP_ENTRY' ? 'username already exists' : err.message);
             process.exit(1);
           });
         }
 
-        db.commit((err) => {
+        const adminId = adminResult.insertId;
+        const profileSql = `
+          INSERT INTO administrator_profile (admin_id, first_name, middle_name, last_name, contact_number)
+          VALUES (?, ?, NULL, ?, ?)
+        `;
+        connection.query(profileSql, [adminId, firstName, lastName, contactNumber || null], (err) => {
           if (err) {
-            return db.rollback(() => {
-              console.error('Failed to commit:', err.message);
+            return connection.rollback(() => {
+              connection.release();
+              console.error('Failed to create admin profile:', err.message);
               process.exit(1);
             });
           }
-          console.log(`Admin account created: ${username} (admin_id ${adminId})`);
-          db.end();
+
+          connection.commit((err) => {
+            if (err) {
+              return connection.rollback(() => {
+                connection.release();
+                console.error('Failed to commit:', err.message);
+                process.exit(1);
+              });
+            }
+            connection.release();
+            console.log(`Admin account created: ${username} (admin_id ${adminId})`);
+            db.end();
+          });
         });
       });
     });

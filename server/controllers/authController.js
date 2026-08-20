@@ -34,42 +34,65 @@ exports.registerStudent = async (req, res) => {
       try {
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        db.beginTransaction((err) => {
+        // A transaction needs one dedicated connection for its whole
+        // lifetime (begin/query/commit must all land on the same physical
+        // connection) — db is a pool now, so that connection has to be
+        // checked out explicitly and released back when done, on every
+        // exit path including the error ones.
+        db.getConnection((err, connection) => {
           if (err) return res.status(500).json({ error: err.message });
 
-          const accountSql = `INSERT INTO user_account (username, password, role) VALUES (?, ?, 'student')`;
-          db.query(accountSql, [username, hashedPassword], (err, accountResult) => {
+          connection.beginTransaction((err) => {
             if (err) {
-              return db.rollback(() => res.status(err.code === 'ER_DUP_ENTRY' ? 409 : 500).json({ error: err.sqlMessage || err.message }));
+              connection.release();
+              return res.status(500).json({ error: err.message });
             }
 
-            const accountId = accountResult.insertId;
-
-            const studentSql = `
-              INSERT INTO student (account_id, student_number, first_name, middle_name, last_name, birth_date, age, sex, contact_number, current_address)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `;
-            db.query(studentSql, [accountId, student_number, first_name, middle_name || null, last_name, birth_date || null, age || null, sex || null, contact_number || null, current_address || null], (err, studentResult) => {
+            const accountSql = `INSERT INTO user_account (username, password, role) VALUES (?, ?, 'student')`;
+            connection.query(accountSql, [username, hashedPassword], (err, accountResult) => {
               if (err) {
-                return db.rollback(() => res.status(err.code === 'ER_DUP_ENTRY' ? 409 : 500).json({ error: err.code === 'ER_DUP_ENTRY' ? 'This student ID is already registered' : err.message }));
+                return connection.rollback(() => {
+                  connection.release();
+                  res.status(err.code === 'ER_DUP_ENTRY' ? 409 : 500).json({ error: err.sqlMessage || err.message });
+                });
               }
 
-              db.commit((err) => {
+              const accountId = accountResult.insertId;
+
+              const studentSql = `
+                INSERT INTO student (account_id, student_number, first_name, middle_name, last_name, birth_date, age, sex, contact_number, current_address)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              `;
+              connection.query(studentSql, [accountId, student_number, first_name, middle_name || null, last_name, birth_date || null, age || null, sex || null, contact_number || null, current_address || null], (err, studentResult) => {
                 if (err) {
-                  return db.rollback(() => res.status(500).json({ error: err.message }));
+                  return connection.rollback(() => {
+                    connection.release();
+                    res.status(err.code === 'ER_DUP_ENTRY' ? 409 : 500).json({ error: err.code === 'ER_DUP_ENTRY' ? 'This student ID is already registered' : err.message });
+                  });
                 }
-                // Consume the OTP so it can't be reused for a second registration.
-                db.query(`DELETE FROM email_otp WHERE email = ?`, [email]);
-                const token = jwt.sign(
-                  { accountId, role: 'student' },
-                  process.env.JWT_SECRET,
-                  { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
-                );
-                res.status(201).json({
-                  message: 'Student registered successfully',
-                  accountId,
-                  studentId: studentResult.insertId,
-                  token
+
+                connection.commit((err) => {
+                  if (err) {
+                    return connection.rollback(() => {
+                      connection.release();
+                      res.status(500).json({ error: err.message });
+                    });
+                  }
+                  connection.release();
+                  // Consume the OTP so it can't be reused for a second registration —
+                  // no longer needs the transaction's connection, run on the pool.
+                  db.query(`DELETE FROM email_otp WHERE email = ?`, [email]);
+                  const token = jwt.sign(
+                    { accountId, role: 'student' },
+                    process.env.JWT_SECRET,
+                    { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+                  );
+                  res.status(201).json({
+                    message: 'Student registered successfully',
+                    accountId,
+                    studentId: studentResult.insertId,
+                    token
+                  });
                 });
               });
             });
@@ -290,46 +313,63 @@ exports.registerDriver = async (req, res) => {
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    db.beginTransaction((err) => {
+    db.getConnection((err, connection) => {
       if (err) return res.status(500).json({ error: err.message });
 
-      const accountSql = `INSERT INTO user_account (username, password, role) VALUES (?, ?, 'driver')`;
-      db.query(accountSql, [contact_number, hashedPassword], (err, accountResult) => {
+      connection.beginTransaction((err) => {
         if (err) {
-          return db.rollback(() => res.status(err.code === 'ER_DUP_ENTRY' ? 409 : 500).json({ error: err.code === 'ER_DUP_ENTRY' ? 'This contact number is already registered' : err.message }));
+          connection.release();
+          return res.status(500).json({ error: err.message });
         }
 
-        const accountId = accountResult.insertId;
-
-        const driverSql = `
-          INSERT INTO tricycle_driver (account_id, first_name, middle_name, last_name, driver_license_no, plate_number, body_number, license_document_path, account_status, birth_date, age, sex, contact_number, current_address)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Pending', ?, ?, ?, ?, ?)
-        `;
-        db.query(driverSql, [accountId, first_name, middle_name || null, last_name, normalizedLicenseNo, normalizedPlateNumber, body_number.trim(), licenseDocumentPath, birth_date || null, age || null, sex || null, contact_number || null, current_address || null], (err, driverResult) => {
+        const accountSql = `INSERT INTO user_account (username, password, role) VALUES (?, ?, 'driver')`;
+        connection.query(accountSql, [contact_number, hashedPassword], (err, accountResult) => {
           if (err) {
-            return db.rollback(() => res.status(500).json({ error: err.message }));
+            return connection.rollback(() => {
+              connection.release();
+              res.status(err.code === 'ER_DUP_ENTRY' ? 409 : 500).json({ error: err.code === 'ER_DUP_ENTRY' ? 'This contact number is already registered' : err.message });
+            });
           }
 
-          db.commit((err) => {
+          const accountId = accountResult.insertId;
+
+          const driverSql = `
+            INSERT INTO tricycle_driver (account_id, first_name, middle_name, last_name, driver_license_no, plate_number, body_number, license_document_path, account_status, birth_date, age, sex, contact_number, current_address)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Pending', ?, ?, ?, ?, ?)
+          `;
+          connection.query(driverSql, [accountId, first_name, middle_name || null, last_name, normalizedLicenseNo, normalizedPlateNumber, body_number.trim(), licenseDocumentPath, birth_date || null, age || null, sex || null, contact_number || null, current_address || null], (err, driverResult) => {
             if (err) {
-              return db.rollback(() => res.status(500).json({ error: err.message }));
+              return connection.rollback(() => {
+                connection.release();
+                res.status(500).json({ error: err.message });
+              });
             }
-            // A Pending driver is already allowed to log in (see loginDriver
-            // — only 'Rejected' blocks access) and see their dashboard, they
-            // just can't accept rides yet. Issue a token here too so a
-            // newly-registered driver lands straight on their dashboard
-            // instead of being sent back to the login form.
-            const token = jwt.sign(
-              { accountId, role: 'driver', accountStatus: 'Pending' },
-              process.env.JWT_SECRET,
-              { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
-            );
-            res.status(201).json({
-              message: 'Driver registered successfully',
-              accountId,
-              driverId: driverResult.insertId,
-              accountStatus: 'Pending',
-              token
+
+            connection.commit((err) => {
+              if (err) {
+                return connection.rollback(() => {
+                  connection.release();
+                  res.status(500).json({ error: err.message });
+                });
+              }
+              connection.release();
+              // A Pending driver is already allowed to log in (see loginDriver
+              // — only 'Rejected' blocks access) and see their dashboard, they
+              // just can't accept rides yet. Issue a token here too so a
+              // newly-registered driver lands straight on their dashboard
+              // instead of being sent back to the login form.
+              const token = jwt.sign(
+                { accountId, role: 'driver', accountStatus: 'Pending' },
+                process.env.JWT_SECRET,
+                { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+              );
+              res.status(201).json({
+                message: 'Driver registered successfully',
+                accountId,
+                driverId: driverResult.insertId,
+                accountStatus: 'Pending',
+                token
+              });
             });
           });
         });
