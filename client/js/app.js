@@ -1309,6 +1309,16 @@ async function updateDriverStatusRemote(driverId, status) {
   return data;
 }
 
+async function resetDriverPasswordRemote(driverId) {
+  const res = await fetch(`${ADMIN_API_URL}/drivers/${driverId}/reset-password`, {
+    method: 'PUT',
+    headers: getAuthHeaders()
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Unable to reset this driver\'s password');
+  return data;
+}
+
 function initials(...parts) {
   const chars = parts.map(p => (p || '').trim().charAt(0)).join('');
   return chars.toUpperCase() || '?';
@@ -1345,7 +1355,7 @@ function renderDriverRow(driver) {
       <td>${escapeHtml(driver.contact_number || '—')}</td>
       <td>${licenseCell}</td>
       <td>${pillHtml(statusPillTone(driver.account_status), driver.account_status)}</td>
-      <td><div class="admin-actions">${approvalActions}<button type="button" class="admin-btn" data-action="issue-warning" data-account-id="${driver.account_id}" data-target-name="${driverName}">Issue Warning</button></div></td>
+      <td><div class="admin-actions">${approvalActions}<button type="button" class="admin-btn" data-action="reset-driver-password" data-driver-id="${driver.driver_id}" data-target-name="${driverName}">Reset password</button><button type="button" class="admin-btn" data-action="issue-warning" data-account-id="${driver.account_id}" data-target-name="${driverName}">Issue Warning</button></div></td>
     </tr>
   `;
 }
@@ -1373,6 +1383,7 @@ function renderDriverCard(driver) {
       </div>
       <div class="admin-mcard-actions">
         ${actions}
+        <button class="admin-btn" data-action="reset-driver-password" data-driver-id="${driver.driver_id}" data-target-name="${driverName}">Reset password</button>
         <button class="admin-btn" data-action="issue-warning" data-account-id="${driver.account_id}" data-target-name="${driverName}">Warn</button>
       </div>
     </div>
@@ -1437,6 +1448,36 @@ function wireDriverManagementActions(container) {
         renderAdminDriverManagement();
       } catch (error) {
         showRideFeedback('error', 'Could not reject', error.message || 'Please try again.');
+      }
+    });
+  });
+
+  container.querySelectorAll('[data-action="reset-driver-password"]').forEach(button => {
+    button.addEventListener('click', async function() {
+      const driverId = this.getAttribute('data-driver-id');
+      const targetName = this.getAttribute('data-target-name');
+
+      const confirmed = await showConfirmModal({
+        title: 'Reset password?',
+        messageHtml: `<p>This generates a new temporary password for <strong>${escapeHtml(targetName)}</strong> and immediately replaces their current one. Give it to them by phone or in person — it won't be shown again.</p>`,
+        confirmLabel: 'Reset password',
+        cancelLabel: 'Cancel'
+      });
+      if (!confirmed) return;
+
+      try {
+        const data = await resetDriverPasswordRemote(driverId);
+        await showConfirmModal({
+          title: 'New temporary password',
+          messageHtml: `
+            <p>Relay this to <strong>${escapeHtml(targetName)}</strong> now — it's shown only once.</p>
+            <p style="margin-top:10px;padding:10px 14px;border-radius:10px;background:var(--light);font-family:'SFMono-Regular',Consolas,monospace;font-size:1.1rem;font-weight:700;letter-spacing:0.04em;text-align:center;color:var(--primary);">${escapeHtml(data.tempPassword)}</p>
+          `,
+          confirmLabel: 'Done',
+          cancelLabel: 'Close'
+        });
+      } catch (error) {
+        showRideFeedback('error', 'Could not reset password', error.message || 'Please try again.');
       }
     });
   });
