@@ -36,14 +36,15 @@ body  {
 margin: 0;
   font-family: 'Plus Jakarta Sans', sans-serif;
   color: var(--text);
-  background: var(--white);
+  background: var(--light);
   font-size: 16px;
   line-height: 1.75;
 }
 
-/* The nav keeps the site's usual soft-pink strip (matches every other
-   page); only the page body below it goes white, matching the approved
-   design mockup. */
+/* Page runs on the same warm cream as the homepage now; every card below
+   was flipped from --light to --white (and vice versa for badges/icon
+   chips nested inside them) so they keep popping off the page instead of
+   flattening into it. */
 header {
   position: sticky;
   top: 0;
@@ -1447,7 +1448,7 @@ gap: 12px;
 }
 
 .about-badge-light {
-  background: var(--light);
+  background: var(--white);
   color: var(--primary);
 }
 
@@ -1619,9 +1620,11 @@ gap: 12px;
 
 .about-story-card {
   flex: 0.7;
-  background: var(--light);
+  background: var(--white);
   border-radius: 20px;
   padding: 28px;
+  border: 1px solid #ecd3d3;
+  box-shadow: 0 6px 20px -8px rgba(61, 20, 20, 0.14);
 }
 
 .about-story-card h3 {
@@ -1690,10 +1693,12 @@ gap: 12px;
 }
 
 .about-feature-card {
-  background: var(--light);
+  background: var(--white);
   border-radius: 18px;
   padding: 24px 20px;
   text-align: left;
+  border: 1px solid #ecd3d3;
+  box-shadow: 0 6px 20px -8px rgba(61, 20, 20, 0.14);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -1705,10 +1710,6 @@ gap: 12px;
 .about-feature-card:active {
   transform: scale(0.97);
   box-shadow: var(--shadow);
-}
-
-.about-feature-card .about-icon-badge {
-  background: var(--white);
 }
 
 .about-feature-card h3 {
@@ -1725,11 +1726,6 @@ gap: 12px;
 }
 
 /* ---------- Team ---------- */
-
-.about-team-section {
-  background: var(--light);
-  border-radius: 32px;
-}
 
 .about-team-caption {
   text-align: center;
@@ -1753,6 +1749,8 @@ gap: 12px;
   border-radius: 18px;
   padding: 26px 18px;
   text-align: center;
+  border: 1px solid #ecd3d3;
+  box-shadow: 0 6px 20px -8px rgba(61, 20, 20, 0.14);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
