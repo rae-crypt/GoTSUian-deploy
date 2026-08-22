@@ -1866,6 +1866,10 @@ display: none !important;
   text-align: left;
   margin: 24px 0 0;
   color: var(--text);
+  font-size: 60px;
+  font-weight: 700;
+  line-height: 1.08;
+  letter-spacing: -0.01em;
 }
 
 .hero-gotsuian .hero-copy h1 .hero-accent-text {
@@ -1885,53 +1889,6 @@ display: none !important;
 .hero-gotsuian .hero-actions {
   justify-content: flex-start;
   align-items: center;
-}
-
-/* Secondary "See how it works" link-button — plain circular play icon +
-   text, matches the reference's lighter-weight second CTA. */
-.hero-gotsuian .btn-text {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  color: var(--text);
-  font-weight: 600;
-  font-size: 15px;
-}
-
-.hero-gotsuian .btn-play-icon {
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
-  background: var(--white);
-  border: 1px solid var(--line);
-  color: var(--primary);
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.hero-gotsuian .btn-text:hover .btn-play-icon {
-  transform: scale(1.06);
-  box-shadow: 0 10px 22px -12px rgba(127, 29, 29, 0.45);
-}
-
-.hero-gotsuian .hero-stats {
-  display: flex;
-  gap: 36px;
-  margin-top: 44px;
-}
-
-.hero-gotsuian .hero-stats .stat-num {
-  font-family: 'Clash Display', sans-serif;
-  font-weight: 600;
-  font-size: 26px;
-  color: var(--text);
-}
-
-.hero-gotsuian .hero-stats .stat-lbl {
-  font-size: 13px;
-  color: var(--muted);
 }
 
 /* .hero-mobile-signup defaults to display:none on desktop (it used to be a
@@ -2234,12 +2191,11 @@ display: none !important;
 
 /* HERO ENTRANCE — plays once on page load (hero is above the fold, so an
    IntersectionObserver reveal would never actually trigger). Staggered
-   fade + rise across the headline/copy/actions/stats. */
+   fade + rise across the headline/copy/actions. */
 .hero-gotsuian .hero-badge,
 .hero-gotsuian .hero-copy h1,
 .hero-gotsuian .hero-copy p,
-.hero-gotsuian .hero-actions,
-.hero-gotsuian .hero-stats {
+.hero-gotsuian .hero-actions {
   animation: hero-rise 0.7s cubic-bezier(0.2, 0.7, 0.3, 1) both;
 }
 
@@ -2247,7 +2203,6 @@ display: none !important;
 .hero-gotsuian .hero-copy h1 { animation-delay: 0.08s; }
 .hero-gotsuian .hero-copy p { animation-delay: 0.16s; }
 .hero-gotsuian .hero-actions { animation-delay: 0.24s; }
-.hero-gotsuian .hero-stats { animation-delay: 0.32s; }
 
 @keyframes hero-rise {
   from { opacity: 0; transform: translateY(18px); }
@@ -2258,8 +2213,7 @@ display: none !important;
   .hero-gotsuian .hero-badge,
   .hero-gotsuian .hero-copy h1,
   .hero-gotsuian .hero-copy p,
-  .hero-gotsuian .hero-actions,
-  .hero-gotsuian .hero-stats {
+  .hero-gotsuian .hero-actions {
     animation: none;
   }
 }
@@ -2299,11 +2253,11 @@ display: none !important;
     text-align: center;
   }
 
-  .hero-gotsuian .hero-actions {
-    justify-content: center;
+  .hero-gotsuian .hero-copy h1 {
+    font-size: 44px;
   }
 
-  .hero-gotsuian .hero-stats {
+  .hero-gotsuian .hero-actions {
     justify-content: center;
   }
 
