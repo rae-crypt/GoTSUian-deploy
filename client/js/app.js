@@ -5205,6 +5205,7 @@ document.addEventListener('DOMContentLoaded', function() {
   setupHowItWorksPage();
   setupGettingStartedPage();
   highlightActiveNav();
+  setupScrollReveal();
   setupAuthForm();
   setupPasswordToggles();
   setupAdminLoginForm();
