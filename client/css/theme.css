@@ -1,0 +1,106 @@
+/* Shared redesign layer — link this AFTER a page's own stylesheet.
+   It overrides the SAME token names that page's CSS already declares
+   (--primary, --gold, --accent-gold, --light, --text, --muted, plus two
+   new additive tokens: --primary-deep, --line), so every existing rule
+   that already reads var(--primary) etc. repaints automatically through
+   the cascade — no need to rewrite each component's CSS by hand.
+   Roll this out page by page: linking it does nothing until a page's
+   own CSS is also using these token names (which they already are). */
+
+:root {
+  --primary-deep: #4a0f0f;
+  --gold: #f7b733;
+  --accent-gold: #f0a93a;
+  --light: #fff6ec;
+  --text: #2b1810;
+  --muted: #7a5c50;
+  --line: #f0ddc9;
+}
+
+body {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Clash Display', 'Plus Jakarta Sans', sans-serif;
+  letter-spacing: -0.01em;
+}
+
+/* NAV — glass blur skin over the existing sticky header, same markup. */
+header {
+  background: rgba(255, 246, 236, 0.78);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: none;
+  border-bottom: 1px solid var(--line);
+}
+
+.nav-cta a,
+.nav-cta button {
+  background: linear-gradient(120deg, var(--primary), var(--primary-deep));
+  box-shadow: 0 10px 24px -10px rgba(127, 29, 29, 0.55);
+}
+
+.nav-cta a:hover,
+.nav-cta button:hover {
+  box-shadow: 0 16px 32px -12px rgba(127, 29, 29, 0.65);
+}
+
+/* BUTTONS — punch up the existing pill buttons with a gradient + glow,
+   without touching their markup or the classes that already exist. */
+.btn-primary {
+  background: linear-gradient(120deg, var(--primary), var(--primary-deep));
+  box-shadow: 0 14px 30px -12px rgba(127, 29, 29, 0.55);
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 36px -12px rgba(127, 29, 29, 0.65);
+}
+
+/* CARDS — hover-lift for the existing feature/step/support card family. */
+.feature-card,
+.step-card,
+.support-card {
+  transition: opacity 0.7s cubic-bezier(0.2, 0.7, 0.3, 1), transform 0.35s cubic-bezier(0.2, 0.7, 0.3, 1), box-shadow 0.25s ease;
+}
+
+.feature-card:hover,
+.support-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 30px 60px -30px rgba(127, 29, 29, 0.35);
+  border-color: transparent;
+}
+
+/* SCROLL REVEAL — activates the IntersectionObserver already wired up in
+   app.js's setupScrollReveal(); these classes previously started at
+   opacity:1 (the reveal toggle was a no-op). Now they start hidden and
+   fade/rise into place the first time they scroll into view. */
+.feature-card,
+.step-card,
+.support-card,
+.track-step,
+.promo-card {
+  opacity: 0;
+  transform: translateY(24px);
+}
+
+.feature-card.is-visible,
+.step-card.is-visible,
+.support-card.is-visible,
+.track-step.is-visible,
+.promo-card.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .feature-card,
+  .step-card,
+  .support-card,
+  .track-step,
+  .promo-card {
+    opacity: 1;
+    transform: none;
+  }
+}
