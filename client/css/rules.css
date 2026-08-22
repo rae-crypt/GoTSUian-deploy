@@ -955,10 +955,16 @@ content: '\203A';
 
   .nav-row-icon  {
 display: inline-flex;
-    width: 20px;
-    height: 20px;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
     flex-shrink: 0;
     color: var(--primary);
+    background: var(--light);
+    border-radius: 10px;
+    padding: 7px;
+    box-sizing: border-box;
 }
 
   .nav-links a.nav-drawer-profile  {
@@ -1192,7 +1198,59 @@ justify-content: center;
 gap: 12px;
 }
 
+/* The whole nav-links/nav-cta/nav-toggle block above this point is
+   missing its intended @media wrapper — it applies unconditionally,
+   turning the nav into a mobile dropdown/hamburger even at desktop
+   widths. Rather than relocate that (large, currently load-bearing for
+   real mobile) block, this restores correct desktop behavior on top of
+   it. Mobile (<=720px) is untouched. */
+@media (min-width: 721px) {
+  .nav-links {
+    position: static;
+    width: auto;
+    background: none;
+    flex-direction: row;
+    align-items: center;
+    padding: 0;
+    gap: 24px;
+    max-height: none;
+    overflow: visible;
+    opacity: 1;
+    transform: none;
+    pointer-events: auto;
+    box-shadow: none;
+    border-radius: 0;
+  }
 
+  .nav-links a {
+    width: auto;
+    padding: 0;
+    border-bottom: none;
+    gap: 0;
+  }
+
+  .nav-links a::after {
+    content: none;
+  }
+
+  .nav-row-icon {
+    display: none;
+  }
+
+  .nav-links a[data-page="auth"] {
+    display: none;
+  }
+
+  .nav-cta {
+    display: flex;
+    width: auto;
+    justify-content: flex-start;
+  }
+
+  .nav-toggle {
+    display: none;
+  }
+}
 
 @media (max-width: 640px) {
   .hero {
