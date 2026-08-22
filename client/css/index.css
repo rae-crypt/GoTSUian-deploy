@@ -1950,48 +1950,52 @@ display: none !important;
 
 .phone-mockup {
   position: relative;
-  width: 320px;
+  width: 278px;
+  height: 558px;
   background: var(--text);
   border-radius: 42px;
-  padding: 12px;
+  padding: 11px;
   box-shadow: 0 40px 80px -30px rgba(43, 24, 16, 0.5);
+  box-sizing: border-box;
 }
 
 .phone-mockup-screen {
   background: var(--light);
   border-radius: 32px;
+  height: 100%;
   overflow: hidden;
   position: relative;
 }
 
 .pm-top {
   background: linear-gradient(140deg, var(--primary), var(--primary-deep));
-  padding: 28px 24px 32px;
+  padding: 26px 22px 30px;
 }
 
 .pm-top .pm-greet {
   color: rgba(255, 246, 236, 0.75);
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .pm-top .pm-name {
   color: #fff8ee;
   font-family: 'Clash Display', sans-serif;
   font-weight: 600;
-  font-size: 19px;
+  font-size: 17px;
 }
 
 .pm-card {
   background: var(--white);
   margin: -16px 16px 0;
   border-radius: 18px;
-  padding: 19px;
+  padding: 18px;
   box-shadow: 0 14px 32px -18px rgba(43, 24, 16, 0.4);
+  box-sizing: border-box;
 }
 
 .pm-timeline {
   position: relative;
-  padding-left: 24px;
+  padding-left: 22px;
 }
 
 .pm-timeline::before {
@@ -2016,13 +2020,13 @@ display: none !important;
 .pm-stop::before {
   content: '';
   position: absolute;
-  left: -24px;
+  left: -22px;
   top: 4px;
-  width: 13px;
-  height: 13px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
   background: var(--gold);
-  border: 2px solid #fff;
+  border: 2.5px solid #fff;
   box-shadow: 0 0 0 1.5px var(--gold);
 }
 
@@ -2032,7 +2036,7 @@ display: none !important;
 }
 
 .pm-stop .pm-stop-lbl {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--muted);
   line-height: 1.2;
 }
@@ -2042,7 +2046,7 @@ display: none !important;
   color: var(--text);
   font-family: 'Clash Display', sans-serif;
   font-weight: 600;
-  font-size: 15px;
+  font-size: 14px;
 }
 
 .pm-fare {
@@ -2055,7 +2059,7 @@ display: none !important;
 }
 
 .pm-fare .pm-fare-lbl {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--muted);
 }
 
@@ -2063,7 +2067,7 @@ display: none !important;
   font-family: 'Clash Display', sans-serif;
   font-weight: 600;
   color: var(--text);
-  font-size: 21px;
+  font-size: 20px;
   line-height: 1.1;
 }
 
@@ -2072,33 +2076,33 @@ display: none !important;
   color: #fff8ee;
   text-align: center;
   font-weight: 600;
-  font-size: 14px;
-  padding: 12px 20px;
-  border-radius: 13px;
+  font-size: 13px;
+  padding: 11px 19px;
+  border-radius: 12px;
   box-shadow: 0 8px 18px -8px rgba(74, 15, 15, 0.7);
 }
 
 .pm-driver {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 11px;
   background: var(--white);
   margin: 14px 16px;
-  padding: 13px 15px;
-  border-radius: 17px;
+  padding: 12px 14px;
+  border-radius: 16px;
   box-shadow: 0 10px 26px -18px rgba(43, 24, 16, 0.4);
 }
 
 .pm-driver .pm-av {
-  width: 44px;
-  height: 44px;
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--gold), var(--primary));
   flex-shrink: 0;
   display: grid;
   place-items: center;
   color: #fff;
-  font-size: 19px;
+  font-size: 18px;
 }
 
 .pm-driver .pm-dinfo {
@@ -2108,13 +2112,13 @@ display: none !important;
 .pm-driver .pm-dn {
   font-family: 'Clash Display', sans-serif;
   font-weight: 600;
-  font-size: 14px;
+  font-size: 13px;
   color: var(--text);
   white-space: nowrap;
 }
 
 .pm-driver .pm-dt {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--muted);
   white-space: nowrap;
 }
@@ -2127,9 +2131,9 @@ display: none !important;
   gap: 5px;
   background: var(--light);
   color: var(--primary-deep);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
-  padding: 6px 12px;
+  padding: 5px 11px;
   border-radius: 999px;
   white-space: nowrap;
 }
@@ -2145,13 +2149,13 @@ display: none !important;
 .pm-float-tag {
   position: absolute;
   background: var(--white);
-  border-radius: 15px;
-  padding: 12px 16px;
+  border-radius: 14px;
+  padding: 11px 14px;
   box-shadow: 0 16px 34px -16px rgba(43, 24, 16, 0.4);
   display: flex;
   align-items: center;
   gap: 9px;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--text);
   animation: phone-float 4.5s ease-in-out infinite;
@@ -2163,19 +2167,19 @@ display: none !important;
   border-radius: 9px;
   display: grid;
   place-items: center;
-  font-size: 15px;
+  font-size: 14px;
   background: var(--light);
 }
 
 .pm-float-tag.pm-t1 {
-  top: 78px;
-  left: -36px;
+  top: 70px;
+  left: -34px;
   animation-delay: -1.5s;
 }
 
 .pm-float-tag.pm-t2 {
-  bottom: 88px;
-  right: -32px;
+  bottom: 80px;
+  right: -30px;
   animation-delay: -3s;
 }
 
@@ -2274,10 +2278,6 @@ display: none !important;
 @media (max-width: 640px) {
   .hero.hero-gotsuian {
     padding: 40px 0;
-  }
-
-  .phone-mockup {
-    width: 270px;
   }
 }
 
