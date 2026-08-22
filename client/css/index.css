@@ -2359,9 +2359,9 @@ display: none !important;
 }
 
 .track-step.is-done .step-bubble {
-  background: linear-gradient(135deg, var(--primary), var(--gold));
+  background: var(--gold);
   border-color: transparent;
-  color: #fff;
+  color: var(--primary-deep);
 }
 
 .track-step .step-lbl {
