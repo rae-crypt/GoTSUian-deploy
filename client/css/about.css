@@ -34,7 +34,7 @@ scroll-behavior: smooth;
 
 body  {
 margin: 0;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Plus Jakarta Sans', sans-serif;
   color: var(--text);
   background: var(--white);
   font-size: 16px;
@@ -55,13 +55,13 @@ header {
 
 
 h1, h2, h3, h4, h5, h6  {
-font-family: 'Poppins', sans-serif;
+font-family: 'Clash Display', 'Plus Jakarta Sans', sans-serif;
 }
 
 
 
 button, input, select, textarea, label, p, small, span, td, th, li  {
-font-family: 'Inter', sans-serif;
+font-family: 'Plus Jakarta Sans', sans-serif;
 }
 
 
@@ -231,7 +231,7 @@ display: inline-block;
 
 .brand-word {
   color: var(--primary);
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Clash Display', 'Plus Jakarta Sans', sans-serif;
   font-weight: 700;
   font-size: 1.3rem;
 }
@@ -315,7 +315,7 @@ transform: translateY(-1px);
 
 .hero-copy h1  {
 margin: 0 auto;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Clash Display', 'Plus Jakarta Sans', sans-serif;
   font-size: clamp(2.8rem, 5vw, 4.2rem);
   line-height: 1.02;
   color: var(--primary);
@@ -444,7 +444,7 @@ max-width: 760px;
 .section h2,
 .section h3  {
 margin: 0 0 18px;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Clash Display', 'Plus Jakarta Sans', sans-serif;
   color: var(--primary);
 }
 
@@ -706,7 +706,7 @@ flex: 1;
 margin: 0 0 12px;
   font-size: 1.75rem;
   color: var(--primary);
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Clash Display', 'Plus Jakarta Sans', sans-serif;
 }
 
 
@@ -1324,7 +1324,7 @@ gap: 12px;
 
 .rules-table-card th {
   color: var(--primary);
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Clash Display', 'Plus Jakarta Sans', sans-serif;
   font-size: 0.9rem;
 }
 
@@ -1444,7 +1444,7 @@ gap: 12px;
 
 .about-hero-stats div strong {
   display: block;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Clash Display', 'Plus Jakarta Sans', sans-serif;
   font-size: 1.5rem;
   color: var(--white);
 }
@@ -1705,14 +1705,14 @@ gap: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Clash Display', 'Plus Jakarta Sans', sans-serif;
   font-weight: 700;
   font-size: 1.15rem;
   margin: 0 auto 14px;
 }
 
 .about-team-card h4 {
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Clash Display', 'Plus Jakarta Sans', sans-serif;
   font-size: 0.88rem;
   margin: 0 0 4px;
   color: var(--text);
@@ -1927,7 +1927,7 @@ gap: 12px;
 }
 
 .logout-confirm-card h3 {
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Clash Display', 'Plus Jakarta Sans', sans-serif;
   font-weight: 700;
   font-size: 18px;
   color: var(--text);
@@ -1953,7 +1953,7 @@ gap: 12px;
   flex: 1;
   border-radius: 12px;
   padding: 11px 14px;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Plus Jakarta Sans', sans-serif;
   font-size: 13.5px;
   font-weight: 700;
   cursor: pointer;
@@ -2000,7 +2000,7 @@ gap: 12px;
 
 .footer h3,
 .footer h4 {
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Clash Display', 'Plus Jakarta Sans', sans-serif;
   color: #fff8f6;
 }
 
