@@ -1170,6 +1170,7 @@ display: inline-flex;
 
 .section-intro h2  {
 font-size: clamp(2rem, 2.7vw, 3rem);
+  text-wrap: balance;
 }
 
 
@@ -2399,17 +2400,16 @@ display: none !important;
 
   .tracker::before,
   .tracker::after {
-    left: 26px;
-    top: 6%;
-    bottom: 6%;
+    left: 57.5px;
+    top: 27px;
+    bottom: 27px;
     width: 3px;
     height: auto;
     right: auto;
   }
 
   .tracker::after {
-    background: linear-gradient(180deg, var(--gold), var(--primary));
-    height: 88%;
+    background: linear-gradient(180deg, var(--gold) 0%, var(--gold) 55%, var(--line) 100%);
   }
 
   .track-step.step-card {
