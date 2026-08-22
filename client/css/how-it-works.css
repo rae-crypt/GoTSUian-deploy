@@ -36,7 +36,7 @@ body  {
 margin: 0;
   font-family: 'Plus Jakarta Sans', sans-serif;
   color: var(--text);
-  background: var(--white);
+  background: var(--light);
   font-size: 16px;
   line-height: 1.75;
 }
@@ -1439,7 +1439,7 @@ gap: 12px;
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background: var(--light);
+  background: var(--white);
   color: var(--primary);
   border-radius: 999px;
   padding: 7px 16px 7px 10px;
@@ -1491,10 +1491,11 @@ gap: 12px;
 .how-role-toggle {
   display: inline-flex;
   margin: 28px auto 0;
-  background: var(--light);
+  background: var(--white);
   border-radius: 999px;
   padding: 5px;
   gap: 4px;
+  border: 1px solid #ecd3d3;
 }
 
 .how-role-btn {
