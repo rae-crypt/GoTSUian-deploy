@@ -61,6 +61,26 @@ header {
   box-shadow: 0 16px 32px -12px rgba(127, 29, 29, 0.65);
 }
 
+/* This file loads after every page's own CSS, so the pill-button gradient
+   above was winning over each page's own `.nav-user-dropdown a/button`
+   reset regardless of that file's internal rule order — the dropdown's
+   menu rows (which live inside .nav-cta) were rendering as big gradient
+   pills instead of a compact list. Reset here, at the point in the
+   cascade that actually wins. */
+.nav-user-dropdown a,
+.nav-user-dropdown button {
+  background: none;
+  box-shadow: none;
+  transform: none;
+}
+
+.nav-user-dropdown a:hover,
+.nav-user-dropdown button:hover {
+  background: var(--light);
+  box-shadow: none;
+  transform: none;
+}
+
 /* BUTTONS — punch up the existing pill buttons with a gradient + glow,
    without touching their markup or the classes that already exist. On
    hover the gradient sweeps to its darker stop (background-position, not
