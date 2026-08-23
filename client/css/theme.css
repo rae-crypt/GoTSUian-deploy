@@ -81,6 +81,31 @@ header {
   transform: none;
 }
 
+/* Same leak, different element: .nav-user-trigger (the "R" avatar button)
+   is also a <button> living inside .nav-cta, so it was inheriting the
+   maroon gradient pill + 11px/22px padding above on top of its own
+   36px avatar circle — a big gradient blob with a smaller circle
+   floating inside it instead of one clean avatar. `.nav-cta
+   .nav-user-trigger` (two classes) outranks `.nav-cta button` (class +
+   element) so this wins regardless of source order, same fix pattern
+   as the dropdown reset above. */
+.nav-cta .nav-user-trigger,
+.nav-cta .nav-user-trigger:hover {
+  background: none;
+  padding: 0;
+  box-shadow: none;
+  transform: none;
+}
+
+/* The avatar circle itself: cream instead of solid maroon so it reads as
+   a badge against the header rather than a second dark pill next to the
+   "Book a ride" button. */
+.nav-user-avatar {
+  background: var(--light);
+  color: var(--primary);
+  border: 1.5px solid rgba(127, 29, 29, 0.18);
+}
+
 /* BUTTONS — punch up the existing pill buttons with a gradient + glow,
    without touching their markup or the classes that already exist. On
    hover the gradient sweeps to its darker stop (background-position, not
