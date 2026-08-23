@@ -1260,6 +1260,10 @@ color: var(--primary);
     display: none;
   }
 
+  .nav-row-logout {
+    display: none;
+  }
+
   .nav-links a.nav-drawer-profile.is-visible {
     display: none;
   }
