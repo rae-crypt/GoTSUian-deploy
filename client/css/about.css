@@ -1574,18 +1574,6 @@ gap: 12px;
   line-height: 1.6;
 }
 
-/* A static heading that still invites a glance — subtle color shift on
-   hover, no layout movement (this is body copy, not a link). */
-.about-features-heading {
-  display: inline-block;
-  transition: color 0.2s ease;
-  cursor: default;
-}
-
-.about-features-heading:hover {
-  color: var(--accent-gold);
-}
-
 /* ---------- Our Story ---------- */
 
 .about-story {
