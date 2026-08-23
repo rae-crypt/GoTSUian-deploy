@@ -192,7 +192,12 @@ function getStoredUser() {
   }
 }
 
-function setStoredUser(user) {
+// skipRefresh: pass true when a redirectToDashboard() call immediately
+// follows — refreshAuthState() would otherwise repaint this page's nav as
+// logged-in (e.g. auth.html briefly showing "Booking" + the avatar) for the
+// instant before the browser actually navigates away, a visible flash for
+// no benefit since the page is about to be torn down anyway.
+function setStoredUser(user, skipRefresh) {
   const payload = {
     name: user.name || '',
     role: user.role || '',
@@ -212,7 +217,7 @@ function setStoredUser(user) {
     localStorage.setItem('authUser', JSON.stringify(payload));
     localStorage.setItem('isAuthenticated', 'true');
   }
-  refreshAuthState();
+  if (!skipRefresh) refreshAuthState();
 }
 
 function getAuthHeaders() {
@@ -537,7 +542,7 @@ function setupAdminLoginForm() {
         return;
       }
 
-      setStoredUser({ name: data.user.name, role: data.user.role, email: data.user.username, token: data.token });
+      setStoredUser({ name: data.user.name, role: data.user.role, email: data.user.username, token: data.token }, true);
       redirectToDashboard('admin');
     } catch (error) {
       console.error('Admin login request failed', error);
@@ -4888,9 +4893,9 @@ function setupAuthForm() {
         // it's showing, which silently strands the user on this page.
         // Navigating right away beats the prompt to it.
         if (role === 'driver') {
-          setStoredUser({ name: fullName, role, accountId: data.accountId, accountStatus: data.accountStatus, token: data.token });
+          setStoredUser({ name: fullName, role, accountId: data.accountId, accountStatus: data.accountStatus, token: data.token }, true);
         } else {
-          setStoredUser({ name: fullName, role, email, accountId: data.accountId, token: data.token });
+          setStoredUser({ name: fullName, role, email, accountId: data.accountId, token: data.token }, true);
         }
         redirectToDashboard(role);
  
@@ -5069,7 +5074,7 @@ function setupAuthForm() {
         // login, not just skip setting it.
         const rememberMe = document.querySelector('#login-remember-me');
         localStorage.setItem('rememberMe', rememberMe && rememberMe.checked ? 'true' : 'false');
-        setStoredUser({ name: data.user.name, role: normalizedRole, email: data.user.username, accountId: data.user.accountId, accountStatus: data.user.accountStatus, token: data.token });
+        setStoredUser({ name: data.user.name, role: normalizedRole, email: data.user.username, accountId: data.user.accountId, accountStatus: data.user.accountStatus, token: data.token }, true);
         redirectToDashboard(normalizedRole);
 
       } catch (error) {
