@@ -294,8 +294,8 @@ function renderAuthStatus() {
             <strong class="nav-user-dropdown-name"></strong>
             <small class="nav-user-dropdown-role"></small>
           </a>
-          <a class="nav-user-dropdown-dashboard" href="#">Booking</a>
           <a href="index.html">Home</a>
+          <a class="nav-user-dropdown-dashboard" href="#">Booking</a>
           <button type="button" data-action="logout">Logout</button>
         </div>
       `;
