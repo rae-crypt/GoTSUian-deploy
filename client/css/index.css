@@ -1834,6 +1834,9 @@ display: none !important;
   position: relative;
   display: grid;
   grid-template-columns: 1.08fr 0.92fr;
+  grid-template-areas:
+    "copy mockup"
+    "actions mockup";
   align-items: center;
   gap: 3rem;
   padding: 72px 0 60px;
@@ -1842,6 +1845,10 @@ display: none !important;
   text-align: left;
   isolation: isolate;
 }
+
+.hero-gotsuian .hero-copy { grid-area: copy; }
+.hero-gotsuian .hero-actions { grid-area: actions; }
+.hero-gotsuian .phone-mockup-wrap { grid-area: mockup; }
 
 .hero-gotsuian::before {
   content: '';
@@ -1902,6 +1909,7 @@ display: none !important;
 .hero-gotsuian .hero-actions {
   justify-content: flex-start;
   align-items: center;
+  margin-top: 0;
 }
 
 /* .hero-mobile-signup defaults to display:none on desktop (it used to be a
@@ -2238,6 +2246,10 @@ display: none !important;
 @media (max-width: 900px) {
   .hero.hero-gotsuian {
     grid-template-columns: 1fr;
+    grid-template-areas:
+      "copy"
+      "mockup"
+      "actions";
     padding: 48px 0;
     text-align: center;
     overflow: hidden;
@@ -2251,8 +2263,7 @@ display: none !important;
   }
 
   .phone-mockup-wrap {
-    order: -1;
-    margin-bottom: 8px;
+    margin: 8px 0;
   }
 
   .pm-float-tag {
@@ -2275,6 +2286,13 @@ display: none !important;
   }
 
   .hero-gotsuian .hero-actions {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .hero-gotsuian .hero-book-btn {
+    width: 100%;
+    max-width: 320px;
     justify-content: center;
   }
 
