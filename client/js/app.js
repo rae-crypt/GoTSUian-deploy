@@ -564,7 +564,7 @@ function showAdminDashboardIfLoggedIn() {
   document.querySelectorAll('.admin-only').forEach(el => el.classList.toggle('hidden', !authed));
 }
 
-// index.html's nav-cta has a static "Sign up" link — hide it once someone
+// index.html's nav-cta has a static "Sign in" link — hide it once someone
 // browses back to the home page already logged in (the avatar badge next to
 // it covers account access instead). Safe no-op on every page without
 // #cta-signup.
