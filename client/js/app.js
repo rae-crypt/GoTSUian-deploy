@@ -2930,7 +2930,7 @@ async function renderPassengerRideStatus() {
     </div>
 
     <div class="ride-driver-info">
-      <span class="ride-driver-avatar"><img src="../images/tricycle.logo.png" alt="Tricycle"></span>
+      <span class="ride-driver-avatar"><img src="../images/tricycle.png" alt="Tricycle"></span>
       <div>
         <strong>${escapeHtml(driverName)}</strong>
         <small>${activeRide.driver_plate ? escapeHtml(activeRide.driver_plate) + ' · ' : ''}${escapeHtml(activeRide.ride_type)}</small>
