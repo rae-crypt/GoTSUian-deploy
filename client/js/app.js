@@ -570,13 +570,11 @@ function showAdminDashboardIfLoggedIn() {
 // #cta-signup.
 function updateHomeCtaVisibility() {
   const signupLink = document.querySelector('#cta-signup');
-  // The desktop hamburger dropdown has its own Login item (#cta-signup-drawer)
-  // since the top-bar Login button is hidden at desktop widths there — kept
-  // in sync with the same auth state.
-  const drawerLoginLink = document.querySelector('#cta-signup-drawer');
   const hide = isAuthenticated() ? 'none' : '';
   if (signupLink) signupLink.style.display = hide;
-  if (drawerLoginLink) drawerLoginLink.style.display = hide;
+  // #cta-signup-drawer's own visibility is handled by updateLoginNavLinkLabel()
+  // now that it carries data-page="auth" like every other page's drawer Login
+  // row — same guest-hidden / driver-passenger-hidden / admin-Logout rules.
 }
 
 // LOYALTY / REWARDS — only present on passenger-rewards.html, so this is a
