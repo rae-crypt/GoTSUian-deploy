@@ -500,7 +500,7 @@ function setupLoginNavLink() {
     if (isAuthenticated()) {
       event.preventDefault();
       clearStoredUser();
-      window.location.href = 'auth.html';
+      window.location.href = 'index.html';
     }
     // Not authenticated: let the link behave normally and navigate to auth.html.
   });
@@ -3768,9 +3768,9 @@ function setupLogoutButtons() {
         }).catch(() => {});
       }
       clearStoredUser();
-      window.location.href = 'auth.html';
+      window.location.href = 'index.html';
     });
- 
+
     if (isAuthenticated()) {
       button.style.display = '';
     } else {
