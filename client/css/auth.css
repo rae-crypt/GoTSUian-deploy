@@ -34,7 +34,7 @@ scroll-behavior: smooth;
 
 body  {
 margin: 0;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Plus Jakarta Sans', sans-serif;
   color: var(--text);
   background: var(--light);
   font-size: 16px;
@@ -44,13 +44,13 @@ margin: 0;
 
 
 h1, h2, h3, h4, h5, h6  {
-font-family: 'Poppins', sans-serif;
+font-family: 'Clash Display', 'Plus Jakarta Sans', sans-serif;
 }
 
 
 
 button, input, select, textarea, label, p, small, span, td, th, li  {
-font-family: 'Inter', sans-serif;
+font-family: 'Plus Jakarta Sans', sans-serif;
 }
 
 
@@ -214,7 +214,12 @@ display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 18px 0;
+  height: 74px;
+}
+
+.site-shell.navbar {
+  max-width: 1120px;
+  padding: 0 24px;
 }
 
 
@@ -222,7 +227,7 @@ display: flex;
 .brand  {
 display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 11px;
   font-weight: 700;
   letter-spacing: 0.02em;
 }
@@ -231,17 +236,17 @@ display: flex;
 
 .brand-icon  {
 display: inline-block;
-  width: 37px;
-  height: 44px;
+  width: 32px;
+  height: 32px;
   color: var(--primary);
   flex-shrink: 0;
 }
 
 .brand-word {
   color: var(--primary);
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Clash Display', 'Plus Jakarta Sans', sans-serif;
   font-weight: 700;
-  font-size: 1.3rem;
+  font-size: 21px;
 }
 
 .brand-accent {
@@ -265,7 +270,7 @@ display: inline-block;
 
 .nav-links  {
 display: flex;
-  gap: 20px;
+  gap: 34px;
   align-items: center;
 }
 
@@ -275,6 +280,8 @@ display: flex;
 color: var(--muted);
   font-weight: 500;
     transition: color 0.2s ease;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 15px;
 }
 
 .nav-row-icon,
@@ -305,7 +312,8 @@ display: flex;
 background: var(--primary);
     color: var(--white);
     border: none;
-    padding: 12px 16px;
+    padding: 11px 22px;
+    font-size: 14px;
     border-radius: 999px;
     font-weight: 600;
     transition: transform 0.25s ease, box-shadow 0.25s ease;
@@ -367,7 +375,7 @@ margin: 0 auto 60px;
 
 .hero-copy h1  {
 margin: 0 auto;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Clash Display', 'Plus Jakarta Sans', sans-serif;
   font-size: clamp(2.8rem, 5vw, 4.2rem);
   line-height: 1.02;
   color: var(--text);
@@ -504,7 +512,7 @@ max-width: 760px;
 .section h2,
 .section h3  {
 margin: 0 0 18px;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Clash Display', 'Plus Jakarta Sans', sans-serif;
   color: var(--primary);
 }
 
@@ -905,7 +913,7 @@ width: 100%;
   color: var(--text);
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
   font-size: 1rem;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Plus Jakarta Sans', sans-serif;
 }
 
 
@@ -1281,7 +1289,7 @@ margin: 0 0 8px;
   font-size: 1.4rem;
   letter-spacing: -0.01em;
   color: var(--primary);
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Clash Display', 'Plus Jakarta Sans', sans-serif;
 }
 
 
@@ -1811,6 +1819,58 @@ gap: 12px;
   min-width: 0;
 }
 
+@media (min-width: 721px) {
+  .nav-links {
+    position: static;
+    width: auto;
+    background: none;
+    flex-direction: row;
+    align-items: center;
+    padding: 0;
+    gap: 34px;
+    max-height: none;
+    overflow: visible;
+    opacity: 1;
+    transform: none;
+    pointer-events: auto;
+    box-shadow: none;
+    border-radius: 0;
+  }
+
+  .nav-links a {
+    width: auto;
+    padding: 0;
+    border-bottom: none;
+    gap: 0;
+  }
+
+  .nav-links a::after {
+    content: none;
+  }
+
+  .nav-row-icon {
+    display: none;
+  }
+
+  .nav-links a.nav-drawer-profile.is-visible {
+    display: none;
+  }
+
+  .nav-links a[data-page="auth"] {
+    display: none;
+  }
+
+  .nav-cta {
+    display: flex;
+    width: auto;
+    justify-content: flex-start;
+  }
+
+  .nav-toggle {
+    display: none;
+  }
+}
+
 @media (max-width: 640px) {
   .form-row-2 {
     grid-template-columns: 1fr;
@@ -2143,7 +2203,7 @@ gap: 12px;
 }
 
 .logout-confirm-card h3 {
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Clash Display', 'Plus Jakarta Sans', sans-serif;
   font-weight: 700;
   font-size: 18px;
   color: var(--text);
@@ -2169,7 +2229,7 @@ gap: 12px;
   flex: 1;
   border-radius: 12px;
   padding: 11px 14px;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Plus Jakarta Sans', sans-serif;
   font-size: 13.5px;
   font-weight: 700;
   cursor: pointer;
@@ -2216,7 +2276,7 @@ gap: 12px;
 
 .footer h3,
 .footer h4 {
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Clash Display', 'Plus Jakarta Sans', sans-serif;
   color: #fff8f6;
 }
 
