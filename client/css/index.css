@@ -2122,13 +2122,14 @@ display: none !important;
   place-items: center;
   color: #fff;
   font-size: 18px;
+  padding: 7px;
+  box-sizing: border-box;
 }
 
 .pm-driver .pm-av img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
-  border-radius: 50%;
+  object-fit: contain;
 }
 
 .pm-driver .pm-dinfo {
@@ -2199,13 +2200,14 @@ display: none !important;
   place-items: center;
   font-size: 14px;
   background: var(--light);
+  padding: 5px;
+  box-sizing: border-box;
 }
 
 .pm-float-tag .pm-ft-ic img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
-  border-radius: 9px;
+  object-fit: contain;
 }
 
 .pm-float-tag.pm-t1 {
