@@ -473,18 +473,22 @@ function updateLoginNavLinkLabel() {
   const loginLink = document.querySelector('.nav-links a[data-page="auth"]');
   if (!loginLink) return;
 
-  if (authenticated && isDriverOrPassenger) {
+  if (!authenticated || isDriverOrPassenger) {
+    // Guests already have "Book a ride" for this; driver/passenger use the
+    // dedicated Logout row above instead. Either way this row is redundant.
     loginLink.classList.add('hidden');
     return;
   }
-  loginLink.classList.remove('hidden');
 
+  // Only admin reaches here (authenticated, not driver/passenger) — admin
+  // has no profile page or desktop dropdown, so this stays as their one
+  // mobile logout row.
+  loginLink.classList.remove('hidden');
   const label = loginLink.querySelector('span');
-  const text = authenticated ? 'Logout' : 'Login';
   if (label) {
-    label.textContent = text;
+    label.textContent = 'Logout';
   } else {
-    loginLink.textContent = text;
+    loginLink.textContent = 'Logout';
   }
 }
 
