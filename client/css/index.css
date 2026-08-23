@@ -1932,6 +1932,14 @@ display: none !important;
   #cta-signup-drawer {
     display: none;
   }
+
+  /* Same redundancy, logged-in passenger case: the avatar dropdown (see
+     .nav-user-dropdown-dashboard, also "Booking") already covers this, so
+     the plain-text nav-links entry is a duplicate at desktop widths. Mobile
+     drawer keeps it — it has no avatar dropdown of its own. */
+  .nav-links a[data-page="passenger"] {
+    display: none;
+  }
 }
 
 .hero-gotsuian .btn-primary {
