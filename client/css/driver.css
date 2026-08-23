@@ -2856,7 +2856,8 @@ body {
   margin-bottom: 4px;
 }
 
-.footer-brand svg {
+.footer-brand svg,
+.footer-brand img {
   width: 15px;
   height: 18px;
   color: #fff8f6;
