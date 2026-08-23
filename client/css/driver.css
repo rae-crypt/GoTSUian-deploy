@@ -34,7 +34,7 @@ scroll-behavior: smooth;
 
 body  {
 margin: 0;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Plus Jakarta Sans', sans-serif;
   color: var(--text);
   background: var(--light);
   font-size: 16px;
@@ -44,13 +44,13 @@ margin: 0;
 
 
 h1, h2, h3, h4, h5, h6  {
-font-family: 'Poppins', sans-serif;
+font-family: 'Clash Display', 'Plus Jakarta Sans', sans-serif;
 }
 
 
 
 button, input, select, textarea, label, p, small, span, td, th, li  {
-font-family: 'Inter', sans-serif;
+font-family: 'Plus Jakarta Sans', sans-serif;
 }
 
 
@@ -228,7 +228,12 @@ display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 18px 0;
+  height: 74px;
+}
+
+.site-shell.navbar {
+  max-width: 1120px;
+  padding: 0 24px;
 }
 
 
@@ -236,7 +241,7 @@ display: flex;
 .brand  {
 display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 11px;
   font-weight: 700;
   letter-spacing: 0.02em;
 }
@@ -245,17 +250,17 @@ display: flex;
 
 .brand-icon  {
 display: inline-block;
-  width: 37px;
-  height: 44px;
+  width: 32px;
+  height: 32px;
   color: var(--primary);
   flex-shrink: 0;
 }
 
 .brand-word {
   color: var(--primary);
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Clash Display', 'Plus Jakarta Sans', sans-serif;
   font-weight: 700;
-  font-size: 1.3rem;
+  font-size: 21px;
 }
 
 .brand-accent {
@@ -279,7 +284,7 @@ display: inline-block;
 
 .nav-links  {
 display: flex;
-  gap: 20px;
+  gap: 34px;
   align-items: center;
 }
 
@@ -289,6 +294,8 @@ display: flex;
 color: var(--muted);
   font-weight: 500;
     transition: color 0.2s ease;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 15px;
 }
 
 .nav-row-icon,
@@ -319,7 +326,8 @@ display: flex;
 background: var(--primary);
     color: var(--white);
     border: none;
-    padding: 12px 16px;
+    padding: 11px 22px;
+    font-size: 14px;
     border-radius: 999px;
     font-weight: 600;
     transition: transform 0.25s ease, box-shadow 0.25s ease;
@@ -417,7 +425,7 @@ margin: 0 auto 60px;
 
 .hero-copy h1  {
 margin: 0 auto;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Clash Display', 'Plus Jakarta Sans', sans-serif;
   font-size: clamp(2.8rem, 5vw, 4.2rem);
   line-height: 1.02;
   color: var(--primary);
@@ -491,7 +499,7 @@ padding: 70px 0;
 .section h2,
 .section h3  {
 margin: 0 0 18px;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Clash Display', 'Plus Jakarta Sans', sans-serif;
   color: var(--primary);
 }
 
@@ -1008,7 +1016,7 @@ flex: 1;
 margin: 0 0 12px;
   font-size: 1.75rem;
   color: var(--primary);
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Clash Display', 'Plus Jakarta Sans', sans-serif;
 }
 
 
@@ -1217,6 +1225,58 @@ font-size: 0.78rem;
   .nav-links a.active,
   .nav-links a:hover  {
 color: var(--primary);
+}
+
+@media (min-width: 721px) {
+  .nav-links {
+    position: static;
+    width: auto;
+    background: none;
+    flex-direction: row;
+    align-items: center;
+    padding: 0;
+    gap: 34px;
+    max-height: none;
+    overflow: visible;
+    opacity: 1;
+    transform: none;
+    pointer-events: auto;
+    box-shadow: none;
+    border-radius: 0;
+  }
+
+  .nav-links a {
+    width: auto;
+    padding: 0;
+    border-bottom: none;
+    gap: 0;
+  }
+
+  .nav-links a::after {
+    content: none;
+  }
+
+  .nav-row-icon {
+    display: none;
+  }
+
+  .nav-links a.nav-drawer-profile.is-visible {
+    display: none;
+  }
+
+  .nav-links a[data-page="auth"] {
+    display: none;
+  }
+
+  .nav-cta {
+    display: flex;
+    width: auto;
+    justify-content: flex-start;
+  }
+
+  .nav-toggle {
+    display: none;
+  }
 }
 
 
@@ -1685,7 +1745,7 @@ gap: 12px;
   color: var(--text);
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
   font-size: 1rem;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Plus Jakarta Sans', sans-serif;
   box-sizing: border-box;
 }
 
@@ -1842,7 +1902,7 @@ gap: 12px;
 }
 
 .certificate-name {
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Clash Display', 'Plus Jakarta Sans', sans-serif;
   font-size: 1.3rem;
   color: var(--primary);
   margin: 0 0 10px;
@@ -2226,7 +2286,7 @@ gap: 12px;
 .ride-feedback-modal h3 {
   margin: 0 0 8px;
   font-size: 1.15rem;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Clash Display', 'Plus Jakarta Sans', sans-serif;
   color: var(--primary);
 }
 
@@ -2329,15 +2389,15 @@ body[data-page="driver"] .dashboard-grid .dashboard-card {
 }
 body[data-page="driver"] a.dashboard-card:hover { transform: translateY(-2px); }
 body[data-page="driver"] .dashboard-grid .dashboard-card h3 {
-  font-family: 'Inter', sans-serif; font-size: 12px; color: var(--gt-muted); font-weight: 600; margin: 0 0 4px;
+  font-family: 'Plus Jakarta Sans', sans-serif; font-size: 12px; color: var(--gt-muted); font-weight: 600; margin: 0 0 4px;
 }
 body[data-page="driver"] .dashboard-grid .dashboard-card p {
-  font-family: 'Poppins', sans-serif; font-size: 24px; font-weight: 700; color: var(--text); margin: 0;
+  font-family: 'Clash Display', 'Plus Jakarta Sans', sans-serif; font-size: 24px; font-weight: 700; color: var(--text); margin: 0;
 }
 
 /* ---- pending requests ---- */
 body[data-page="driver"] .section-intro { margin: 24px 0 14px; }
-body[data-page="driver"] .section-intro h2 { font-family: 'Poppins', sans-serif; font-size: 18px; margin: 0 0 3px; }
+body[data-page="driver"] .section-intro h2 { font-family: 'Clash Display', 'Plus Jakarta Sans', sans-serif; font-size: 18px; margin: 0 0 3px; }
 body[data-page="driver"] .section-intro .lead { margin: 0; font-size: 13px; color: var(--gt-muted); }
 body[data-page="driver"] .driver-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin-top: 0; }
 body[data-page="driver"] .driver-card {
@@ -2345,7 +2405,7 @@ body[data-page="driver"] .driver-card {
   display: block;
 }
 body[data-page="driver"] .driver-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
-body[data-page="driver"] .driver-card-header h3 { font-family: 'Poppins', sans-serif; font-size: 14.5px; margin: 0 0 2px; }
+body[data-page="driver"] .driver-card-header h3 { font-family: 'Clash Display', 'Plus Jakarta Sans', sans-serif; font-size: 14.5px; margin: 0 0 2px; }
 body[data-page="driver"] .driver-card-header p { margin: 0; font-size: 12.5px; color: var(--gt-muted); }
 body[data-page="driver"] .driver-card-meta { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12.5px; color: var(--gt-muted); margin-bottom: 10px; }
 body[data-page="driver"] .fare-tier-row { display: flex; gap: 6px; margin-bottom: 10px; }
@@ -2380,9 +2440,9 @@ body[data-page="driver"] #rating-card {
   display: block; text-decoration: none; color: inherit;
   background: var(--white); border: 1px solid #f1d9d9; border-radius: 16px; box-shadow: var(--gt-shadow); padding: 20px;
 }
-body[data-page="driver"] #rating-card h3 { font-family: 'Poppins', sans-serif; font-size: 15.5px; margin: 0 0 12px; }
-body[data-page="driver"] .rating-summary { font-family: 'Poppins', sans-serif; font-size: 22px; font-weight: 700; color: var(--accent-gold); margin: 0 0 10px; }
-body[data-page="driver"] .rating-summary small { font-family: 'Inter', sans-serif; font-size: 12.5px; color: var(--gt-muted); font-weight: 400; }
+body[data-page="driver"] #rating-card h3 { font-family: 'Clash Display', 'Plus Jakarta Sans', sans-serif; font-size: 15.5px; margin: 0 0 12px; }
+body[data-page="driver"] .rating-summary { font-family: 'Clash Display', 'Plus Jakarta Sans', sans-serif; font-size: 22px; font-weight: 700; color: var(--accent-gold); margin: 0 0 10px; }
+body[data-page="driver"] .rating-summary small { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 12.5px; color: var(--gt-muted); font-weight: 400; }
 body[data-page="driver"] .rating-list { display: flex; flex-direction: column; gap: 4px; }
 body[data-page="driver"] .rating-item { padding: 10px 0; border: none; border-top: 1px solid #f1d9d9; border-radius: 0; }
 body[data-page="driver"] .rating-item:first-child { border-top: none; padding-top: 0; }
@@ -2396,7 +2456,7 @@ body[data-page="driver"] .rating-item-comment { margin: 0; font-size: 12.5px; co
    an oversized, mismatched heading instead of a tag. */
 body[data-page="driver"] .warning-item-severity {
   display: inline-block; margin: 0 0 6px; padding: 3px 11px; border-radius: 999px;
-  font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.02em; text-transform: uppercase;
+  font-family: 'Plus Jakarta Sans', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.02em; text-transform: uppercase;
 }
 body[data-page="driver"] .warning-item-severity small { text-transform: none; font-weight: 600; }
 body[data-page="driver"] .rating-item > small { display: block; margin-top: 4px; font-size: 11px; color: var(--gt-muted); font-weight: 500; }
@@ -2418,7 +2478,7 @@ body[data-page="driver"] .dashboard-details { display: grid; grid-template-colum
 body[data-page="driver"] .dashboard-panel {
   background: var(--white); border: 1px solid #f1d9d9; border-radius: 16px; box-shadow: var(--gt-shadow); padding: 20px;
 }
-body[data-page="driver"] .dashboard-panel h2 { font-family: 'Poppins', sans-serif; font-size: 15px; margin: 0 0 8px; }
+body[data-page="driver"] .dashboard-panel h2 { font-family: 'Clash Display', 'Plus Jakarta Sans', sans-serif; font-size: 15px; margin: 0 0 8px; }
 body[data-page="driver"] .dashboard-panel p { margin: 0; font-size: 13px; color: var(--gt-muted); line-height: 1.5; }
 body[data-page="driver"] .dashboard-panel ul { margin: 0; padding-left: 18px; font-size: 13px; color: var(--gt-muted); line-height: 1.8; }
 
@@ -2438,7 +2498,7 @@ body[data-page="driver"] .dashboard-card {
   padding: 20px 20px;
 }
 body[data-page="driver"] .dashboard-card h3 {
-  display: flex; align-items: center; gap: 10px; font-family: 'Poppins', sans-serif; font-size: 15.5px; margin: 0 0 14px;
+  display: flex; align-items: center; gap: 10px; font-family: 'Clash Display', 'Plus Jakarta Sans', sans-serif; font-size: 15.5px; margin: 0 0 14px;
 }
 
 body[data-page="driver"] .booking-route { font-size: 14.5px; font-weight: 700; color: var(--text); margin: 0 0 6px; }
@@ -2463,7 +2523,7 @@ body[data-page="driver"] .booking-info { min-width: 0; }
 body[data-page="driver"] .booking-route { margin: 0; }
 body[data-page="driver"] .booking-status { display: flex; flex-direction: row; align-items: center; gap: 10px; flex-shrink: 0; }
 body[data-page="driver"] .booking-meta { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--gt-muted); margin-top: 4px; }
-body[data-page="driver"] .booking-fare { font-weight: 700; color: var(--primary); font-family: 'Poppins', sans-serif; font-size: 15px; white-space: nowrap; }
+body[data-page="driver"] .booking-fare { font-weight: 700; color: var(--primary); font-family: 'Clash Display', 'Plus Jakarta Sans', sans-serif; font-size: 15px; white-space: nowrap; }
 body[data-page="driver"] .booking-divider { height: 1px; background: #f1d9d9; margin: 10px 0 8px; }
 body[data-page="driver"] .booking-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; }
 body[data-page="driver"] .booking-actions .complaint-prompt { margin-top: 0; }
@@ -2492,7 +2552,7 @@ body[data-page="driver"] .rating-overview-score { display: flex; flex-direction:
 /* Star row sits beside the number ("5.0 ★★★★★" as one unit) instead of
    stacked below it on its own disconnected-looking line. */
 body[data-page="driver"] .score-line { display: flex; align-items: baseline; gap: 10px; }
-body[data-page="driver"] .rating-big-number { font-family: 'Poppins', sans-serif; font-size: 36px; font-weight: 700; color: var(--accent-gold); line-height: 1; }
+body[data-page="driver"] .rating-big-number { font-family: 'Clash Display', 'Plus Jakarta Sans', sans-serif; font-size: 36px; font-weight: 700; color: var(--accent-gold); line-height: 1; }
 body[data-page="driver"] .rating-star-row { color: var(--accent-gold); font-size: 15px; letter-spacing: 2px; }
 body[data-page="driver"] .rating-overview-score small { font-size: 12px; color: var(--gt-muted); }
 
@@ -2513,7 +2573,7 @@ body[data-page="driver"] .rating-item-head { display: flex; align-items: center;
 body[data-page="driver"] .rating-item-who { display: flex; align-items: center; gap: 10px; min-width: 0; }
 body[data-page="driver"] .rating-item-avatar {
   width: 30px; height: 30px; border-radius: 50%; background: var(--light); color: var(--primary); flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center; font-family: 'Poppins', sans-serif; font-weight: 600; font-size: 13px;
+  display: flex; align-items: center; justify-content: center; font-family: 'Clash Display', 'Plus Jakarta Sans', sans-serif; font-weight: 600; font-size: 13px;
 }
 body[data-page="driver"] .rating-item-meta { min-width: 0; }
 body[data-page="driver"] .rating-item-name { display: block; font-size: 12.5px; font-weight: 700; color: var(--text); }
@@ -2552,7 +2612,7 @@ body[data-page="driver"] .standing-icon.has-warnings { background: var(--tone-wa
 body[data-page="driver"] .standing-icon.has-warnings svg.icon-clean { display: none; }
 body[data-page="driver"] .standing-icon.has-warnings svg.icon-warning { display: block; }
 body[data-page="driver"] .standing-text { flex: 1; min-width: 0; }
-body[data-page="driver"] .standing-text strong { display: block; font-family: 'Poppins', sans-serif; font-size: 15.5px; color: var(--text); }
+body[data-page="driver"] .standing-text strong { display: block; font-family: 'Clash Display', 'Plus Jakarta Sans', sans-serif; font-size: 15.5px; color: var(--text); }
 body[data-page="driver"] .standing-text span { display: block; font-size: 12.5px; color: var(--gt-muted); margin-top: 2px; }
 body[data-page="driver"] .standing-chevron { width: 18px; height: 18px; color: var(--gt-muted); flex-shrink: 0; transition: transform 0.2s ease; }
 body[data-page="driver"] .standing-toggle[aria-expanded="true"] .standing-chevron { transform: rotate(180deg); }
@@ -2584,7 +2644,7 @@ body[data-page="driver"] .profile-panel-icon {
 }
 body[data-page="driver"] .profile-panel-icon svg { width: 20px; height: 20px; }
 body[data-page="driver"] .profile-panel-head-text { flex: 1; min-width: 0; }
-body[data-page="driver"] .profile-panel-head-text h3 { font-family: 'Poppins', sans-serif; font-size: 17.5px; margin: 0 0 3px; color: var(--text); }
+body[data-page="driver"] .profile-panel-head-text h3 { font-family: 'Clash Display', 'Plus Jakarta Sans', sans-serif; font-size: 17.5px; margin: 0 0 3px; color: var(--text); }
 body[data-page="driver"] .profile-panel-head-text p { margin: 0; font-size: 13.5px; color: var(--gt-muted); line-height: 1.5; }
 body[data-page="driver"] .profile-panel-toggle {
   display: flex; width: 32px; height: 32px; border: none;
@@ -2656,7 +2716,7 @@ body[data-page="driver"] .profile-panel.is-collapsed .profile-panel-toggle svg {
 }
 
 .logout-confirm-card h3 {
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Clash Display', 'Plus Jakarta Sans', sans-serif;
   font-weight: 700;
   font-size: 18px;
   color: var(--text);
@@ -2682,7 +2742,7 @@ body[data-page="driver"] .profile-panel.is-collapsed .profile-panel-toggle svg {
   flex: 1;
   border-radius: 12px;
   padding: 11px 14px;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Plus Jakarta Sans', sans-serif;
   font-size: 13.5px;
   font-weight: 700;
   cursor: pointer;
@@ -2729,7 +2789,7 @@ body[data-page="driver"] .profile-panel.is-collapsed .profile-panel-toggle svg {
 
 .footer h3,
 .footer h4 {
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Clash Display', 'Plus Jakarta Sans', sans-serif;
   color: #fff8f6;
 }
 
@@ -2920,7 +2980,7 @@ body {
 }
 
 .rewards-ring-center strong {
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Clash Display', 'Plus Jakarta Sans', sans-serif;
   font-size: 18px;
   color: var(--text);
   line-height: 1;
@@ -3033,7 +3093,7 @@ body {
 }
 
 .cert-title {
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Clash Display', 'Plus Jakarta Sans', sans-serif;
   font-size: 1.05rem;
   color: var(--text);
   margin: 0 0 14px;
@@ -3096,7 +3156,7 @@ body {
 }
 
 .cert-footer-value {
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Clash Display', 'Plus Jakarta Sans', sans-serif;
   font-size: 0.78rem;
   color: var(--text);
   font-weight: 600;
@@ -3220,7 +3280,7 @@ body {
   border: 1.5px solid var(--accent-gold);
   background: var(--white);
   color: var(--accent-gold);
-  font-family: 'Inter', sans-serif;
+  font-family: 'Plus Jakarta Sans', sans-serif;
   font-weight: 700;
   font-size: 0.85rem;
   cursor: pointer;
