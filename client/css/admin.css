@@ -1750,7 +1750,8 @@ body.admin-portal {
   font-size: 18px;
   color: var(--primary);
 }
-.admin-logo svg { width: 24px; height: 28px; flex-shrink: 0; }
+.admin-logo svg,
+.admin-logo img { width: 24px; height: 28px; flex-shrink: 0; object-fit: cover; border-radius: 50%; }
 .admin-logo small {
   display: block;
   font-family: 'Plus Jakarta Sans', sans-serif;
@@ -2148,7 +2149,8 @@ table.admin-table tbody tr:hover { background: var(--light); }
 @media (max-width: 640px) {
   .admin-topbar { padding: 13px 16px; }
   .admin-logo { font-size: 15px; }
-  .admin-logo svg { width: 20px; height: 24px; }
+  .admin-logo svg,
+  .admin-logo img { width: 20px; height: 24px; }
   .admin-chip { font-size: 11.5px; padding: 5px 10px; }
   .admin-logout-btn { font-size: 12px; padding: 7px 12px; }
 
