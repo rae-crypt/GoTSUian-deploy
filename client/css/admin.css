@@ -2459,7 +2459,7 @@ table.admin-table tbody tr:hover { background: var(--light); }
 
   .footer .footer-grid {
     grid-template-columns: 1fr;
-    gap: 26px;
+    gap: 14px;
   }
 }
 

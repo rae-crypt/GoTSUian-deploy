@@ -3133,7 +3133,7 @@ body[data-page="passenger"] .dashboard-card.is-collapsed .dashboard-card-toggle 
 
   .footer .footer-grid {
     grid-template-columns: 1fr;
-    gap: 26px;
+    gap: 14px;
   }
 }
 
