@@ -1582,8 +1582,7 @@ gap: 12px;
   cursor: default;
 }
 
-.about-features-heading:hover,
-.about-features-heading:active {
+.about-features-heading:hover {
   color: var(--accent-gold);
 }
 
