@@ -2588,21 +2588,13 @@ function openAvailableDriversModal() {
       }
       body.innerHTML = drivers.map(d => {
         const plateText = d.plate_number || '—';
-        // Long plate numbers ("RM-09234") need a smaller font than short ones
-        // ("—") to stay inside the fixed-width box without overflowing.
-        const plateFontSize = plateText.length > 9 ? 32 : plateText.length > 6 ? 40 : 52;
         return `
         <div class="driver-list-item">
-          <span class="driver-list-icon">
-            <svg viewBox="0 0 300 200" fill="none" stroke="currentColor" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
-              <rect x="20" y="20" width="260" height="160" rx="16"/>
-              <line x1="20" y1="140" x2="280" y2="140"/>
-              <line x1="70" y1="168" x2="105" y2="168"/>
-              <line x1="140" y1="168" x2="225" y2="168"/>
-              <text x="150" y="105" text-anchor="middle" dominant-baseline="middle" font-family="'Poppins', sans-serif" font-weight="800" font-size="${plateFontSize}" fill="#241414" stroke="none">${escapeHtml(plateText)}</text>
-            </svg>
-          </span>
-          <strong class="driver-list-label">${escapeHtml(d.name || 'Driver')}</strong>
+          <span class="driver-list-icon"><img src="../images/tricycle.png" alt="Tricycle"></span>
+          <div class="driver-list-info">
+            <strong class="driver-list-label">${escapeHtml(d.name || 'Driver')}</strong>
+            <span class="driver-list-plate">${escapeHtml(plateText)}</span>
+          </div>
           <span class="driver-list-radio"></span>
         </div>
       `;
