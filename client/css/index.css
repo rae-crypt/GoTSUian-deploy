@@ -2124,6 +2124,13 @@ display: none !important;
   font-size: 18px;
 }
 
+.pm-driver .pm-av img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
 .pm-driver .pm-dinfo {
   min-width: 0;
 }
@@ -2192,6 +2199,13 @@ display: none !important;
   place-items: center;
   font-size: 14px;
   background: var(--light);
+}
+
+.pm-float-tag .pm-ft-ic img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 9px;
 }
 
 .pm-float-tag.pm-t1 {
