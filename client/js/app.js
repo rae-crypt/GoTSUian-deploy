@@ -1073,14 +1073,12 @@ function setupPassengerMap() {
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
   }).addTo(passengerMapInstance);
-
-  L.marker([15.485196, 120.587386]).addTo(passengerMapInstance).bindPopup('Main Campus');
-  L.marker([15.502741, 120.578814]).addTo(passengerMapInstance).bindPopup('San Isidro Campus');
 }
 
 // Polls for the assigned driver's live position while there's an active
-// ride, and moves (or creates/removes) a marker on top of the static campus
-// pins. Only present on passenger.html — safe no-op everywhere else.
+// ride, and creates/moves/removes a marker for it — the map has no other
+// pins until this one appears. Only present on passenger.html — safe no-op
+// everywhere else.
 let driverRouteLine = null;
 let driverTrackedRideId = null;
 
@@ -1180,10 +1178,10 @@ async function pollDriverLocation() {
   }
 }
 
-// DRIVER'S OWN MAP — mirrors the passenger-side map: static campus markers
-// plus, while there's an active ride, the same shrinking route line and a
-// marker for the driver's own live GPS fix. Only present on driver.html —
-// safe no-op everywhere else.
+// DRIVER'S OWN MAP — mirrors the passenger-side map: no pins until there's
+// an active ride, then the same shrinking route line and a marker for the
+// driver's own live GPS fix. Only present on driver.html — safe no-op
+// everywhere else.
 let driverMapInstance = null;
 let driverMapMarker = null;
 let driverMapPassengerMarker = null;
@@ -1205,9 +1203,6 @@ function setupDriverMap() {
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
   }).addTo(driverMapInstance);
-
-  L.marker([15.485196, 120.587386]).addTo(driverMapInstance).bindPopup('Main Campus');
-  L.marker([15.502741, 120.578814]).addTo(driverMapInstance).bindPopup('San Isidro Campus');
 }
 
 function clearDriverMapTracking() {
