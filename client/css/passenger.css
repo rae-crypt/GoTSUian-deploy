@@ -300,32 +300,6 @@ display: inline-block;
   display: flex;
 }
 
-/* Resets the `.nav-cta a` / `.nav-cta button` pill-button styling (maroon
-   background + white text) that would otherwise bleed into every dropdown
-   row, since these links/buttons live inside .nav-cta too. */
-.nav-user-dropdown a,
-.nav-user-dropdown button {
-  display: block;
-  width: 100%;
-  background: none;
-  border: none;
-  border-radius: 10px;
-  text-align: left;
-  padding: 9px 10px;
-  color: var(--muted);
-  font-family: inherit;
-  font-weight: 600;
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
-}
-
-.nav-user-dropdown a:hover,
-.nav-user-dropdown button:hover {
-  background: var(--light);
-  color: var(--primary);
-}
-
 .nav-user-dropdown-header {
   padding-bottom: 12px;
   margin-bottom: 6px;
@@ -403,6 +377,32 @@ background: var(--primary);
   .nav-cta button:hover  {
 transform: translateY(-1px);
     box-shadow: 0 14px 28px rgba(127, 29, 29, 0.18);
+}
+
+/* Resets the `.nav-cta a` / `.nav-cta button` pill-button styling (maroon
+   background + white text) that would otherwise bleed into every dropdown
+   row, since these links/buttons live inside .nav-cta too. */
+.nav-user-dropdown a,
+.nav-user-dropdown button {
+  display: block;
+  width: 100%;
+  background: none;
+  border: none;
+  border-radius: 10px;
+  text-align: left;
+  padding: 9px 10px;
+  color: var(--muted);
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.nav-user-dropdown a:hover,
+.nav-user-dropdown button:hover {
+  background: var(--light);
+  color: var(--primary);
 }
 
 
@@ -2892,12 +2892,12 @@ body[data-page="passenger"] .ride-driver-info {
   display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: var(--light); border-radius: 12px; margin-bottom: 14px;
 }
 body[data-page="passenger"] .ride-driver-avatar {
-  width: 34px; height: 34px; border-radius: 50%; background: var(--accent-gold); color: #fff8f6; flex-shrink: 0;
+  width: 34px; height: 34px; border-radius: 50%; color: #fff8f6; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center; font-family: 'Clash Display', 'Plus Jakarta Sans', sans-serif; font-weight: 600; font-size: 14px;
-  padding: 5px; box-sizing: border-box;
+  overflow: hidden;
 }
 body[data-page="passenger"] .ride-driver-avatar img {
-  width: 100%; height: 100%; object-fit: contain;
+  width: 100%; height: 100%; object-fit: cover;
 }
 body[data-page="passenger"] .ride-driver-info > div { min-width: 0; flex: 1 1 auto; }
 body[data-page="passenger"] .ride-driver-info strong { display: block; font-size: 14px; overflow-wrap: break-word; }
