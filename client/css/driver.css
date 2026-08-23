@@ -1272,6 +1272,13 @@ color: var(--primary);
     display: none;
   }
 
+  /* Redundant at desktop widths: the avatar dropdown (.nav-user-dropdown-
+     dashboard, also "Booking") already links back to this same dashboard.
+     Mobile drawer keeps it — it has no avatar dropdown of its own. */
+  .nav-links a[data-page="driver"] {
+    display: none;
+  }
+
   .nav-cta {
     display: flex;
     width: auto;
