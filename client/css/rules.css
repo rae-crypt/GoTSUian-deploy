@@ -1979,12 +1979,6 @@ body {
 /* TERMS AND CONDITIONS PROSE — reuses .rules-table-card's white-card look
    (border, radius, shadow) as the document container, since this content
    is continuous legal prose rather than a table. */
-.terms-meta {
-  margin: 4px 0 0;
-  font-size: 0.86rem;
-  color: var(--muted);
-}
-
 .terms-body {
   background: var(--white);
   border-radius: 20px;
@@ -2023,4 +2017,34 @@ body {
   .terms-body section {
     padding: 20px 0;
   }
+}
+
+/* Narrower, evenly-wrapped centered paragraph for the combined hero intro
+   (it's longer than the other hero-simple pages' one-liners, so the
+   default full-width centered text was wrapping into uneven, ragged
+   lines). */
+.hero-simple .hero-copy p {
+  max-width: 620px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* HERO ENTRANCE — same staggered fade + rise used on the other pages'
+   heroes (see index.css's identical hero-rise). Plays once on load at
+   every width, mobile included. */
+.hero-simple .hero-badge,
+.hero-simple h1,
+.hero-simple p,
+.hero-simple .rules-legend {
+  animation: hero-rise 0.7s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+
+.hero-simple .hero-badge { animation-delay: 0s; }
+.hero-simple h1 { animation-delay: 0.08s; }
+.hero-simple p { animation-delay: 0.16s; }
+.hero-simple .rules-legend { animation-delay: 0.24s; }
+
+@keyframes hero-rise {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: none; }
 }
