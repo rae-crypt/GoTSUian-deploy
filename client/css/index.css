@@ -1721,6 +1721,13 @@ position: relative;
 display: none !important;
 }
 
+/* Unlike .hidden above, this is mobile-drawer-only — the desktop override
+   block further down restores it at desktop widths, since the marketing
+   links live in the real desktop nav row too, not just the drawer. */
+.nav-links a.nav-marketing-link-hide-mobile {
+  display: none;
+}
+
 @media (max-width: 640px) {
   .hero {
     padding: 40px 0 24px;
@@ -1931,6 +1938,13 @@ display: none !important;
 @media (min-width: 721px) {
   #cta-signup-drawer {
     display: none;
+  }
+
+  /* Undo the mobile-drawer-only hide above — at desktop widths these
+     links are the real nav row, not drawer clutter, so they stay
+     visible even when logged in. */
+  .nav-links a.nav-marketing-link-hide-mobile {
+    display: inline;
   }
 
   /* Same redundancy, logged-in passenger case: the avatar dropdown (see
