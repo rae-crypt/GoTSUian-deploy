@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link href="https://api.fontshare.com/v2/css?f[]=clash-display@500,600,700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="../css/rules.css?v=60">
+  <link rel="stylesheet" href="../css/rules.css?v=61">
   <link rel="stylesheet" href="../css/theme.css?v=5">
 </head>
 <body data-page="rules">
@@ -51,8 +51,8 @@
     </section>
 
     <div class="rules-legend">
-      <button type="button" class="rules-legend-chip warning" data-filter="warning" aria-pressed="false">Warning</button>
-      <button type="button" class="rules-legend-chip violation" data-filter="violation" aria-pressed="false">Violation</button>
+      <button type="button" class="rules-legend-chip warning" data-filter="warning" aria-pressed="false">Warning — first-level, correctable</button>
+      <button type="button" class="rules-legend-chip violation" data-filter="violation" aria-pressed="false">Violation — serious breach</button>
     </div>
 
     <section class="section">
@@ -63,62 +63,14 @@
           <p class="lead rules-intro">Booking a ride means you agree to show up, pay the correct fare, and treat your driver with respect.</p>
         </div>
       </div>
-      <div class="rules-table-card">
-        <table>
-          <thead>
-            <tr>
-              <th>Violation</th>
-              <th>Severity</th>
-              <th>Explanation</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>Fake or fraudulent booking</td>
-              <td><span class="rules-severity tone-warning">Warning</span></td>
-              <td>Requesting a ride with no intention of riding — wastes the driver's time and fuel.</td>
-            </tr>
-            <tr>
-              <td>No-show at pickup point</td>
-              <td><span class="rules-severity tone-warning">Warning</span></td>
-              <td>Booking a ride, then not showing up at the pickup location without cancelling.</td>
-            </tr>
-            <tr>
-              <td>Harassment or rude behavior toward a driver</td>
-              <td><span class="rules-severity tone-violation">Violation</span></td>
-              <td>Verbal abuse, threats, or disrespectful treatment of a driver.</td>
-            </tr>
-            <tr>
-              <td>Refusing to pay the agreed fare</td>
-              <td><span class="rules-severity tone-violation">Violation</span></td>
-              <td>Not paying the displayed fare (₱60 Solo / ₱20–35 Shared, split by student count).</td>
-            </tr>
-            <tr>
-              <td>Misuse of a Shared ride</td>
-              <td><span class="rules-severity tone-warning">Warning</span></td>
-              <td>Adding students to a Shared trip who weren't part of the booking or fare split.</td>
-            </tr>
-            <tr>
-              <td>False information at registration</td>
-              <td><span class="rules-severity tone-violation">Violation</span></td>
-              <td>Using a fake name or student number to create an account.</td>
-            </tr>
-            <tr>
-              <td>Abuse of the complaint system</td>
-              <td><span class="rules-severity tone-violation">Violation</span></td>
-              <td>Repeatedly filing false or baseless complaints against drivers.</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <div class="rules-card-grid">
-        <div class="rules-card"><div class="rules-card-top"><strong>Fake or fraudulent booking</strong><span class="rules-tag warning">Warning</span></div><p>Requesting a ride with no intention of riding — wastes the driver's time and fuel.</p></div>
-        <div class="rules-card"><div class="rules-card-top"><strong>No-show at pickup point</strong><span class="rules-tag warning">Warning</span></div><p>Booking a ride, then not showing up at the pickup location without cancelling.</p></div>
-        <div class="rules-card"><div class="rules-card-top"><strong>Harassment or rude behavior toward a driver</strong><span class="rules-tag violation">Violation</span></div><p>Verbal abuse, threats, or disrespectful treatment of a driver.</p></div>
-        <div class="rules-card"><div class="rules-card-top"><strong>Refusing to pay the agreed fare</strong><span class="rules-tag violation">Violation</span></div><p>Not paying the displayed fare (₱60 Solo / ₱20–35 Shared, split by student count).</p></div>
-        <div class="rules-card"><div class="rules-card-top"><strong>Misuse of a Shared ride</strong><span class="rules-tag warning">Warning</span></div><p>Adding students to a Shared trip who weren't part of the booking or fare split.</p></div>
-        <div class="rules-card"><div class="rules-card-top"><strong>False information at registration</strong><span class="rules-tag violation">Violation</span></div><p>Using a fake name or student number to create an account.</p></div>
-        <div class="rules-card"><div class="rules-card-top"><strong>Abuse of the complaint system</strong><span class="rules-tag violation">Violation</span></div><p>Repeatedly filing false or baseless complaints against drivers.</p></div>
+      <div class="rules-list">
+        <div class="rule-card" data-severity="warning"><div class="rule-card-top"><h3>Fake or fraudulent booking</h3><span class="rules-severity tone-warning">Warning</span></div><p>Requesting a ride with no intention of riding — wastes the driver's time and fuel.</p></div>
+        <div class="rule-card" data-severity="warning"><div class="rule-card-top"><h3>No-show at pickup point</h3><span class="rules-severity tone-warning">Warning</span></div><p>Booking a ride, then not showing up at the pickup location without cancelling.</p></div>
+        <div class="rule-card" data-severity="violation"><div class="rule-card-top"><h3>Harassment or rude behavior toward a driver</h3><span class="rules-severity tone-violation">Violation</span></div><p>Verbal abuse, threats, or disrespectful treatment of a driver.</p></div>
+        <div class="rule-card" data-severity="violation"><div class="rule-card-top"><h3>Refusing to pay the agreed fare</h3><span class="rules-severity tone-violation">Violation</span></div><p>Not paying the displayed fare (₱60 Solo / ₱20–35 Shared, split by student count).</p></div>
+        <div class="rule-card" data-severity="warning"><div class="rule-card-top"><h3>Misuse of a Shared ride</h3><span class="rules-severity tone-warning">Warning</span></div><p>Adding students to a Shared trip who weren't part of the booking or fare split.</p></div>
+        <div class="rule-card" data-severity="violation"><div class="rule-card-top"><h3>False information at registration</h3><span class="rules-severity tone-violation">Violation</span></div><p>Using a fake name or student number to create an account.</p></div>
+        <div class="rule-card" data-severity="violation"><div class="rule-card-top"><h3>Abuse of the complaint system</h3><span class="rules-severity tone-violation">Violation</span></div><p>Repeatedly filing false or baseless complaints against drivers.</p></div>
       </div>
     </section>
 
@@ -130,56 +82,13 @@
           <p class="lead rules-intro">Accepting a ride means committing to safe driving, fair pricing, and courteous service.</p>
         </div>
       </div>
-      <div class="rules-table-card">
-        <table>
-          <thead>
-            <tr>
-              <th>Violation</th>
-              <th>Severity</th>
-              <th>Explanation</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>Reckless or unsafe driving</td>
-              <td><span class="rules-severity tone-violation">Violation</span></td>
-              <td>Safety-critical — dangerous driving is never just a warning.</td>
-            </tr>
-            <tr>
-              <td>Overcharging</td>
-              <td><span class="rules-severity tone-violation">Violation</span></td>
-              <td>Charging more than the fare shown in the app.</td>
-            </tr>
-            <tr>
-              <td>Harassment or rude behavior toward a passenger</td>
-              <td><span class="rules-severity tone-violation">Violation</span></td>
-              <td>Verbal abuse or disrespectful treatment of a passenger.</td>
-            </tr>
-            <tr>
-              <td>Unjustified cancellation after accepting</td>
-              <td><span class="rules-severity tone-warning">Warning</span></td>
-              <td>Accepting a ride, then cancelling it without a valid reason.</td>
-            </tr>
-            <tr>
-              <td>Refusing service without valid reason</td>
-              <td><span class="rules-severity tone-violation">Violation</span></td>
-              <td>Discriminating against or refusing a specific passenger unfairly.</td>
-            </tr>
-            <tr>
-              <td>Unsafe vehicle condition</td>
-              <td><span class="rules-severity tone-warning">Warning</span></td>
-              <td>E.g. faulty brakes, no lights at night — a safety hazard to passengers.</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <div class="rules-card-grid">
-        <div class="rules-card"><div class="rules-card-top"><strong>Reckless or unsafe driving</strong><span class="rules-tag violation">Violation</span></div><p>Safety-critical — dangerous driving is never just a warning.</p></div>
-        <div class="rules-card"><div class="rules-card-top"><strong>Overcharging</strong><span class="rules-tag violation">Violation</span></div><p>Charging more than the fare shown in the app.</p></div>
-        <div class="rules-card"><div class="rules-card-top"><strong>Harassment or rude behavior toward a passenger</strong><span class="rules-tag violation">Violation</span></div><p>Verbal abuse or disrespectful treatment of a passenger.</p></div>
-        <div class="rules-card"><div class="rules-card-top"><strong>Unjustified cancellation after accepting</strong><span class="rules-tag warning">Warning</span></div><p>Accepting a ride, then cancelling it without a valid reason.</p></div>
-        <div class="rules-card"><div class="rules-card-top"><strong>Refusing service without valid reason</strong><span class="rules-tag violation">Violation</span></div><p>Discriminating against or refusing a specific passenger unfairly.</p></div>
-        <div class="rules-card"><div class="rules-card-top"><strong>Unsafe vehicle condition</strong><span class="rules-tag warning">Warning</span></div><p>E.g. faulty brakes, no lights at night — a safety hazard to passengers.</p></div>
+      <div class="rules-list">
+        <div class="rule-card" data-severity="violation"><div class="rule-card-top"><h3>Reckless or unsafe driving</h3><span class="rules-severity tone-violation">Violation</span></div><p>Safety-critical — dangerous driving is never just a warning.</p></div>
+        <div class="rule-card" data-severity="violation"><div class="rule-card-top"><h3>Overcharging</h3><span class="rules-severity tone-violation">Violation</span></div><p>Charging more than the fare shown in the app.</p></div>
+        <div class="rule-card" data-severity="violation"><div class="rule-card-top"><h3>Harassment or rude behavior toward a passenger</h3><span class="rules-severity tone-violation">Violation</span></div><p>Verbal abuse or disrespectful treatment of a passenger.</p></div>
+        <div class="rule-card" data-severity="warning"><div class="rule-card-top"><h3>Unjustified cancellation after accepting</h3><span class="rules-severity tone-warning">Warning</span></div><p>Accepting a ride, then cancelling it without a valid reason.</p></div>
+        <div class="rule-card" data-severity="violation"><div class="rule-card-top"><h3>Refusing service without valid reason</h3><span class="rules-severity tone-violation">Violation</span></div><p>Discriminating against or refusing a specific passenger unfairly.</p></div>
+        <div class="rule-card" data-severity="warning"><div class="rule-card-top"><h3>Unsafe vehicle condition</h3><span class="rules-severity tone-warning">Warning</span></div><p>E.g. faulty brakes, no lights at night — a safety hazard to passengers.</p></div>
       </div>
     </section>
 
@@ -201,73 +110,28 @@
           <p class="lead rules-intro">Welcome to GoTSUian. These Terms and Conditions ("Terms") govern your access to and use of the GoTSUian campus tricycle booking platform ("the Service"), operated as a student project at Tarlac State University. By creating an account or using the Service, you agree to be bound by these Terms. If you do not agree, please do not use the Service.</p>
         </div>
       </div>
-      <div class="terms-body">
-        <section>
-          <h2>1. Acceptance of Terms</h2>
-          <p>By registering for an account, booking a ride, or otherwise using GoTSUian, you confirm that you have read, understood, and agreed to these Terms and to the Code of Conduct above, which is incorporated into these Terms by reference. Your continued use of the Service constitutes ongoing acceptance of any updates to these Terms.</p>
-        </section>
-        <section>
-          <h2>2. Eligibility</h2>
-          <p>The Service is intended for use by verified members of the Tarlac State University community, specifically: Students — currently enrolled and using a valid TSU student account; and Drivers — tricycle drivers authorized to operate within the campus service area. You must provide accurate, current, and complete information during registration. Accounts created with false, misleading, or fraudulent information may be suspended or removed.</p>
-        </section>
-        <section>
-          <h2>3. Accounts and Security</h2>
-          <p>You are responsible for maintaining the confidentiality of your account credentials and for all activity that occurs under your account. You agree to notify the GoTSUian administrator immediately of any unauthorized use of your account. GoTSUian is not liable for any loss arising from your failure to safeguard your login details.</p>
-        </section>
-        <section>
-          <h2>4. Description of the Service</h2>
-          <p>GoTSUian is a booking platform that connects students with tricycle drivers within the campus service area. Features include ride booking, shared (carpool) rides with fare splitting, and trip status tracking. GoTSUian facilitates the connection between students and drivers; it does not itself provide transportation and is not a transportation carrier.</p>
-        </section>
-        <section>
-          <h2>5. Fares and Payments</h2>
-          <p>Estimated fares are displayed within the app before a booking is confirmed. Standard fares are ₱60 for a Solo ride and ₱20–₱35 per student for a Shared ride, split according to the number of participating students. All payments are made in cash and settled directly and manually between the student and the driver at the time of the ride. GoTSUian does not process, hold, or handle any payments, and does not support online or electronic payment methods such as e-wallets or bank transfers. The app only displays the fare for reference. Students agree to pay the correct displayed fare in cash, and drivers agree not to charge more than the fare shown in the app.</p>
-        </section>
-        <section>
-          <h2>6. User Conduct</h2>
-          <p>All users agree to behave respectfully and lawfully while using the Service. Specific expectations for students and drivers — and the corresponding warnings and violations — are set out in the Code of Conduct above. Prohibited behavior includes, but is not limited to, fraudulent bookings, harassment, overcharging, unsafe driving, providing false information, and abuse of the complaint system.</p>
-        </section>
-        <section>
-          <h2>7. Warnings, Violations, and Enforcement</h2>
-          <p>GoTSUian uses a two-tier system of Warnings and Violations, as described in the Code of Conduct above. Warnings and violations are generally issued by the GoTSUian administrator, either after reviewing a complaint or upon directly observing a breach. A second warning issued to the same account is automatically escalated to a Violation. Your account standing, including any warnings or violations, is visible on your Profile page. GoTSUian reserves the right to suspend or terminate accounts that repeatedly or seriously breach these Terms or the Code of Conduct.</p>
-        </section>
-        <section>
-          <h2>8. Cancellations and No-Shows</h2>
-          <p>Students should cancel a booking promptly if their plans change. Failing to appear at a pickup point without cancelling, or a driver cancelling an accepted ride without a valid reason, may result in a warning or violation as described in the Code of Conduct above.</p>
-        </section>
-        <section>
-          <h2>9. Safety</h2>
-          <p>Safety is a shared responsibility. Drivers agree to operate their vehicles safely, keep them in roadworthy condition, and comply with applicable traffic rules. Students agree to conduct themselves safely during trips. Any safety-critical breach, such as reckless driving or an unsafe vehicle condition, is treated with the highest seriousness.</p>
-        </section>
-        <section>
-          <h2>10. Limitation of Liability</h2>
-          <p>GoTSUian is a student project provided on an "as is" and "as available" basis, without warranties of any kind. To the fullest extent permitted by law, GoTSUian, its student developers, and Tarlac State University shall not be liable for any injury, loss, damage, delay, or dispute arising from rides booked through the Service, from the conduct of any user, or from interruptions to the Service. Because all payments are made in cash directly between students and drivers, GoTSUian is not responsible for any payment disputes, incorrect change, or non-payment. The relationship between students and drivers is directly between those parties.</p>
-        </section>
-        <section>
-          <h2>11. Privacy</h2>
-          <p>GoTSUian collects only the information necessary to operate the Service, such as your registration details, booking history, and location information used for pickup and drop-off. This information is used to provide and improve the Service and is not sold to third parties. By using the Service, you consent to the collection and use of your information for these purposes.</p>
-        </section>
-        <section>
-          <h2>12. Suspension and Termination</h2>
-          <p>GoTSUian may suspend or terminate your access to the Service at any time for breach of these Terms or the Code of Conduct. You may stop using the Service at any time. Certain records, such as account standing and trip history, may be retained for administrative purposes.</p>
-        </section>
-        <section>
-          <h2>13. Changes to These Terms</h2>
-          <p>GoTSUian may update these Terms from time to time. Material changes will be communicated through the Service. Your continued use after such changes take effect constitutes acceptance of the revised Terms.</p>
-        </section>
-        <section>
-          <h2>14. Governing Law</h2>
-          <p>These Terms are governed by and construed in accordance with the laws of the Republic of the Philippines. Any disputes arising from the use of the Service shall be resolved in accordance with applicable Philippine law and, where relevant, the policies of Tarlac State University.</p>
-        </section>
-        <section>
-          <h2>15. Contact</h2>
-          <p>For questions, concerns, or complaints regarding these Terms or the Service, please contact the GoTSUian administrator — complaints about a specific ride or user can be filed directly through the in-app complaint system.</p>
-        </section>
+      <div class="terms-list">
+        <div class="term-card"><div class="term-num">1</div><div class="term-body"><h3>Acceptance of Terms</h3><p>By registering for an account, booking a ride, or otherwise using GoTSUian, you confirm that you have read, understood, and agreed to these Terms and to the Code of Conduct above, which is incorporated into these Terms by reference. Your continued use of the Service constitutes ongoing acceptance of any updates to these Terms.</p></div></div>
+        <div class="term-card"><div class="term-num">2</div><div class="term-body"><h3>Eligibility</h3><p>The Service is intended for use by verified members of the Tarlac State University community:</p><ul><li>Students — currently enrolled and using a valid TSU student account</li><li>Drivers — tricycle drivers authorized to operate within the campus service area</li></ul><p>You must provide accurate, current, and complete information during registration. Accounts created with false, misleading, or fraudulent information may be suspended or removed.</p></div></div>
+        <div class="term-card"><div class="term-num">3</div><div class="term-body"><h3>Accounts and Security</h3><p>You are responsible for maintaining the confidentiality of your account credentials and for all activity that occurs under your account. You agree to notify the GoTSUian administrator immediately of any unauthorized use of your account. GoTSUian is not liable for any loss arising from your failure to safeguard your login details.</p></div></div>
+        <div class="term-card"><div class="term-num">4</div><div class="term-body"><h3>Description of the Service</h3><p>GoTSUian is a booking platform that connects students with tricycle drivers within the campus service area. Features include ride booking, shared (carpool) rides with fare splitting, and trip status tracking. GoTSUian facilitates the connection between students and drivers; it does not itself provide transportation and is not a transportation carrier.</p></div></div>
+        <div class="term-card"><div class="term-num">5</div><div class="term-body"><h3>Fares and Payments</h3><p>Estimated fares are displayed within the app before a booking is confirmed. Standard fares are <span class="term-highlight">₱60 for a Solo ride</span> and <span class="term-highlight">₱20–₱35 per student for a Shared ride</span>, split according to the number of participating students. All payments are made <span class="term-highlight">in cash</span> and settled directly and manually between the student and the driver at the time of the ride. GoTSUian does not process, hold, or handle any payments, and does not support online or electronic payment methods such as e-wallets or bank transfers. The app only displays the fare for reference. Students agree to pay the correct displayed fare in cash, and drivers agree not to charge more than the fare shown in the app.</p></div></div>
+        <div class="term-card"><div class="term-num">6</div><div class="term-body"><h3>User Conduct</h3><p>All users agree to behave respectfully and lawfully while using the Service. Specific expectations for students and drivers — and the corresponding warnings and violations — are set out in the Code of Conduct above. Prohibited behavior includes, but is not limited to, fraudulent bookings, harassment, overcharging, unsafe driving, providing false information, and abuse of the complaint system.</p></div></div>
+        <div class="term-card"><div class="term-num">7</div><div class="term-body"><h3>Warnings, Violations, and Enforcement</h3><p>GoTSUian uses a two-tier system of Warnings and Violations, as described in the Code of Conduct above. Warnings and violations are generally issued by the GoTSUian administrator, either after reviewing a complaint or upon directly observing a breach. A second warning issued to the same account is automatically escalated to a Violation. Your account standing, including any warnings or violations, is visible on your Profile page. GoTSUian reserves the right to suspend or terminate accounts that repeatedly or seriously breach these Terms or the Code of Conduct.</p></div></div>
+        <div class="term-card"><div class="term-num">8</div><div class="term-body"><h3>Cancellations and No-Shows</h3><p>Students should cancel a booking promptly if their plans change. Failing to appear at a pickup point without cancelling, or a driver cancelling an accepted ride without a valid reason, may result in a warning or violation as described in the Code of Conduct above.</p></div></div>
+        <div class="term-card"><div class="term-num">9</div><div class="term-body"><h3>Safety</h3><p>Safety is a shared responsibility. Drivers agree to operate their vehicles safely, keep them in roadworthy condition, and comply with applicable traffic rules. Students agree to conduct themselves safely during trips. Any safety-critical breach, such as reckless driving or an unsafe vehicle condition, is treated with the highest seriousness.</p></div></div>
+        <div class="term-card"><div class="term-num">10</div><div class="term-body"><h3>Limitation of Liability</h3><p>GoTSUian is a student project provided on an "as is" and "as available" basis, without warranties of any kind. To the fullest extent permitted by law, GoTSUian, its student developers, and Tarlac State University shall not be liable for any injury, loss, damage, delay, or dispute arising from rides booked through the Service, from the conduct of any user, or from interruptions to the Service. Because all payments are made in cash directly between students and drivers, GoTSUian is not responsible for any payment disputes, incorrect change, or non-payment. The relationship between students and drivers is directly between those parties.</p></div></div>
+        <div class="term-card"><div class="term-num">11</div><div class="term-body"><h3>Privacy</h3><p>GoTSUian collects only the information necessary to operate the Service, such as your registration details, booking history, and location information used for pickup and drop-off. This information is used to provide and improve the Service and is not sold to third parties. By using the Service, you consent to the collection and use of your information for these purposes.</p></div></div>
+        <div class="term-card"><div class="term-num">12</div><div class="term-body"><h3>Suspension and Termination</h3><p>GoTSUian may suspend or terminate your access to the Service at any time for breach of these Terms or the Code of Conduct. You may stop using the Service at any time. Certain records, such as account standing and trip history, may be retained for administrative purposes.</p></div></div>
+        <div class="term-card"><div class="term-num">13</div><div class="term-body"><h3>Changes to These Terms</h3><p>GoTSUian may update these Terms from time to time. Material changes will be communicated through the Service. Your continued use after such changes take effect constitutes acceptance of the revised Terms.</p></div></div>
+        <div class="term-card"><div class="term-num">14</div><div class="term-body"><h3>Governing Law</h3><p>These Terms are governed by and construed in accordance with the laws of the Republic of the Philippines. Any disputes arising from the use of the Service shall be resolved in accordance with applicable Philippine law and, where relevant, the policies of Tarlac State University.</p></div></div>
+        <div class="term-card"><div class="term-num">15</div><div class="term-body"><h3>Contact</h3><p>For questions, concerns, or complaints regarding these Terms or the Service, please contact the GoTSUian administrator — complaints about a specific ride or user can be filed directly through the in-app complaint system.</p></div></div>
       </div>
     </section>
 
     <section class="section">
-      <div class="rules-note">
-        <div class="rules-note-icon"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 11V6.5C6 5.1 7.1 4 8.5 4H11.5C12.9 4 14 5.1 14 6.5V11"/><rect x="4.5" y="11" width="11" height="4" rx="1.5"/></svg></div>
+      <div class="rules-ack">
+        <div class="rules-ack-icon"><svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="9" width="10" height="7" rx="1.5"/><path d="M7 9V6.5C7 4.6 8.3 3 10 3C11.7 3 13 4.6 13 6.5V9"/></svg></div>
         <div>
           <strong>Acknowledgment</strong>
           <p>By creating an account, you acknowledge that you have read and agree to both the Code of Conduct and Terms and Conditions on this page.</p>
@@ -300,6 +164,6 @@
   </footer>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="../js/app.js?v=137"></script>
+  <script src="../js/app.js?v=138"></script>
 </body>
 </html>
