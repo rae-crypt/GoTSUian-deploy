@@ -2530,6 +2530,19 @@ body[data-page="driver"] .copy-short { display: none; }
   body[data-page="driver"] .copy-full { display: none; }
   body[data-page="driver"] .copy-short { display: inline; }
   body[data-page="driver"] p.copy-short { display: block; }
+
+  /* Same defensive width guard as passenger.css: a grid/flex item's
+     content (long unbroken text, a Leaflet map re-measuring mid-layout)
+     can otherwise force the whole track wider than the viewport instead
+     of just clipping that one child. */
+  body[data-page="driver"] .map-stack,
+  body[data-page="driver"] .driver-map,
+  body[data-page="driver"] .dashboard-grid > *,
+  body[data-page="driver"] .driver-grid > *,
+  body[data-page="driver"] .request-status-stack > * {
+    max-width: 100%;
+    min-width: 0;
+  }
 }
 
 /* ---- booking history + ratings (driver-bookings.html) ---- */
