@@ -2232,3 +2232,30 @@ body[data-page="rules"].filter-violation .rule-card[data-severity="warning"] {
   opacity: 0.4;
   transform: scale(0.98);
 }
+
+/* =======================================================================
+   POPPINS — from the "For Students / Passengers" section through the
+   closing Acknowledgment card. Hero + legend keep the site's existing
+   Clash Display / Plus Jakarta Sans. h2/h3 have their own direct
+   font-family rule elsewhere in this file, so inheriting from a
+   container wouldn't override them — every text element in range is
+   targeted explicitly instead.
+======================================================================= */
+body[data-page="rules"] .rules-section-head h2,
+body[data-page="rules"] .rule-card-top h3,
+body[data-page="rules"] .term-body h3,
+body[data-page="rules"] .rules-note strong,
+body[data-page="rules"] .rules-ack strong {
+  font-family: 'Poppins', 'Plus Jakarta Sans', sans-serif;
+  font-weight: 600;
+}
+
+body[data-page="rules"] .rules-section-head .section-intro p,
+body[data-page="rules"] .rule-card p,
+body[data-page="rules"] .term-body p,
+body[data-page="rules"] .term-body li,
+body[data-page="rules"] .rules-note p,
+body[data-page="rules"] .rules-ack p {
+  font-family: 'Poppins', 'Plus Jakarta Sans', sans-serif;
+  font-weight: 400;
+}
