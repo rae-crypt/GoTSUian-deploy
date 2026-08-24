@@ -1975,3 +1975,52 @@ body {
     gap: 6px;
   }
 }
+
+/* TERMS AND CONDITIONS PROSE — reuses .rules-table-card's white-card look
+   (border, radius, shadow) as the document container, since this content
+   is continuous legal prose rather than a table. */
+.terms-meta {
+  margin: 4px 0 0;
+  font-size: 0.86rem;
+  color: var(--muted);
+}
+
+.terms-body {
+  background: var(--white);
+  border-radius: 20px;
+  border: 1px solid #ecd3d3;
+  box-shadow: 0 16px 40px -18px rgba(61, 20, 20, 0.16);
+  padding: 8px 32px;
+}
+
+.terms-body section {
+  padding: 26px 0;
+  border-bottom: 1px solid #f5e3e3;
+}
+
+.terms-body section:last-child {
+  border-bottom: none;
+}
+
+.terms-body h2 {
+  font-size: 1.05rem;
+  margin: 0 0 10px;
+  color: var(--primary);
+}
+
+.terms-body p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.75;
+  font-size: 0.92rem;
+}
+
+@media (max-width: 640px) {
+  .terms-body {
+    padding: 4px 20px;
+  }
+
+  .terms-body section {
+    padding: 20px 0;
+  }
+}
