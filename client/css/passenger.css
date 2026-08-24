@@ -2149,6 +2149,7 @@ select {
   display: flex;
   flex-direction: column;
   gap: 22px;
+  min-width: 0;
 }
 
 .rewards-teaser .loyalty-count {
@@ -3006,7 +3007,7 @@ body[data-page="passenger"] .ride-next-step { margin: 0; font-size: 12.5px; colo
 body[data-page="passenger"] .ride-progress { display: flex; align-items: flex-start; gap: 0; margin: 0 0 16px; }
 body[data-page="passenger"] .ride-progress-step,
 body[data-page="passenger"] .ride-progress-step.is-active {
-  display: flex; flex-direction: column; align-items: center; flex: 1; padding: 0; border-radius: 0; background: none; color: inherit;
+  display: flex; flex-direction: column; align-items: center; flex: 1; min-width: 0; padding: 0; border-radius: 0; background: none; color: inherit;
   position: relative;
 }
 body[data-page="passenger"] .ride-progress-step:not(:last-child)::after {
@@ -3063,10 +3064,28 @@ body[data-page="passenger"] .dashboard-panel-link p { margin: 0; font-size: 12.5
 
 body[data-page="passenger"] .copy-short { display: none; }
 @media (max-width: 900px) {
-  body[data-page="passenger"] .passenger-layout { display: flex; flex-direction: column; }
+  body[data-page="passenger"] .passenger-layout { display: flex; flex-direction: column; max-width: 100%; }
   body[data-page="passenger"] .copy-full { display: none; }
   body[data-page="passenger"] .copy-short { display: inline; }
   body[data-page="passenger"] p.copy-short { display: block; }
+
+  /* Defensive width guards — a flex column's items default to
+     min-width:auto, so a child whose content is wider than the column
+     (long unbroken text, a fixed-size embed, a Leaflet map re-measuring
+     mid-layout) can silently force the whole column, and everything
+     stacked in it, wider than the viewport instead of just clipping
+     that one child. Every card in this stack gets explicitly capped. */
+  body[data-page="passenger"] .passenger-sidebar,
+  body[data-page="passenger"] .passenger-main,
+  body[data-page="passenger"] .passenger-layout > * {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  body[data-page="passenger"] .map-stack,
+  body[data-page="passenger"] .passenger-map {
+    max-width: 100%;
+  }
 }
 
 /* ---- booking history (passenger-bookings.html) ---- */
