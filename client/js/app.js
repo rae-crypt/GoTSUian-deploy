@@ -2908,6 +2908,18 @@ function updateRideRequestFormAvailability(hasActiveRide) {
   }
 }
 
+// The ride-status panel toggling display/content above the map (below)
+// shifts its container's height, but Leaflet caches the map's pixel size
+// from whenever it was created and never re-measures on its own — left
+// alone, the map keeps rendering at its old size, cropped/overflowing
+// against its new, actually-resized container. invalidateSize() tells
+// it to re-measure; requestAnimationFrame waits for the display/content
+// change above to actually reflow first, so it measures the real size.
+function resizePassengerMapSoon() {
+  if (!passengerMapInstance) return;
+  requestAnimationFrame(() => passengerMapInstance.invalidateSize());
+}
+
 async function renderPassengerRideStatus() {
   const container = document.querySelector('#ride-status-details');
   const emptyState = document.querySelector('#ride-status-empty');
@@ -2918,6 +2930,7 @@ async function renderPassengerRideStatus() {
     emptyState.style.display = 'block';
     container.style.display = 'none';
     container.innerHTML = '';
+    resizePassengerMapSoon();
     return;
   }
 
@@ -2929,6 +2942,7 @@ async function renderPassengerRideStatus() {
     emptyState.style.display = 'block';
     container.style.display = 'none';
     container.innerHTML = '';
+    resizePassengerMapSoon();
     return;
   }
 
@@ -3045,6 +3059,8 @@ async function renderPassengerRideStatus() {
       }
     });
   }
+
+  resizePassengerMapSoon();
 }
 
 // RIDE MILESTONE POPUPS — surfaces a full-screen moment when the passenger's
