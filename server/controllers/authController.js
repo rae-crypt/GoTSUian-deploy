@@ -60,8 +60,8 @@ exports.registerStudent = async (req, res) => {
               const accountId = accountResult.insertId;
 
               const studentSql = `
-                INSERT INTO student (account_id, student_number, first_name, middle_name, last_name, birth_date, age, sex, contact_number, current_address)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO student (account_id, student_number, first_name, middle_name, last_name, birth_date, age, sex, contact_number, current_address, is_online)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE)
               `;
               connection.query(studentSql, [accountId, student_number, first_name, middle_name || null, last_name, birth_date || null, age || null, sex || null, contact_number || null, current_address || null], (err, studentResult) => {
                 if (err) {
@@ -334,8 +334,8 @@ exports.registerDriver = async (req, res) => {
           const accountId = accountResult.insertId;
 
           const driverSql = `
-            INSERT INTO tricycle_driver (account_id, first_name, middle_name, last_name, driver_license_no, plate_number, body_number, license_document_path, account_status, birth_date, age, sex, contact_number, current_address)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Pending', ?, ?, ?, ?, ?)
+            INSERT INTO tricycle_driver (account_id, first_name, middle_name, last_name, driver_license_no, plate_number, body_number, license_document_path, account_status, is_online, birth_date, age, sex, contact_number, current_address)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Pending', TRUE, ?, ?, ?, ?, ?)
           `;
           connection.query(driverSql, [accountId, first_name, middle_name || null, last_name, normalizedLicenseNo, normalizedPlateNumber, body_number.trim(), licenseDocumentPath, birth_date || null, age || null, sex || null, contact_number || null, current_address || null], (err, driverResult) => {
             if (err) {
