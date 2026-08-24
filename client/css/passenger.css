@@ -2846,26 +2846,54 @@ body[data-page="passenger"] .section.passenger-layout { padding: 24px 0 0; }
 body[data-page="passenger"] .request-status-stack { margin: 24px 0; }
 
 body[data-page="passenger"] .hero.hero-simple {
-  background: linear-gradient(135deg, var(--primary) 0%, #5c1414 100%);
+  background: linear-gradient(135deg, #8a1a2e, #661223);
   padding: 22px 28px;
   display: block;
   text-align: left;
   grid-template-columns: none;
+  position: relative;
+  overflow: hidden;
+}
+body[data-page="passenger"] .hero.hero-simple::before {
+  content: "";
+  position: absolute;
+  top: -70px;
+  right: 10%;
+  width: 260px;
+  height: 260px;
+  background: radial-gradient(circle, rgba(255, 209, 31, .3), transparent 60%);
+  z-index: 1;
+}
+body[data-page="passenger"] .hero.hero-simple::after {
+  content: "";
+  position: absolute;
+  bottom: -90px;
+  right: -40px;
+  width: 200px;
+  height: 200px;
+  background: radial-gradient(circle, rgba(255, 92, 57, .25), transparent 65%);
+  z-index: 1;
 }
 body[data-page="passenger"] .hero.hero-simple .hero-copy {
   margin: 0; max-width: none; text-align: left;
 }
 body[data-page="passenger"] .hero.hero-simple .hero-badge {
   display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 700;
-  letter-spacing: 0.04em; text-transform: uppercase; background: rgba(255,255,255,0.14);
-  padding: 5px 12px; border-radius: 999px; color: #fff8f6; border: none; margin-bottom: 10px;
+  letter-spacing: 0.04em; text-transform: uppercase; background: #ffb03a;
+  padding: 5px 12px; border-radius: 999px; color: #5c1020; border: none; margin-bottom: 10px;
+  position: relative;
+  z-index: 2;
 }
 body[data-page="passenger"] .hero.hero-simple .hero-badge span { display: none; }
 body[data-page="passenger"] .hero.hero-simple h1 {
   color: #fff8f6; font-size: 21px; margin: 0 0 3px; text-align: left;
+  position: relative;
+  z-index: 2;
 }
 body[data-page="passenger"] .hero.hero-simple p {
   color: rgba(255,248,246,0.85); font-size: 13px; max-width: 560px; margin: 0; text-align: left; line-height: 1.5;
+  position: relative;
+  z-index: 2;
 }
 @media (max-width: 900px) {
   body[data-page="passenger"] .hero.hero-simple { padding: 18px 16px; }
