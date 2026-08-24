@@ -923,6 +923,32 @@ async function renderAccountStanding() {
   }
 }
 
+// rules.html only: clicking the hero's Warning/Violation legend chip steps
+// the matching severity cards forward (in both the Students/Passengers and
+// Drivers card grids) and dims the rest, via a body-level filter class the
+// CSS reads. Clicking the active chip again clears the filter.
+function setupRulesLegendFilter() {
+  const chips = document.querySelectorAll('.rules-legend-chip');
+  if (!chips.length) return;
+
+  chips.forEach((chip) => {
+    chip.addEventListener('click', () => {
+      const filter = chip.dataset.filter;
+      const wasActive = chip.classList.contains('is-active');
+      chips.forEach((c) => {
+        c.classList.remove('is-active');
+        c.setAttribute('aria-pressed', 'false');
+      });
+      document.body.classList.remove('filter-warning', 'filter-violation');
+      if (!wasActive) {
+        chip.classList.add('is-active');
+        chip.setAttribute('aria-pressed', 'true');
+        document.body.classList.add(`filter-${filter}`);
+      }
+    });
+  });
+}
+
 function setupAccountStandingToggle() {
   document.querySelectorAll('.standing-toggle').forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -5252,6 +5278,7 @@ document.addEventListener('DOMContentLoaded', function() {
   setupAvailabilityToggle();
   setupAvailabilityIndicatorClick();
   setupAccountStandingToggle();
+  setupRulesLegendFilter();
   setupPassengerMap();
   setupDriverMap();
 
