@@ -128,7 +128,7 @@ function highlightActiveNav() {
 }
  
 function setupScrollReveal() {
-  const revealItems = document.querySelectorAll('.feature-card, .step-card, .support-card, .testimonial-card, .about-mv-card, .about-feature-card, .about-team-card, .how-step-card, .how-compare-card, .how-faq-item, .gs-check-card, .gs-step-card, .gs-faq-item, .auth-info-card, .auth-form-card, .availability-indicator, .passenger-sidebar .dashboard-card, #ride-status-panel, .dashboard-panel-link, #availability-toggle, .dashboard-grid .dashboard-card, .request-status-stack .dashboard-card');
+  const revealItems = document.querySelectorAll('.feature-card, .step-card, .support-card, .testimonial-card, .about-mv-card, .about-feature-card, .about-team-card, .how-step-card, .how-compare-card, .how-faq-item, .gs-check-card, .gs-step-card, .gs-faq-item, .auth-info-card, .auth-form-card, .availability-indicator, .passenger-sidebar .dashboard-card, #ride-status-panel, .dashboard-panel-link, #availability-toggle, .dashboard-grid .dashboard-card, .request-status-stack .dashboard-card, .rules-table-card, .rules-card-grid .rules-card, .terms-body, .rules-note');
   if (!revealItems.length || !('IntersectionObserver' in window)) return;
  
   const observer = new IntersectionObserver((entries, obs) => {

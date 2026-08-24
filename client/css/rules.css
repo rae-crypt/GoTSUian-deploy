@@ -2047,3 +2047,40 @@ body {
   from { opacity: 0; transform: translateY(18px); }
   to { opacity: 1; transform: none; }
 }
+
+/* SCROLL REVEAL — the violation tables, their mobile card-grid fallback,
+   the Terms body, and both note boxes fade + rise into place as they
+   enter the viewport, same JS (setupScrollReveal) and pattern already
+   used elsewhere (e.g. auth.css's .auth-info-card/.auth-form-card). */
+.rules-table-card,
+.rules-card-grid .rules-card,
+.terms-body,
+.rules-note {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+.rules-table-card.is-visible,
+.rules-card-grid .rules-card.is-visible,
+.terms-body.is-visible,
+.rules-note.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-simple .hero-badge,
+  .hero-simple h1,
+  .hero-simple p,
+  .hero-simple .rules-legend,
+  .rules-table-card,
+  .rules-card-grid .rules-card,
+  .terms-body,
+  .rules-note {
+    animation: none;
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
