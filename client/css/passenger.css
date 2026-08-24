@@ -4051,3 +4051,23 @@ body.is-passenger-home,
 body.is-passenger-home * {
   font-family: 'Poppins', 'Plus Jakarta Sans', sans-serif !important;
 }
+
+/* MY REPORTS card (#reports-card) — reuses .standing-card/.rating-item
+   styling; only new bits are the status-pill+date header row inside
+   each report and the italic admin-note line. */
+.reports-item-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.reports-item-head small {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.reports-admin-note {
+  font-style: italic;
+}
