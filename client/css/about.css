@@ -2243,3 +2243,32 @@ body {
     animation: none;
   }
 }
+
+/* SCROLL REVEAL — the cards below the hero (mission/vision, feature
+   grid, team) fade + rise into place as they enter the viewport. JS
+   (setupScrollReveal) adds .is-visible via IntersectionObserver; this is
+   the hidden-until-then state plus the transition into view. */
+.about-mv-card,
+.about-feature-card,
+.about-team-card {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+.about-mv-card.is-visible,
+.about-feature-card.is-visible,
+.about-team-card.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .about-mv-card,
+  .about-feature-card,
+  .about-team-card {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}

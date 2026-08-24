@@ -2170,3 +2170,33 @@ body {
     animation: none;
   }
 }
+
+/* SCROLL REVEAL — the requirement cards, the "4 steps" location-setup
+   cards, and the FAQ items fade + rise into place as they enter the
+   viewport. JS (setupScrollReveal) adds .is-visible via
+   IntersectionObserver; this is the hidden-until-then state plus the
+   transition into view. */
+.gs-check-card,
+.gs-step-card,
+.gs-faq-item {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+.gs-check-card.is-visible,
+.gs-step-card.is-visible,
+.gs-faq-item.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gs-check-card,
+  .gs-step-card,
+  .gs-faq-item {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
