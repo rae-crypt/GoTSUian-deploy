@@ -1189,6 +1189,33 @@ function setupPassengerMap() {
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
   }).addTo(passengerMapInstance);
+
+  watchMapContainerSize(mapEl, passengerMapInstance);
+}
+
+// Leaflet caches the map's pixel size from whenever it (or its tiles) were
+// last measured and never re-checks on its own — anything that changes the
+// container's actual size afterward (content above it loading in, a ride
+// status panel appearing, a card collapsing, a font/image finishing load,
+// even just a browser chrome resize) leaves the map rendering at its stale
+// size, overflowing/cropped against the container's real, current size.
+// Guessing every single moment that could happen (a single requestAnimation-
+// Frame after one specific render call) turned out not to cover every case
+// in practice. ResizeObserver instead watches the container directly and
+// calls invalidateSize() on ANY actual size change, whatever the cause —
+// timing-independent, and supported in every browser this app targets.
+function watchMapContainerSize(mapEl, mapInstance) {
+  if (typeof ResizeObserver === 'undefined') return;
+  let lastW = 0;
+  let lastH = 0;
+  const observer = new ResizeObserver((entries) => {
+    const box = entries[0].contentRect;
+    if (Math.round(box.width) === lastW && Math.round(box.height) === lastH) return;
+    lastW = Math.round(box.width);
+    lastH = Math.round(box.height);
+    mapInstance.invalidateSize();
+  });
+  observer.observe(mapEl);
 }
 
 // Polls for the assigned driver's live position while there's an active
@@ -1319,6 +1346,8 @@ function setupDriverMap() {
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
   }).addTo(driverMapInstance);
+
+  watchMapContainerSize(mapEl, driverMapInstance);
 }
 
 function clearDriverMapTracking() {
