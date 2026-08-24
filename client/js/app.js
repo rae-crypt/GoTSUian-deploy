@@ -2116,6 +2116,15 @@ function fillDashboardWelcome() {
   // — just the first name here; the full name is still used elsewhere (reviews, admin tables).
   const displayName = fullName.split(' ')[0];
   welcomeName.textContent = displayName;
+
+  // Matches the "Good morning, Student 👋" style already used in the
+  // homepage phone mockup — real time-of-day greeting here since this is
+  // the actual dashboard, not decorative mockup content.
+  const greetingEl = document.querySelector('[data-dashboard-greeting]');
+  if (greetingEl) {
+    const hour = new Date().getHours();
+    greetingEl.textContent = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+  }
 }
  
 function escapeHtml(value) {
