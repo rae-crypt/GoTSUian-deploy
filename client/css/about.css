@@ -2211,3 +2211,35 @@ body {
   object-position: center top;
   display: block;
 }
+
+/* HERO ENTRANCE — same staggered fade + rise used on the home page's hero
+   (see index.css's identical hero-rise), applied here to this page's own
+   hero elements. Plays once on load at every width, mobile included. */
+.about-hero .about-badge,
+.about-hero h1,
+.about-hero p,
+.about-hero-stats,
+.about-hero-pin {
+  animation: hero-rise 0.7s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+
+.about-hero .about-badge { animation-delay: 0s; }
+.about-hero h1 { animation-delay: 0.08s; }
+.about-hero p { animation-delay: 0.16s; }
+.about-hero-stats { animation-delay: 0.24s; }
+.about-hero-pin { animation-delay: 0.32s; }
+
+@keyframes hero-rise {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .about-hero .about-badge,
+  .about-hero h1,
+  .about-hero p,
+  .about-hero-stats,
+  .about-hero-pin {
+    animation: none;
+  }
+}
