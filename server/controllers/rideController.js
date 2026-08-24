@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const db = require('../config/db');
 const { emitRideUpdated, emitNewPendingRide, emitDriverLocation, emitAvailabilityChanged } = require('../socket');
 
@@ -61,107 +62,142 @@ exports.createRide = (req, res) => {
         return res.status(400).json({ error: 'ride_type must be "Solo" or "Shared"' });
       }
 
-      // Find the oldest still-open pool for this exact route with room left.
-      // A pool stays "Open" even after a driver has already accepted it early
-      // (see acceptRideInternal) — a new student can still join an in-progress
-      // pool right up until it fills to 4 or the driver actually departs.
-      const findPoolSql = `
-        SELECT rp.pool_id, rp.driver_account_id, COUNT(r.ride_id) AS rider_count
-        FROM ride_pools rp
-        LEFT JOIN rides r ON r.pool_id = rp.pool_id AND r.status != 'Cancelled'
-        WHERE rp.status = 'Open' AND rp.pickup_location = ? AND rp.dropoff_location = ?
-        GROUP BY rp.pool_id
-        HAVING rider_count < ?
-        ORDER BY rp.created_at ASC
-        LIMIT 1
-      `;
+      // Find-or-create the pool for this route has to run under a MySQL
+      // named lock keyed to the route. Without it, two passengers requesting
+      // the same route within the same instant can both run the "does an
+      // open pool exist?" check before either has inserted anything, both
+      // see "no", and both create their own separate pool — the "pool never
+      // fills up / a rider ends up in their own separate Shared ride" bug.
+      // GET_LOCK/RELEASE_LOCK are tied to one physical connection, so this
+      // whole section runs on a single dedicated connection rather than the
+      // pool's usual "any connection per query" behavior.
+      const lockName = 'shared_pool_' + crypto.createHash('md5').update(`${pickup_location}|${dropoff_location}`).digest('hex');
 
-      db.query(findPoolSql, [pickup_location, dropoff_location, MAX_POOL_SIZE], (err, pools) => {
+      db.getConnection((err, connection) => {
         if (err) return res.status(500).json({ error: err.message });
 
-        const joinPool = (poolId, poolDriverId) => {
-          // If a driver is already assigned to this pool (accepted it early
-          // while under 4 riders), a newly-joining student slots straight in
-          // as "Accepted" under that same driver instead of going through a
-          // separate Pending/Accept step.
-          const initialStatus = poolDriverId ? 'Accepted' : 'Pending';
-          const insertRideSql = `
-            INSERT INTO rides (passenger_account_id, pickup_location, dropoff_location, pickup_lat, pickup_lng, ride_type, pool_id, driver_account_id, status, scheduled_at, notes)
-            VALUES (?, ?, ?, ?, ?, 'Shared', ?, ?, ?, ?, ?)
+        const releaseLockAndConnection = () => {
+          connection.query('SELECT RELEASE_LOCK(?)', [lockName], () => connection.release());
+        };
+        const failWith = (error) => {
+          releaseLockAndConnection();
+          res.status(500).json({ error: error.message });
+        };
+
+        connection.query('SELECT GET_LOCK(?, 10) AS got', [lockName], (err, lockRows) => {
+          if (err) return failWith(err);
+          if (!lockRows[0].got) {
+            connection.release();
+            return res.status(503).json({ error: 'This route is busy right now — please try again in a moment.' });
+          }
+
+          // Find the oldest still-open pool for this exact route with room
+          // left. A pool stays "Open" even after a driver has already
+          // accepted it early (see acceptRideInternal) — a new student can
+          // still join an in-progress pool right up until it fills to 4 or
+          // the driver actually departs.
+          const findPoolSql = `
+            SELECT rp.pool_id, rp.driver_account_id, COUNT(r.ride_id) AS rider_count
+            FROM ride_pools rp
+            LEFT JOIN rides r ON r.pool_id = rp.pool_id AND r.status != 'Cancelled'
+            WHERE rp.status = 'Open' AND rp.pickup_location = ? AND rp.dropoff_location = ?
+            GROUP BY rp.pool_id
+            HAVING rider_count < ?
+            ORDER BY rp.created_at ASC
+            LIMIT 1
           `;
-          db.query(
-            insertRideSql,
-            [passenger_account_id, pickup_location, dropoff_location, pickup_lat || null, pickup_lng || null, poolId, poolDriverId || null, initialStatus, scheduled_at || null, notes || null],
-            (err, result) => {
-              if (err) return res.status(500).json({ error: err.message });
 
-              db.query(
-                `SELECT COUNT(*) AS c FROM rides WHERE pool_id = ? AND status != 'Cancelled'`,
-                [poolId],
-                (err, countRows) => {
-                  if (err) return res.status(500).json({ error: err.message });
-                  const count = countRows[0].c;
+          connection.query(findPoolSql, [pickup_location, dropoff_location, MAX_POOL_SIZE], (err, pools) => {
+            if (err) return failWith(err);
 
-                  // Notifies everyone already sharing this pool (fare may
-                  // have just re-settled for them too), plus the assigned
-                  // driver if one's already committed to this trip — or, if
-                  // nobody's accepted it yet, broadcasts to every driver
-                  // browsing pending requests instead of one specific room.
-                  const notifyPool = () => {
-                    if (poolDriverId) {
-                      db.query(`SELECT passenger_account_id FROM rides WHERE pool_id = ? AND status != 'Cancelled'`, [poolId], (err, riderRows) => {
-                        if (err) return;
-                        riderRows.forEach(r => emitRideUpdated(r.passenger_account_id, poolDriverId));
-                      });
-                    } else {
-                      emitNewPendingRide();
-                    }
-                  };
+            const joinPool = (poolId, poolDriverId) => {
+              // If a driver is already assigned to this pool (accepted it
+              // early while under 4 riders), a newly-joining student slots
+              // straight in as "Accepted" under that same driver instead of
+              // going through a separate Pending/Accept step.
+              const initialStatus = poolDriverId ? 'Accepted' : 'Pending';
+              const insertRideSql = `
+                INSERT INTO rides (passenger_account_id, pickup_location, dropoff_location, pickup_lat, pickup_lng, ride_type, pool_id, driver_account_id, status, scheduled_at, notes)
+                VALUES (?, ?, ?, ?, ?, 'Shared', ?, ?, ?, ?, ?)
+              `;
+              connection.query(
+                insertRideSql,
+                [passenger_account_id, pickup_location, dropoff_location, pickup_lat || null, pickup_lng || null, poolId, poolDriverId || null, initialStatus, scheduled_at || null, notes || null],
+                (err, result) => {
+                  if (err) return failWith(err);
 
-                  const respond = () => {
-                    res.status(201).json({ message: 'Ride requested', rideId: result.insertId, poolId, riderCount: count });
-                    notifyPool();
-                  };
+                  connection.query(
+                    `SELECT COUNT(*) AS c FROM rides WHERE pool_id = ? AND status != 'Cancelled'`,
+                    [poolId],
+                    (err, countRows) => {
+                      if (err) return failWith(err);
+                      const count = countRows[0].c;
 
-                  // Fare re-settles across every rider already in the pool
-                  // whenever the headcount changes, either because a driver
-                  // is already committed to this trip (so the tier they'll
-                  // actually pay should track reality as more join) or the
-                  // pool has now filled to capacity.
-                  if (poolDriverId || count >= MAX_POOL_SIZE) {
-                    const fare = FARE_BY_HEADCOUNT[count] || FARE_BY_HEADCOUNT[MAX_POOL_SIZE];
-                    const isFull = count >= MAX_POOL_SIZE;
-                    const poolUpdateSql = isFull
-                      ? `UPDATE ride_pools SET status = 'Closed', fare_per_rider = ?, closed_at = NOW() WHERE pool_id = ?`
-                      : `UPDATE ride_pools SET fare_per_rider = ? WHERE pool_id = ?`;
-                    db.query(poolUpdateSql, [fare, poolId], (err) => {
-                      if (err) return res.status(500).json({ error: err.message });
-                      db.query(`UPDATE rides SET fare = ? WHERE pool_id = ? AND status != 'Cancelled'`, [fare, poolId], (err) => {
-                        if (err) return res.status(500).json({ error: err.message });
+                      // Notifies everyone already sharing this pool (fare may
+                      // have just re-settled for them too), plus the assigned
+                      // driver if one's already committed to this trip — or,
+                      // if nobody's accepted it yet, broadcasts to every
+                      // driver browsing pending requests instead of one
+                      // specific room. Runs after the lock is released, on
+                      // the shared pool — these are just reads.
+                      const notifyPool = () => {
+                        if (poolDriverId) {
+                          db.query(`SELECT passenger_account_id FROM rides WHERE pool_id = ? AND status != 'Cancelled'`, [poolId], (err, riderRows) => {
+                            if (err) return;
+                            riderRows.forEach(r => emitRideUpdated(r.passenger_account_id, poolDriverId));
+                          });
+                        } else {
+                          emitNewPendingRide();
+                        }
+                      };
+
+                      const respond = () => {
+                        releaseLockAndConnection();
+                        res.status(201).json({ message: 'Ride requested', rideId: result.insertId, poolId, riderCount: count });
+                        notifyPool();
+                      };
+
+                      // Fare re-settles across every rider already in the
+                      // pool whenever the headcount changes, either because a
+                      // driver is already committed to this trip (so the tier
+                      // they'll actually pay should track reality as more
+                      // join) or the pool has now filled to capacity.
+                      if (poolDriverId || count >= MAX_POOL_SIZE) {
+                        const fare = FARE_BY_HEADCOUNT[count] || FARE_BY_HEADCOUNT[MAX_POOL_SIZE];
+                        const isFull = count >= MAX_POOL_SIZE;
+                        const poolUpdateSql = isFull
+                          ? `UPDATE ride_pools SET status = 'Closed', fare_per_rider = ?, closed_at = NOW() WHERE pool_id = ?`
+                          : `UPDATE ride_pools SET fare_per_rider = ? WHERE pool_id = ?`;
+                        connection.query(poolUpdateSql, [fare, poolId], (err) => {
+                          if (err) return failWith(err);
+                          connection.query(`UPDATE rides SET fare = ? WHERE pool_id = ? AND status != 'Cancelled'`, [fare, poolId], (err) => {
+                            if (err) return failWith(err);
+                            respond();
+                          });
+                        });
+                      } else {
                         respond();
-                      });
-                    });
-                  } else {
-                    respond();
-                  }
+                      }
+                    }
+                  );
+                }
+              );
+            };
+
+            if (pools.length > 0) {
+              joinPool(pools[0].pool_id, pools[0].driver_account_id);
+            } else {
+              connection.query(
+                `INSERT INTO ride_pools (pickup_location, dropoff_location, status) VALUES (?, ?, 'Open')`,
+                [pickup_location, dropoff_location],
+                (err, poolResult) => {
+                  if (err) return failWith(err);
+                  joinPool(poolResult.insertId, null);
                 }
               );
             }
-          );
-        };
-
-        if (pools.length > 0) {
-          joinPool(pools[0].pool_id, pools[0].driver_account_id);
-        } else {
-          db.query(
-            `INSERT INTO ride_pools (pickup_location, dropoff_location, status) VALUES (?, ?, 'Open')`,
-            [pickup_location, dropoff_location],
-            (err, poolResult) => {
-              if (err) return res.status(500).json({ error: err.message });
-              joinPool(poolResult.insertId, null);
-            }
-          );
-        }
+          });
+        });
       });
     }
   );
