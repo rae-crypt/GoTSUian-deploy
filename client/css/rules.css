@@ -2101,3 +2101,126 @@ body[data-page="rules"] .hero.hero-simple .hero-copy p {
     transition: none;
   }
 }
+
+/* =======================================================================
+   RICHER VISUAL TREATMENT — approved mockup: the hero becomes a gradient
+   banner card (glows, gold badge, light text) instead of flat cream, and
+   every content block below picks up an accent tying back to that same
+   palette instead of reading as plain white boxes.
+======================================================================= */
+body[data-page="rules"] .hero.hero-simple {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background: linear-gradient(135deg, #8a1a2e 0%, #5c1414 55%, #2e0a0a 100%);
+  border-radius: 28px;
+  padding: 56px 48px 60px;
+  margin-top: 24px;
+  box-shadow: 0 30px 70px -30px rgba(61, 10, 10, 0.55);
+}
+
+body[data-page="rules"] .hero.hero-simple::before,
+body[data-page="rules"] .hero.hero-simple::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  z-index: -1;
+  filter: blur(2px);
+}
+
+body[data-page="rules"] .hero.hero-simple::before {
+  width: 420px;
+  height: 420px;
+  top: -180px;
+  right: -100px;
+  background: radial-gradient(circle, rgba(247, 183, 51, 0.35), transparent 70%);
+}
+
+body[data-page="rules"] .hero.hero-simple::after {
+  width: 320px;
+  height: 320px;
+  bottom: -160px;
+  left: -80px;
+  background: radial-gradient(circle, rgba(201, 44, 44, 0.4), transparent 70%);
+}
+
+body[data-page="rules"] .hero.hero-simple .hero-copy {
+  position: relative;
+  z-index: 1;
+}
+
+body[data-page="rules"] .hero.hero-simple .hero-badge {
+  background: #ffb03a;
+  color: #5c1020;
+  box-shadow: 0 10px 24px -10px rgba(0,0,0,0.4);
+}
+
+body[data-page="rules"] .hero.hero-simple .hero-badge span {
+  background: #5c1020;
+}
+
+body[data-page="rules"] .hero.hero-simple .hero-copy h1 {
+  color: #fff8f0;
+}
+
+body[data-page="rules"] .hero.hero-simple .hero-copy p {
+  color: rgba(255, 235, 225, 0.82);
+}
+
+/* Section icon badges pick up the same brand gradient instead of flat white */
+body[data-page="rules"] .rules-section-icon {
+  background: linear-gradient(135deg, #8a1a2e, #4a0f0f);
+  color: #ffd98a;
+  box-shadow: 0 12px 26px -12px rgba(61, 10, 10, 0.45);
+}
+
+/* Gradient accent cap on the table cards + terms body, tying every content
+   block back to the hero's palette instead of plain white boxes */
+body[data-page="rules"] .rules-table-card,
+body[data-page="rules"] .terms-body {
+  position: relative;
+  overflow: hidden;
+}
+
+body[data-page="rules"] .rules-table-card::before,
+body[data-page="rules"] .terms-body::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 5px;
+  background: linear-gradient(90deg, #f7b733, #7f1d1d 55%, #4a0f0f);
+}
+
+/* Note boxes get a colored left rail instead of reading as plain cards */
+body[data-page="rules"] .rules-note {
+  border-left: 4px solid #c9962e;
+  border-top-color: #ecd3d3;
+  border-right-color: #ecd3d3;
+  border-bottom-color: #ecd3d3;
+}
+
+body[data-page="rules"] .rules-note-icon {
+  background: linear-gradient(135deg, #fdf0d8, #f7e3b0);
+  color: #7f1d1d;
+}
+
+/* A soft marker dot ahead of every Terms clause heading — a small nod to
+   the legal-document numbering without needing to restructure the "1. "
+   text already baked into each <h2>. */
+body[data-page="rules"] .terms-body h2 {
+  padding-left: 16px;
+  position: relative;
+}
+
+body[data-page="rules"] .terms-body h2::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.4em;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #c9962e;
+}
