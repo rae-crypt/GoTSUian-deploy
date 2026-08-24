@@ -5237,3 +5237,26 @@ window.addEventListener('pageshow', function(event) {
   }
 });
 
+// A cold first visit (e.g. tapping a link from Google's in-app browser)
+// paints before the two web fonts (Google Fonts + Fontshare) finish
+// loading. Some mobile browsers snapshot "does this page scroll?" at that
+// first paint and don't re-check it once the fonts swap in and the page
+// grows taller — leaving it stuck non-scrollable until some other DOM
+// change (e.g. opening the avatar dropdown) forces a recheck. Nudging the
+// body's height after everything (fonts included, via document.fonts)
+// has finished loading forces that recheck without any visible change.
+window.addEventListener('load', function() {
+  function nudgeScrollRecalc() {
+    const h = document.body.offsetHeight;
+    document.body.style.minHeight = (h + 1) + 'px';
+    requestAnimationFrame(function() {
+      document.body.style.minHeight = '';
+    });
+  }
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(nudgeScrollRecalc);
+  } else {
+    nudgeScrollRecalc();
+  }
+});
+
