@@ -3925,3 +3925,18 @@ body[data-page="passenger"] .profile-panel.is-collapsed .profile-panel-toggle sv
     transition: none;
   }
 }
+
+/* FONT SWAP — Poppins across the passenger dashboard in place of Plus
+   Jakarta Sans/Clash Display, per request. This file also styles
+   passenger-profile.html and passenger-bookings.html, which all three
+   confusingly share body[data-page="passenger"] (that attribute is only
+   used for nav-link active-state matching, not as a per-file id), so
+   this is scoped to the .is-passenger-home class added to passenger.html
+   specifically — profile/bookings keep their existing fonts. Uses
+   !important since the many font-family declarations scattered through
+   this file otherwise outrank a plain override on specificity alone —
+   colors/layout/spacing are untouched. */
+body.is-passenger-home,
+body.is-passenger-home * {
+  font-family: 'Poppins', 'Plus Jakarta Sans', sans-serif !important;
+}
