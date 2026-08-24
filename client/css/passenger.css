@@ -2851,6 +2851,7 @@ body[data-page="passenger"] .hero.hero-simple {
   display: block;
   text-align: left;
   grid-template-columns: none;
+  border-radius: 24px;
   position: relative;
   overflow: hidden;
 }
