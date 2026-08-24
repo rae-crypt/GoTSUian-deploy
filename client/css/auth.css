@@ -2151,6 +2151,16 @@ gap: 12px;
   margin: 0;
 }
 
+/* The password checklist sits directly above the checkbox row with only
+   the form's 10px flex gap between them — too tight since the checklist
+   itself is a dense wrapped row of small text. Give the checkbox row a
+   bit more breathing room above it. Specificity has to beat the
+   `.auth-tab-content.active > *` reset above (0,2,0), hence the extra
+   `.checkbox-field` class (0,3,0). */
+.auth-tab-content.active > .checkbox-field {
+  margin-top: 6px;
+}
+
 
 /* Small, de-emphasized fallback link for a real (non-technical) admin who
    loses their bookmark to admin.html — deliberately NOT styled like the
