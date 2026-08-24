@@ -2144,3 +2144,29 @@ body {
     gap: 6px;
   }
 }
+
+/* HERO ENTRANCE — same staggered fade + rise used on the home page's hero
+   (see index.css's identical hero-rise), applied here to this page's own
+   hero elements. Plays once on load at every width, mobile included. */
+.gs-hero .gs-badge,
+.gs-hero h1,
+.gs-hero p {
+  animation: hero-rise 0.7s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+
+.gs-hero .gs-badge { animation-delay: 0s; }
+.gs-hero h1 { animation-delay: 0.08s; }
+.gs-hero p { animation-delay: 0.16s; }
+
+@keyframes hero-rise {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gs-hero .gs-badge,
+  .gs-hero h1,
+  .gs-hero p {
+    animation: none;
+  }
+}

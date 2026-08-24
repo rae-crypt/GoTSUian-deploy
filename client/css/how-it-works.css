@@ -2244,3 +2244,32 @@ body {
     gap: 6px;
   }
 }
+
+/* HERO ENTRANCE — same staggered fade + rise used on the home page's hero
+   (see index.css's identical hero-rise), applied here to this page's own
+   hero elements. Plays once on load at every width, mobile included. */
+.how-hero .how-badge,
+.how-hero h1,
+.how-hero p,
+.how-hero .how-role-toggle-wrap {
+  animation: hero-rise 0.7s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+
+.how-hero .how-badge { animation-delay: 0s; }
+.how-hero h1 { animation-delay: 0.08s; }
+.how-hero p { animation-delay: 0.16s; }
+.how-hero .how-role-toggle-wrap { animation-delay: 0.24s; }
+
+@keyframes hero-rise {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .how-hero .how-badge,
+  .how-hero h1,
+  .how-hero p,
+  .how-hero .how-role-toggle-wrap {
+    animation: none;
+  }
+}
