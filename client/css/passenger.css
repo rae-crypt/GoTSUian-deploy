@@ -3041,7 +3041,7 @@ body[data-page="passenger"] .ride-driver-info > div { min-width: 0; flex: 1 1 au
 body[data-page="passenger"] .ride-driver-info strong { display: block; font-size: 14px; overflow-wrap: break-word; }
 body[data-page="passenger"] .ride-driver-info small { display: block; color: var(--gt-muted); font-size: 12px; overflow-wrap: break-word; }
 body[data-page="passenger"] .ride-driver-info .fare {
-  margin-left: auto; flex-shrink: 0; text-align: right; font-family: 'Clash Display', 'Plus Jakarta Sans', sans-serif; font-weight: 700; color: var(--primary); font-size: 15px; white-space: nowrap;
+  margin-left: auto; flex-shrink: 1; min-width: 0; max-width: 55%; text-align: right; font-family: 'Clash Display', 'Plus Jakarta Sans', sans-serif; font-weight: 700; color: var(--primary); font-size: 15px; overflow-wrap: break-word;
 }
 
 body[data-page="passenger"] .ride-actions { display: flex; gap: 10px; flex-wrap: wrap; margin: 0; }
