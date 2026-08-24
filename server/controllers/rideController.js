@@ -547,10 +547,21 @@ function acceptRideInternal(rideId, driver_account_id, res) {
         // driver, right up until it fills to 4 or the driver actually
         // departs (see updateRideStatus's 'Picked Up' handling below). Only
         // a full pool closes for good here.
+        //
+        // The WHERE clause deliberately does NOT check status = 'Open':
+        // createRide already flips a pool to 'Closed' the moment the 4th
+        // rider joins, before any driver has looked at it — status tracks
+        // "still taking new riders", not "already claimed by a driver".
+        // Requiring 'Open' here meant a pool that filled up naturally
+        // (4 passengers joining before a driver ever saw it) could never be
+        // accepted by anyone — every driver's first attempt failed with
+        // "Another driver already accepted", even though none had.
+        // driver_account_id IS NULL is the actual, unambiguous "unclaimed"
+        // check, and is sufficient on its own in every case.
         const isFull = count >= MAX_POOL_SIZE;
         const poolUpdateSql = isFull
-          ? `UPDATE ride_pools SET status = 'Closed', fare_per_rider = ?, driver_account_id = ?, closed_at = NOW() WHERE pool_id = ? AND status = 'Open' AND driver_account_id IS NULL`
-          : `UPDATE ride_pools SET fare_per_rider = ?, driver_account_id = ? WHERE pool_id = ? AND status = 'Open' AND driver_account_id IS NULL`;
+          ? `UPDATE ride_pools SET status = 'Closed', fare_per_rider = ?, driver_account_id = ?, closed_at = NOW() WHERE pool_id = ? AND driver_account_id IS NULL`
+          : `UPDATE ride_pools SET fare_per_rider = ?, driver_account_id = ? WHERE pool_id = ? AND driver_account_id IS NULL`;
 
         // Same guard as the Solo path, applied to the pool: only succeeds if
         // no driver has claimed it yet. Checking status = 'Open' alone isn't
