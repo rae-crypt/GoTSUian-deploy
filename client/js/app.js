@@ -4793,7 +4793,7 @@ function setupAuthForm() {
       // Agree-to-terms checkbox
       const agreeTermsInput = document.querySelector('#reg-agree-terms');
       if (agreeTermsInput && !agreeTermsInput.checked) {
-        document.querySelector('#agree-terms-error').textContent = 'Please read and agree to the Code of Conduct & Terms and Conditions to continue.';
+        document.querySelector('#agree-terms-error').textContent = 'Please read and agree to the Rules & Terms to continue.';
         isValid = false;
       }
 
