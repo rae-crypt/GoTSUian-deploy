@@ -2864,7 +2864,20 @@ function setupPassengerRideRequestForm() {
     const pickupLocation = document.querySelector('#pickup-location').value;
     const dropoffLocation = document.querySelector('#dropoff-location').value;
     const rideTypeSelect = document.querySelector('#ride-type');
-    const rideType = rideTypeSelect.value;
+    // The highlighted Solo/Shared BUTTON is the source of truth, not the
+    // hidden <select> that mirrors it. form.reset() (fired after every
+    // successful booking) reverts native inputs like that select back to
+    // "Solo", but not the plain <button>s — so reading the select could
+    // book a Solo ride while the screen still showed Shared selected.
+    // Reading what the passenger can actually see makes that mismatch
+    // impossible, regardless of reset timing or a stale cached script.
+    const selectedRideTypeBtn = form.querySelector('.ride-type-btn.is-selected');
+    const rideType = selectedRideTypeBtn
+      ? selectedRideTypeBtn.getAttribute('data-ride-type')
+      : rideTypeSelect.value;
+    // Keep the select in step so the confirmation modal's label below
+    // (read from its selected <option>) describes the same ride type.
+    rideTypeSelect.value = rideType;
     const scheduleSelect = document.querySelector('#ride-schedule');
     const scheduleMinutes = scheduleSelect ? parseInt(scheduleSelect.value, 10) : 0;
     const scheduledAt = scheduleMinutes > 0 ? toMySQLDateTime(new Date(Date.now() + scheduleMinutes * 60000)) : null;
