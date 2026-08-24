@@ -469,6 +469,18 @@ function updatePassengerLinkVisibility() {
   }
 }
 
+// The marketing links (About Us/How It Works/Get Started) that live in the
+// mobile drawer on index.html and the other marketing pages are only useful
+// to a guest browsing the site — once logged in, they're redundant clutter
+// next to Booking/Logout in the same list (passenger.html already tucks
+// these behind its own "Home" accordion instead of listing them flat).
+function updateMarketingLinksVisibility() {
+  const authenticated = isAuthenticated();
+  document.querySelectorAll('.nav-links a[data-page="about"], .nav-links a[data-page="how-it-works"], .nav-links a[data-page="getting-started"]').forEach(function(link) {
+    link.classList.toggle('hidden', authenticated);
+  });
+}
+
 // Driver/passenger logout now lives on their Profile page (reached via the
 // clickable nav-cta avatar badge — see renderAuthStatus), so this nav-links
 // item is hidden entirely for them once signed in. Admin has no profile
@@ -5182,6 +5194,7 @@ function refreshAuthState() {
   hideAdminLinkForNonAdmin();
   updateDriverLinkVisibility();
   updatePassengerLinkVisibility();
+  updateMarketingLinksVisibility();
   updateHomeCtaVisibility();
   showDriverApprovalBanner();
   renderAuthStatus();
