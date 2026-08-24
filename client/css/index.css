@@ -2284,6 +2284,19 @@ display: none !important;
     overflow: hidden;
   }
 
+  /* Grid items default to min-width:auto, which floors them at their
+     content's own natural width instead of shrinking to fit the 1fr
+     track — on narrow phones the 44px hero heading (and the fixed
+     278px-wide phone mockup) was wider than that floor, so the whole
+     grid track (and everything in it, "Book a Ride" included) grew past
+     the viewport and got silently cropped by the overflow:hidden above,
+     reading as "everything shifted off-center." */
+  .hero-gotsuian .hero-copy,
+  .hero-gotsuian .hero-actions,
+  .hero-gotsuian .phone-mockup-wrap {
+    min-width: 0;
+  }
+
   .hero-gotsuian::before {
     width: 320px;
     height: 320px;
@@ -2293,6 +2306,20 @@ display: none !important;
 
   .phone-mockup-wrap {
     margin: 8px 0;
+  }
+
+  /* The mockup was a fixed 278px at every width down to the 720px drawer
+     breakpoint — on genuinely narrow phones (under ~330px wide) that left
+     almost no side margin against .site-shell's 20px padding, so the
+     whole hero column (mockup, heading, "Book a Ride" button — all the
+     same grid track) rode right up against the edge and could read as
+     off-center depending on the exact device width. Shrink it relative
+     to the viewport instead of holding it rigid, keeping the same
+     278:558 aspect ratio. */
+  .phone-mockup {
+    width: min(278px, 72vw);
+    aspect-ratio: 278 / 558;
+    height: auto;
   }
 
   .pm-float-tag {
@@ -2320,8 +2347,9 @@ display: none !important;
   }
 
   .hero-gotsuian .hero-book-btn {
-    width: 100%;
-    max-width: 320px;
+    width: auto;
+    padding: 12px 24px;
+    font-size: 14px;
     justify-content: center;
   }
 
