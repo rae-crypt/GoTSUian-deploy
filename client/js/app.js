@@ -42,7 +42,22 @@ function setupNavMenu() {
     link.addEventListener('click', closeNav);
   });
 }
- 
+
+// The "Home" row in the mobile drawer (safe no-op elsewhere — only pages
+// with a .nav-drawer-group have this) expands into About Us/How it
+// works/Get Started instead of navigating directly, same accordion
+// interaction as the FAQ items elsewhere on the site.
+function setupNavDrawerAccordion() {
+  document.querySelectorAll('.nav-drawer-group-toggle').forEach(function(toggle) {
+    toggle.addEventListener('click', function() {
+      const group = toggle.closest('.nav-drawer-group');
+      if (!group) return;
+      const isOpen = group.classList.toggle('is-open');
+      toggle.setAttribute('aria-expanded', String(isOpen));
+    });
+  });
+}
+
 function setupBackToTop() {
   const backToTopBtn = document.querySelector('.back-to-top');
   if (!backToTopBtn) return;
@@ -5204,6 +5219,7 @@ document.addEventListener('DOMContentLoaded', function() {
   setupDashboardCardCollapse();
   setupProfilePanelCollapse();
   setupNavMenu();
+  setupNavDrawerAccordion();
   setupBackToTop();
   setupHowItWorksPage();
   setupGettingStartedPage();
