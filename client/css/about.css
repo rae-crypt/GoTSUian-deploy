@@ -1176,6 +1176,13 @@ transform: translateY(-6px);
 display: none !important;
 }
 
+/* Unlike .hidden above, this is mobile-drawer-only — the desktop override
+   block further down restores it at desktop widths, since the marketing
+   links live in the real desktop nav row too, not just the drawer. */
+.nav-links a.nav-marketing-link-hide-mobile {
+  display: none;
+}
+
 
 
   .hero-actions  {
@@ -1210,6 +1217,13 @@ gap: 12px;
    real mobile) block, this restores correct desktop behavior on top of
    it. Mobile (<=720px) is untouched. */
 @media (min-width: 721px) {
+  /* Undo the mobile-drawer-only hide above — at desktop widths these
+     links are the real nav row, not drawer clutter, so they stay
+     visible even when logged in. */
+  .nav-links a.nav-marketing-link-hide-mobile {
+    display: inline;
+  }
+
   .nav-links {
     position: static;
     width: auto;

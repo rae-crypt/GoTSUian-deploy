@@ -469,15 +469,17 @@ function updatePassengerLinkVisibility() {
   }
 }
 
-// The marketing links (About Us/How It Works/Get Started) that live in the
-// mobile drawer on index.html and the other marketing pages are only useful
-// to a guest browsing the site — once logged in, they're redundant clutter
-// next to Booking/Logout in the same list (passenger.html already tucks
-// these behind its own "Home" accordion instead of listing them flat).
+// The marketing links (About Us/How It Works/Get Started) live in the same
+// .nav-links markup at both the mobile drawer AND (on index.html and the
+// other marketing pages) the real desktop nav row — so hiding them once
+// logged in is only wanted in the drawer; at desktop widths they should
+// keep showing regardless of auth state. Uses its own class (not the
+// blanket .hidden utility, which is display:none at every width) so each
+// page's CSS can scope the actual hiding to mobile only.
 function updateMarketingLinksVisibility() {
   const authenticated = isAuthenticated();
   document.querySelectorAll('.nav-links a[data-page="about"], .nav-links a[data-page="how-it-works"], .nav-links a[data-page="getting-started"]').forEach(function(link) {
-    link.classList.toggle('hidden', authenticated);
+    link.classList.toggle('nav-marketing-link-hide-mobile', authenticated);
   });
 }
 
