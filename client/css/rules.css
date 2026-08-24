@@ -2019,12 +2019,29 @@ body {
   }
 }
 
-/* Evenly-wrapped centered paragraph for the combined hero intro (it's
-   longer than the other hero-simple pages' one-liners, so the default
-   full-width centered text was wrapping into uneven, ragged lines). */
-.hero-simple .hero-copy p {
-  max-width: 700px;
-  margin-left: auto;
+/* Left-align the hero intro instead of the site-wide default center
+   (this page's combined intro reads better anchored to the left edge
+   than centered). The rest of the file has several older, higher-
+   specificity `.hero.hero-simple ...` center-alignment rules spread
+   across different breakpoints, so this needs to match/exceed that
+   specificity (via the body[data-page] prefix) and be repeated for
+   every element that was individually centered. */
+body[data-page="rules"] .hero.hero-simple .hero-copy {
+  text-align: left;
+  margin-left: 0;
+  margin-right: auto;
+  max-width: 660px;
+}
+
+body[data-page="rules"] .hero.hero-simple .hero-copy h1 {
+  text-align: left;
+  margin: 0;
+}
+
+body[data-page="rules"] .hero.hero-simple .hero-copy p {
+  text-align: left;
+  max-width: 660px;
+  margin-left: 0;
   margin-right: auto;
 }
 
