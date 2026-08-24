@@ -923,6 +923,62 @@ async function renderAccountStanding() {
   }
 }
 
+// MY REPORTS — a passenger/driver could file a complaint (createComplaint)
+// but had no way to see what happened to it afterward: admin's Reviewed/
+// Resolved status and any admin_notes were only ever shown on the admin
+// side (GET /api/complaints/mine already returned this, nothing on the
+// frontend ever called it). Same collapsed-summary presentation as
+// #standing-card right above it, reusing its .standing-* classes — the
+// existing setupAccountStandingToggle() below already wires up any
+// .standing-toggle button generically, so no new toggle JS is needed.
+async function renderMyReports() {
+  const loadingEl = document.querySelector('#reports-loading');
+  const wrapEl = document.querySelector('#reports-wrap');
+  if (!loadingEl || !wrapEl) return;
+
+  const user = getStoredUser();
+  if (!isAuthenticated() || (user.role !== 'driver' && user.role !== 'passenger')) return;
+
+  try {
+    const res = await fetch(`${COMPLAINTS_API_URL}/mine`, { headers: getAuthHeaders() });
+    if (!res.ok) return;
+    const data = await res.json();
+    const complaints = data.complaints || [];
+    const pendingCount = complaints.filter(c => c.status !== 'Resolved').length;
+
+    const iconEl = document.querySelector('#reports-icon');
+    const summaryEl = document.querySelector('#reports-summary');
+    if (iconEl) iconEl.classList.toggle('has-warnings', pendingCount > 0);
+    if (summaryEl) {
+      summaryEl.textContent = complaints.length
+        ? `${complaints.length} report(s) filed${pendingCount ? `, ${pendingCount} awaiting review` : ''}`
+        : 'No reports filed';
+    }
+
+    const statusTone = { Pending: 'warning', Reviewed: 'info', Resolved: 'success' };
+
+    const listEl = document.querySelector('#reports-list');
+    if (listEl) {
+      listEl.innerHTML = complaints.map(c => `
+        <div class="rating-item">
+          <div class="reports-item-head">
+            <span class="ride-badge tone-${statusTone[c.status] || 'warning'}">${escapeHtml(c.status)}</span>
+            <small>${new Date(c.created_at).toLocaleDateString()}</small>
+          </div>
+          <p class="rating-item-comment"><strong>${escapeHtml(c.category)}</strong>${c.against_name ? ` &middot; against ${escapeHtml(c.against_name)}` : ''}</p>
+          <p class="rating-item-comment">${escapeHtml(c.description)}</p>
+          ${c.admin_notes ? `<p class="rating-item-comment reports-admin-note"><strong>Admin note:</strong> ${escapeHtml(c.admin_notes)}</p>` : ''}
+        </div>
+      `).join('') || '<p class="rating-empty">You haven\'t filed any reports.</p>';
+    }
+
+    loadingEl.style.display = 'none';
+    wrapEl.style.display = 'block';
+  } catch (error) {
+    console.warn('Unable to fetch my reports', error);
+  }
+}
+
 // rules.html only: clicking the hero's Warning/Violation legend chip steps
 // the matching severity cards forward (in both the Students/Passengers and
 // Drivers card grids) and dims the rest, via a body-level filter class the
@@ -5257,6 +5313,7 @@ function refreshAuthState() {
   renderDriverRatingsFull();
   renderMyViolations();
   renderAccountStanding();
+  renderMyReports();
   renderProfile();
   renderBookingsList();
   renderAvailableDriversIndicator();
