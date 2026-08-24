@@ -113,7 +113,7 @@ function highlightActiveNav() {
 }
  
 function setupScrollReveal() {
-  const revealItems = document.querySelectorAll('.feature-card, .step-card, .support-card, .testimonial-card');
+  const revealItems = document.querySelectorAll('.feature-card, .step-card, .support-card, .testimonial-card, .about-mv-card, .about-feature-card, .about-team-card, .how-step-card, .how-compare-card, .how-faq-item, .gs-check-card, .gs-step-card, .gs-faq-item');
   if (!revealItems.length || !('IntersectionObserver' in window)) return;
  
   const observer = new IntersectionObserver((entries, obs) => {

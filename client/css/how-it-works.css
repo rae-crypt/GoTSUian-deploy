@@ -2273,3 +2273,32 @@ body {
     animation: none;
   }
 }
+
+/* SCROLL REVEAL — the step cards, comparison card, and FAQ items fade +
+   rise into place as they enter the viewport. JS (setupScrollReveal)
+   adds .is-visible via IntersectionObserver; this is the hidden-until-
+   then state plus the transition into view. */
+.how-step-card,
+.how-compare-card,
+.how-faq-item {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+.how-step-card.is-visible,
+.how-compare-card.is-visible,
+.how-faq-item.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .how-step-card,
+  .how-compare-card,
+  .how-faq-item {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
