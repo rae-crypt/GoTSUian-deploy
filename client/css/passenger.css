@@ -3862,3 +3862,66 @@ body[data-page="passenger"] .profile-panel.is-collapsed .profile-panel-toggle sv
     font-size: 0.62rem;
   }
 }
+
+/* HERO ENTRANCE — same staggered fade + rise used on the marketing
+   pages' heroes (see index.css's identical hero-rise), applied to the
+   "Good morning, Passenger 👋" greeting banner. Plays once on load. */
+.hero-simple .hero-badge,
+.hero-simple h1,
+.hero-simple p {
+  animation: hero-rise 0.7s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+
+.hero-simple .hero-badge { animation-delay: 0s; }
+.hero-simple h1 { animation-delay: 0.08s; }
+.hero-simple p { animation-delay: 0.16s; }
+
+@keyframes hero-rise {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-simple .hero-badge,
+  .hero-simple h1,
+  .hero-simple p {
+    animation: none;
+  }
+}
+
+/* SCROLL REVEAL — the static dashboard panels (never dynamically
+   recreated — only their inner text/status updates in place) fade +
+   rise into place as they enter the viewport. JS (setupScrollReveal)
+   adds .is-visible via IntersectionObserver. Scoped to these specific
+   sections/ids rather than the bare .dashboard-card class, since that
+   class is reused for other purposes elsewhere. */
+.availability-indicator,
+.passenger-sidebar .dashboard-card,
+#ride-status-panel,
+.dashboard-panel-link,
+.request-status-stack .dashboard-card {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+.availability-indicator.is-visible,
+.passenger-sidebar .dashboard-card.is-visible,
+#ride-status-panel.is-visible,
+.dashboard-panel-link.is-visible,
+.request-status-stack .dashboard-card.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .availability-indicator,
+  .passenger-sidebar .dashboard-card,
+  #ride-status-panel,
+  .dashboard-panel-link,
+  .request-status-stack .dashboard-card {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}

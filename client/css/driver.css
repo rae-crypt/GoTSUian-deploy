@@ -3379,3 +3379,63 @@ body[data-page="driver"] .rewards-teaser-link {
     font-size: 0.62rem;
   }
 }
+
+/* HERO ENTRANCE — same staggered fade + rise used on the marketing
+   pages' heroes (see index.css's identical hero-rise), applied to the
+   "Good morning, Driver 👋" greeting banner. Plays once on load. */
+.hero-simple .hero-badge,
+.hero-simple h1,
+.hero-simple p {
+  animation: hero-rise 0.7s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+
+.hero-simple .hero-badge { animation-delay: 0s; }
+.hero-simple h1 { animation-delay: 0.08s; }
+.hero-simple p { animation-delay: 0.16s; }
+
+@keyframes hero-rise {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-simple .hero-badge,
+  .hero-simple h1,
+  .hero-simple p {
+    animation: none;
+  }
+}
+
+/* SCROLL REVEAL — the static dashboard panels (never dynamically
+   recreated — only their inner text/status updates in place) fade +
+   rise into place as they enter the viewport. JS (setupScrollReveal)
+   adds .is-visible via IntersectionObserver. Deliberately scoped to
+   .dashboard-grid/.request-status-stack rather than the bare
+   .dashboard-card class — #driver-ride-requests injects fresh
+   .dashboard-card elements at runtime (renderDriverRideRequests) that
+   this page's one-time observer pass never sees, so giving the bare
+   class a default opacity:0 would leave those permanently invisible. */
+#availability-toggle,
+.dashboard-grid .dashboard-card,
+.request-status-stack .dashboard-card {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+#availability-toggle.is-visible,
+.dashboard-grid .dashboard-card.is-visible,
+.request-status-stack .dashboard-card.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #availability-toggle,
+  .dashboard-grid .dashboard-card,
+  .request-status-stack .dashboard-card {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
