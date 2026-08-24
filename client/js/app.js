@@ -2930,6 +2930,16 @@ function setupPassengerRideRequestForm() {
       });
 
       form.reset();
+      // form.reset() only reverts native inputs, like the hidden #ride-type
+      // <select> it's paired with (back to its first option, "Solo") — the
+      // visible Solo/Shared toggle buttons are plain <button>s outside that
+      // scope, so they silently kept showing whichever one the passenger
+      // had clicked before this submission. After one Shared booking, the
+      // form still LOOKED like Shared was selected while the hidden select
+      // (and therefore the next submission's actual ride_type) had already
+      // reverted to Solo — a passenger who trusted the highlighted button
+      // and didn't re-click Shared got a real Solo ride with no warning.
+      form.querySelectorAll('.ride-type-btn').forEach(b => b.classList.toggle('is-selected', b.getAttribute('data-ride-type') === rideTypeSelect.value));
       renderPassengerRideStatus();
       renderDriverRideRequests();
       renderDriverDashboardStats();
