@@ -3059,9 +3059,14 @@ async function renderPassengerRideStatus() {
   // Pending one.
   const riderCountSoFar = activeRide.pool_rider_count || 1;
   const poolStillOpen = activeRide.ride_type === 'Shared' && activeRide.pool_status === 'Open' && riderCountSoFar < 4;
-  const fareText = activeRide.fare != null
-    ? `₱${Number(activeRide.fare).toFixed(0)}${poolStillOpen ? ' so far' : ''}`
-    : 'Calculating — waiting for more students to join';
+  // Two very different shapes of content share this one slot: a short
+  // figure ("₱35 so far") that belongs inline on the right, and a long
+  // sentence (below) that does not — it gets its own full-width note row
+  // instead, flagged for CSS with .is-calculating.
+  const fareIsCalculating = activeRide.fare == null;
+  const fareText = fareIsCalculating
+    ? 'Calculating — waiting for more students to join'
+    : `₱${Number(activeRide.fare).toFixed(0)}${poolStillOpen ? ' so far' : ''}`;
   const fareTierRow = poolStillOpen ? `
     <div class="fare-tier-row">
       <span class="fare-tier-chip${riderCountSoFar >= 2 ? ' is-active' : ''}">2 · ₱35</span>
@@ -3105,7 +3110,7 @@ async function renderPassengerRideStatus() {
         <strong>${escapeHtml(driverName)}</strong>
         <small>${activeRide.driver_plate ? escapeHtml(activeRide.driver_plate) + ' · ' : ''}${escapeHtml(activeRide.ride_type)}</small>
       </div>
-      <span class="fare">${escapeHtml(fareText)}</span>
+      <span class="fare${fareIsCalculating ? ' is-calculating' : ''}">${escapeHtml(fareText)}</span>
     </div>
     ${fareTierRow}
 

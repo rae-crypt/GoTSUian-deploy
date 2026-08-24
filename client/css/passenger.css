@@ -3028,6 +3028,7 @@ body[data-page="passenger"] .ride-progress-step.is-active .ride-progress-label {
 /* ---- driver-info box (replaces the removed route/meta/timestamp text) ---- */
 body[data-page="passenger"] .ride-driver-info {
   display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: var(--light); border-radius: 12px; margin-bottom: 14px;
+  flex-wrap: wrap;
 }
 body[data-page="passenger"] .ride-driver-avatar {
   width: 34px; height: 34px; border-radius: 50%; color: #fff8f6; flex-shrink: 0;
@@ -3042,6 +3043,27 @@ body[data-page="passenger"] .ride-driver-info strong { display: block; font-size
 body[data-page="passenger"] .ride-driver-info small { display: block; color: var(--gt-muted); font-size: 12px; overflow-wrap: break-word; }
 body[data-page="passenger"] .ride-driver-info .fare {
   margin-left: auto; flex-shrink: 1; min-width: 0; max-width: 55%; text-align: right; font-family: 'Clash Display', 'Plus Jakarta Sans', sans-serif; font-weight: 700; color: var(--primary); font-size: 15px; overflow-wrap: break-word;
+}
+
+/* The "Calculating — waiting for more students to join" state is a
+   sentence, not a figure: inline on the right it squeezed the driver-name
+   column (breaking "confirmation" mid-word) and read as a shouty second
+   headline competing with it. Drop it to its own full-width row under the
+   name as a quiet note instead. The short "₱35 so far" case keeps the
+   inline treatment above. */
+body[data-page="passenger"] .ride-driver-info .fare.is-calculating {
+  flex: 1 0 100%;
+  max-width: 100%;
+  margin-left: 0;
+  margin-top: 2px;
+  padding-top: 10px;
+  border-top: 1px solid #f1d9d9;
+  text-align: left;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--gt-muted);
+  line-height: 1.45;
 }
 
 body[data-page="passenger"] .ride-actions { display: flex; gap: 10px; flex-wrap: wrap; margin: 0; }
