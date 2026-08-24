@@ -2552,3 +2552,56 @@ body {
     gap: 6px;
   }
 }
+
+/* HERO ENTRANCE — same staggered fade + rise used on the other pages'
+   heroes (see index.css's identical hero-rise), applied here to this
+   page's own hero elements. Plays once on load at every width, mobile
+   included. */
+.hero-simple .hero-badge,
+.hero-simple h1,
+.hero-simple p {
+  animation: hero-rise 0.7s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+
+.hero-simple .hero-badge { animation-delay: 0s; }
+.hero-simple h1 { animation-delay: 0.08s; }
+.hero-simple p { animation-delay: 0.16s; }
+
+@keyframes hero-rise {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-simple .hero-badge,
+  .hero-simple h1,
+  .hero-simple p {
+    animation: none;
+  }
+}
+
+/* SCROLL REVEAL — the "Why sign up?" info card and the register/login
+   form card fade + rise into place as they enter the viewport. JS
+   (setupScrollReveal) adds .is-visible via IntersectionObserver; this is
+   the hidden-until-then state plus the transition into view. */
+.auth-info-card,
+.auth-form-card {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+.auth-info-card.is-visible,
+.auth-form-card.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-info-card,
+  .auth-form-card {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
