@@ -1992,6 +1992,22 @@ display: none !important;
   height: 100%;
   overflow: hidden;
   position: relative;
+  isolation: isolate;
+}
+
+/* Decorative "map" behind the greeting/ride card/driver card — same
+   flattened-map style used in ride-app mockups (soft blocks for
+   buildings, a park patch, a coastline, road lines). Negative z-index
+   (not just 0) so it sits behind .pm-top/.pm-card/.pm-driver even
+   though they're normal-flow (unpositioned) siblings — z-index:auto
+   positioned elements paint AFTER static content in the same stacking
+   context, so 0 alone would put this on top instead of behind. */
+.pm-fake-map {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
 }
 
 .pm-top {
