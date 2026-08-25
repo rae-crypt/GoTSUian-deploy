@@ -1465,11 +1465,29 @@ function clearDriverMapTracking() {
 // exists, shows the route line (shrinking as they advance, same as what
 // the passenger sees) plus a marker at the driver's last known GPS fix.
 // Runs on the same polling cadence as the location-sharing sync.
+let driverMapTrackingInFlight = false;
+
 async function renderDriverMapTracking() {
   if (!driverMapInstance) return;
   const user = getStoredUser();
   if (!isAuthenticated() || user.role !== 'driver') return;
+  // This function can be triggered from more than one place close
+  // together (page-load refreshAuthState() plus a near-simultaneous
+  // ride:updated socket event) -- without this guard, two overlapping
+  // calls can both pass the "if (!driverMapMarker)" check below before
+  // either finishes, each creating its own marker: two overlapping 🛺
+  // badges on the map instead of one.
+  if (driverMapTrackingInFlight) return;
+  driverMapTrackingInFlight = true;
 
+  try {
+    await renderDriverMapTrackingBody();
+  } finally {
+    driverMapTrackingInFlight = false;
+  }
+}
+
+async function renderDriverMapTrackingBody() {
   const rides = await fetchDriverRides();
   const activeRide = rides.find(r => ['Accepted', 'Picked Up', 'In Progress'].includes(r.status));
 
@@ -5536,6 +5554,16 @@ function refreshAuthState() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+  // Must run before refreshAuthState() below -- setupPassengerMap()/
+  // setupDriverMap() are what actually create passengerMapInstance/
+  // driverMapInstance, and every map-drawing function refreshAuthState()
+  // calls (renderDriverMapTracking, pollDriverLocation,
+  // syncPassengerSelfLocationSharing) silently no-ops if that instance
+  // doesn't exist yet. Calling refreshAuthState() first meant the route
+  // line/markers never drew on initial load or refresh -- they only ever
+  // appeared later once a socket event happened to trigger a redraw.
+  setupPassengerMap();
+  setupDriverMap();
   refreshAuthState();
   setupLoginNavLink();
   setupViolationModal();
@@ -5564,8 +5592,6 @@ document.addEventListener('DOMContentLoaded', function() {
   setupAvailabilityIndicatorClick();
   setupAccountStandingToggle();
   setupRulesLegendFilter();
-  setupPassengerMap();
-  setupDriverMap();
 
   // Live updates for both roles now arrive via Socket.IO (see
   // manageRealtimeConnection(), wired into refreshAuthState() above) —
