@@ -1222,25 +1222,58 @@ function watchMapContainerSize(mapEl, mapInstance) {
 // ride, and creates/moves/removes a marker for it — the map has no other
 // pins until this one appears. Only present on passenger.html — safe no-op
 // everywhere else.
-let driverRouteLine = null;
 let driverTrackedRideId = null;
+
+// There is deliberately no pre-drawn route line on the passenger map. An
+// earlier version drew one of the two fixed campus routes as a reference
+// line, but that shows where the driver is EXPECTED to go, not where they
+// actually went — if the driver deviates, the passenger would see two
+// conflicting lines. Instead, this trail is the ONLY line shown: it
+// accumulates the driver's real GPS pings as they arrive, so the line is
+// always literally "the path the driver actually drove," never a guess.
+let driverActualTrail = null;
+let driverActualTrailPoints = [];
+
+// Pickup/drop-off pins are independent of the trail — they mark the two
+// fixed campus endpoints for this ride and never move, regardless of what
+// path the driver ends up taking between them.
+let driverPickupPin = null;
+let driverDropoffPin = null;
+const CAMPUS_PIN_COORDS = {
+  sanIsidro: [15.502749, 120.578693],
+  mainCampus: [15.485127, 120.587373]
+};
+function getPinCoords(locationText) {
+  return (locationText || '').includes('San Isidro') ? CAMPUS_PIN_COORDS.sanIsidro : CAMPUS_PIN_COORDS.mainCampus;
+}
 
 function clearDriverTracking() {
   if (driverLocationMarker) {
     passengerMapInstance.removeLayer(driverLocationMarker);
     driverLocationMarker = null;
   }
-  if (driverRouteLine) {
-    passengerMapInstance.removeLayer(driverRouteLine);
-    driverRouteLine = null;
+  if (driverActualTrail) {
+    passengerMapInstance.removeLayer(driverActualTrail);
+    driverActualTrail = null;
   }
-  driverRouteFull = null;
+  if (driverPickupPin) {
+    passengerMapInstance.removeLayer(driverPickupPin);
+    driverPickupPin = null;
+  }
+  if (driverDropoffPin) {
+    passengerMapInstance.removeLayer(driverDropoffPin);
+    driverDropoffPin = null;
+  }
+  driverActualTrailPoints = [];
   driverTrackedRideId = null;
+  const legend = document.querySelector('#route-legend');
+  if (legend) legend.style.display = 'none';
 }
 
-// Both of our routes only ever run between the same two fixed points, so we
-// can tell direction from the ride's own pickup/dropoff text instead of
-// asking a routing API which way to go.
+// Still used by the driver's own map (renderDriverMapTracking) below, which
+// keeps its fixed reference line — the driver already knows the road, so
+// that display just orients them, unlike the passenger side where an
+// inaccurate reference line would be misleading.
 function getRouteForRide(ride) {
   const pickupIsSanIsidro = (ride.pickup_location || '').includes('San Isidro');
   return pickupIsSanIsidro ? ROUTE_SAN_ISIDRO_TO_MAIN : ROUTE_MAIN_TO_SAN_ISIDRO;
@@ -1268,8 +1301,6 @@ function findNearestRouteIndex(route, point) {
   return nearestIndex;
 }
 
-let driverRouteFull = null;
-
 async function pollDriverLocation() {
   if (!passengerMapInstance) return;
   const user = getStoredUser();
@@ -1291,10 +1322,16 @@ async function pollDriverLocation() {
 
   if (driverTrackedRideId !== activeRide.ride_id) {
     driverTrackedRideId = activeRide.ride_id;
-    driverRouteFull = getRouteForRide(activeRide);
-    driverRouteLine = L.polyline(driverRouteFull, {
-      color: '#7f1d1d', weight: 5, opacity: 0.75, lineCap: 'round', lineJoin: 'round'
+    driverActualTrailPoints = [];
+    driverActualTrail = L.polyline([], {
+      color: '#1d4ed8', weight: 4, opacity: 0.9, dashArray: '2 10', lineCap: 'round'
     }).addTo(passengerMapInstance);
+    const pickupIcon = L.divIcon({ className: 'route-pin-icon', html: '<span class="route-pin-badge route-pin-pickup">A</span>', iconSize: [26, 26], iconAnchor: [13, 26] });
+    const dropoffIcon = L.divIcon({ className: 'route-pin-icon', html: '<span class="route-pin-badge route-pin-dropoff">B</span>', iconSize: [26, 26], iconAnchor: [13, 26] });
+    driverPickupPin = L.marker(getPinCoords(activeRide.pickup_location), { icon: pickupIcon }).addTo(passengerMapInstance).bindPopup('Pickup: ' + activeRide.pickup_location);
+    driverDropoffPin = L.marker(getPinCoords(activeRide.dropoff_location), { icon: dropoffIcon }).addTo(passengerMapInstance).bindPopup('Drop-off: ' + activeRide.dropoff_location);
+    const legend = document.querySelector('#route-legend');
+    if (legend) legend.style.display = 'flex';
   }
 
   try {
@@ -1305,9 +1342,9 @@ async function pollDriverLocation() {
 
     const point = [data.lat, data.lng];
 
-    if (driverRouteFull && driverRouteLine) {
-      const nearestIndex = findNearestRouteIndex(driverRouteFull, point);
-      driverRouteLine.setLatLngs(driverRouteFull.slice(nearestIndex));
+    if (driverActualTrail) {
+      driverActualTrailPoints.push(point);
+      driverActualTrail.setLatLngs(driverActualTrailPoints);
     }
 
     if (!driverLocationMarker) {
