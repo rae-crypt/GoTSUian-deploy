@@ -1358,6 +1358,63 @@ async function pollDriverLocation() {
   }
 }
 
+// PASSENGER'S OWN "YOU ARE HERE" MARKER — separate from everything above,
+// which is all about showing the DRIVER's position. This is purely local
+// display: the passenger's own device watches its own GPS and draws a dot
+// for itself, same active-ride window as driver tracking (waiting for
+// pickup through the trip itself). Unlike the driver's location, this
+// position is never sent to the server — nothing else needs it, so there's
+// no PUT call here, just a marker on this one device's own map.
+let passengerWatchId = null;
+let passengerSelfMarker = null;
+
+async function syncPassengerSelfLocationSharing() {
+  if (!passengerMapInstance || !navigator.geolocation) return;
+  const user = getStoredUser();
+  if (!isAuthenticated() || user.role !== 'passenger') return;
+
+  const rides = await fetchMyRides();
+  const hasActiveRide = rides.some(r => ['Accepted', 'Picked Up', 'In Progress'].includes(r.status));
+
+  if (hasActiveRide && passengerWatchId === null) {
+    startPassengerSelfLocationSharing();
+  } else if (!hasActiveRide && passengerWatchId !== null) {
+    stopPassengerSelfLocationSharing();
+  }
+}
+
+function startPassengerSelfLocationSharing() {
+  passengerWatchId = navigator.geolocation.watchPosition(
+    (position) => {
+      const point = [position.coords.latitude, position.coords.longitude];
+      if (!passengerSelfMarker) {
+        const icon = L.divIcon({
+          className: 'you-are-here-icon',
+          html: '<span class="you-are-here-pulse"></span><span class="you-are-here-dot"></span>',
+          iconSize: [22, 22],
+          iconAnchor: [11, 11]
+        });
+        passengerSelfMarker = L.marker(point, { icon, zIndexOffset: 1100 }).addTo(passengerMapInstance).bindPopup('You are here');
+      } else {
+        passengerSelfMarker.setLatLng(point);
+      }
+    },
+    (error) => console.warn('Could not get passenger location', error),
+    { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
+  );
+}
+
+function stopPassengerSelfLocationSharing() {
+  if (passengerWatchId !== null) {
+    navigator.geolocation.clearWatch(passengerWatchId);
+    passengerWatchId = null;
+  }
+  if (passengerSelfMarker) {
+    passengerMapInstance.removeLayer(passengerSelfMarker);
+    passengerSelfMarker = null;
+  }
+}
+
 // DRIVER'S OWN MAP — mirrors the passenger-side map: no pins until there's
 // an active ride, then the same shrinking route line and a marker for the
 // driver's own live GPS fix. Only present on driver.html — safe no-op
@@ -5415,6 +5472,7 @@ function manageRealtimeConnection() {
     renderDriverRideRequests();
     renderDriverMapTracking();
     syncDriverLocationSharing();
+    syncPassengerSelfLocationSharing();
   });
 
   realtimeSocket.on('driver:location', function() {
@@ -5472,6 +5530,7 @@ function refreshAuthState() {
   renderAvailableDriversIndicator();
   checkRideMilestones();
   syncDriverLocationSharing();
+  syncPassengerSelfLocationSharing();
   pollDriverLocation();
   renderDriverMapTracking();
 }
