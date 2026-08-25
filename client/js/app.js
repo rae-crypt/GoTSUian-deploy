@@ -4981,14 +4981,6 @@ function setupAuthForm() {
         emailInput.classList.add('input-error');
         document.querySelector('#email-error').textContent = 'Please enter a valid email (example@domain.com)';
         isValid = false;
-      } else if (!email.endsWith('@student.tsu.edu.ph') && !email.endsWith('@gmail.com')) {
-        // TEMPORARY: @gmail.com allowed alongside the official school email
-        // while TSU's Outlook system silently drops mail from gotsuian.com
-        // (new domain, no sending reputation yet) — remove the @gmail.com
-        // allowance once TSU IT whitelists the domain or reputation builds up.
-        emailInput.classList.add('input-error');
-        document.querySelector('#email-error').textContent = 'Passengers must use a valid @student.tsu.edu.ph email';
-        isValid = false;
       } else {
         emailInput.classList.add('input-valid');
       }

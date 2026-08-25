@@ -181,7 +181,7 @@ CREATE TABLE IF NOT EXISTS violations (
 
 ALTER TABLE tricycle_driver ADD COLUMN license_document_path VARCHAR(255) NULL AFTER driver_license_no;
 
--- Short-lived codes for verifying a passenger's @student.tsu.edu.ph inbox
+-- Short-lived codes for verifying a passenger's personal email inbox
 -- before their account is created. A row is consumed (deleted) the moment
 -- registration succeeds; `verified` distinguishes an entered-correctly code
 -- from one that was only ever sent.

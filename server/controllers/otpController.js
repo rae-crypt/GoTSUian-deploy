@@ -2,13 +2,13 @@ const db = require('../config/db');
 const bcrypt = require('bcrypt');
 const { sendMail } = require('../config/mailer');
 
-const SCHOOL_EMAIL_DOMAIN = '@student.tsu.edu.ph';
-// TEMPORARY: also allow @gmail.com while TSU's Outlook system silently
-// drops mail from gotsuian.com (brand-new domain, no sending reputation
-// yet with TSU's mail filtering) — lets groupmates/adviser actually reach
-// the dashboard for testing. Remove once TSU IT whitelists the domain or
-// its reputation builds up, so only SCHOOL_EMAIL_DOMAIN is accepted again.
-const TESTING_ALLOWED_DOMAIN = '@gmail.com';
+// The @student.tsu.edu.ph requirement was dropped (with the adviser's
+// sign-off) — TSU's Outlook mail filtering was strict enough that
+// gotsuian.com's OTP emails were getting silently discarded campus-wide,
+// which would have made registration effectively unusable for everyone.
+// Any personal email is accepted now; format is the only thing checked
+// here (EMAIL_REGEX), same pattern client-side's isValidEmail() uses.
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const OTP_TTL_MINUTES = 10;
 const VERIFIED_GRACE_MINUTES = 15;
 const MAX_ATTEMPTS = 5;
@@ -18,7 +18,7 @@ function generateCode() {
 }
 
 function isAllowedEmail(email) {
-  return email.endsWith(SCHOOL_EMAIL_DOMAIN) || email.endsWith(TESTING_ALLOWED_DOMAIN);
+  return EMAIL_REGEX.test(email);
 }
 
 // Generates a fresh code, hashes it, and replaces any previous pending code
@@ -58,14 +58,14 @@ async function emailCode(email, code, res) {
   }
 }
 
-// SEND OTP — emails a fresh 6-digit code to a @student.tsu.edu.ph address.
+// SEND OTP — emails a fresh 6-digit code to the passenger's personal email.
 // Any previous code for that email (verified or not) is invalidated, so
 // only the most recently sent code can ever be used.
 exports.sendOtp = async (req, res) => {
   const email = (req.body.email || '').trim().toLowerCase();
 
   if (!email || !isAllowedEmail(email)) {
-    return res.status(400).json({ error: `Please use a valid ${SCHOOL_EMAIL_DOMAIN} email` });
+    return res.status(400).json({ error: `Please enter a valid email address` });
   }
 
   db.query(`SELECT account_id FROM user_account WHERE username = ?`, [email], async (err, rows) => {
@@ -90,7 +90,7 @@ exports.sendResetOtp = async (req, res) => {
   const email = (req.body.email || '').trim().toLowerCase();
 
   if (!email || !isAllowedEmail(email)) {
-    return res.status(400).json({ error: `Please use a valid ${SCHOOL_EMAIL_DOMAIN} email` });
+    return res.status(400).json({ error: `Please enter a valid email address` });
   }
 
   db.query(`SELECT account_id FROM user_account WHERE username = ? AND role = 'student'`, [email], async (err, rows) => {
