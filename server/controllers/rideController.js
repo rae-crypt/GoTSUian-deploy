@@ -8,6 +8,50 @@ const { emitRideUpdated, emitNewPendingRide, emitDriverLocation, emitAvailabilit
 const FARE_BY_HEADCOUNT = { 1: 60, 2: 35, 3: 25, 4: 20 };
 const MAX_POOL_SIZE = 4;
 
+// How far ahead of a scheduled pickup time a ride becomes visible to
+// drivers — enough lead time to actually reach the pickup spot by the
+// requested time, instead of only starting the trip once it's already due.
+const SCHEDULE_LEAD_TIME_MINUTES = 10;
+
+// A ride with a future scheduled_at is deliberately NOT broadcast to
+// drivers the moment it's created (see createRide below) — nothing should
+// point a driver toward a request whose pickup time is an hour away.
+// listPendingRides' own WHERE clause is what actually keeps it hidden;
+// this just decides whether to push the "new pending ride" notification
+// right now or to wait.
+function emitPendingOrSchedule(scheduledAt) {
+  if (!scheduledAt) return emitNewPendingRide();
+  const releaseAt = new Date(scheduledAt).getTime() - SCHEDULE_LEAD_TIME_MINUTES * 60000;
+  if (releaseAt <= Date.now()) {
+    emitNewPendingRide();
+  } else {
+    scheduleRideRelease(scheduledAt);
+  }
+}
+
+// setTimeout only lives as long as this Node process does — a server
+// restart with a scheduled ride still pending would otherwise leave it
+// silently un-pushed until some unrelated socket event happened to
+// refresh a driver's list. rearmScheduledRideTimers() (called once at
+// server startup, see server/app.js) re-creates every pending ride's
+// timer on boot; this does the same for a single newly-created ride.
+function scheduleRideRelease(scheduledAt) {
+  const releaseAt = new Date(scheduledAt).getTime() - SCHEDULE_LEAD_TIME_MINUTES * 60000;
+  const delay = releaseAt - Date.now();
+  if (delay <= 0) return;
+  setTimeout(() => emitNewPendingRide(), delay);
+}
+
+exports.rearmScheduledRideTimers = function rearmScheduledRideTimers() {
+  db.query(
+    `SELECT scheduled_at FROM rides WHERE status = 'Pending' AND scheduled_at IS NOT NULL AND scheduled_at > NOW()`,
+    (err, rows) => {
+      if (err) return console.warn('Could not re-arm scheduled ride timers', err);
+      rows.forEach(row => scheduleRideRelease(row.scheduled_at));
+    }
+  );
+};
+
 // CREATE A RIDE REQUEST
 exports.createRide = (req, res) => {
   const passenger_account_id = req.user.accountId;
@@ -52,7 +96,7 @@ exports.createRide = (req, res) => {
           (err, result) => {
             if (err) return res.status(500).json({ error: err.message });
             res.status(201).json({ message: 'Ride requested', rideId: result.insertId, fare: FARE_BY_HEADCOUNT[1] });
-            emitNewPendingRide();
+            emitPendingOrSchedule(scheduled_at);
           }
         );
         return;
@@ -147,7 +191,7 @@ exports.createRide = (req, res) => {
                             riderRows.forEach(r => emitRideUpdated(r.passenger_account_id, poolDriverId));
                           });
                         } else {
-                          emitNewPendingRide();
+                          emitPendingOrSchedule(scheduled_at);
                         }
                       };
 
@@ -215,10 +259,11 @@ exports.listPendingRides = (req, res) => {
     JOIN student s ON s.account_id = r.passenger_account_id
     LEFT JOIN ride_pools rp ON rp.pool_id = r.pool_id
     WHERE r.status = 'Pending'
+      AND (r.scheduled_at IS NULL OR r.scheduled_at <= DATE_ADD(NOW(), INTERVAL ? MINUTE))
     ORDER BY r.created_at ASC
   `;
 
-  db.query(sql, (err, rows) => {
+  db.query(sql, [SCHEDULE_LEAD_TIME_MINUTES], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
 
     const pools = {};

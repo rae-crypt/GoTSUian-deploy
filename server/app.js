@@ -11,6 +11,7 @@ const http = require('http');
 const cors = require('cors');
 const db = require('./config/db');
 const { initSocket } = require('./socket');
+const rideController = require('./controllers/rideController');
 const authRoutes = require('./routes/authRoutes');
 const rideRoutes = require('./routes/rideRoutes');
 const adminRoutes = require('./routes/adminRoutes');
@@ -84,4 +85,8 @@ initSocket(server);
 
 server.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
+  // Re-creates the in-memory timers for any scheduled ride still Pending
+  // from before this restart -- otherwise it would sit hidden from
+  // drivers with nothing left to ever notify them once its time arrives.
+  rideController.rearmScheduledRideTimers();
 });
