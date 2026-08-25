@@ -3988,19 +3988,28 @@ function setupLogoutButtons() {
       // Best-effort: flip the driver/passenger's is_online off as soon as
       // they log out, so Admin's driver-availability count and Passenger
       // management panel don't show a stale "online" account that's gone.
-      // Fired before clearStoredUser() wipes the token these calls need.
+      // Fired (and AWAITED) before clearStoredUser() wipes the token these
+      // calls need — an earlier version fired this without awaiting it,
+      // then immediately navigated away, which cancelled the request
+      // before the server could process it almost every time.
       const loggedOutRole = getStoredUser().role;
-      if (loggedOutRole === 'driver') {
-        fetch(`${RIDES_API_URL}/driver/availability`, {
-          method: 'PUT',
-          headers: getAuthHeaders(),
-          body: JSON.stringify({ is_online: false })
-        }).catch(() => {});
-      } else if (loggedOutRole === 'student') {
-        fetch(`${API_BASE_URL}/logout/student`, {
-          method: 'POST',
-          headers: getAuthHeaders()
-        }).catch(() => {});
+      try {
+        if (loggedOutRole === 'driver') {
+          await fetch(`${RIDES_API_URL}/driver/availability`, {
+            method: 'PUT',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ is_online: false }),
+            keepalive: true
+          });
+        } else if (loggedOutRole === 'student') {
+          await fetch(`${API_BASE_URL}/logout/student`, {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            keepalive: true
+          });
+        }
+      } catch (error) {
+        // Best-effort — proceed with logout even if this call fails.
       }
       clearStoredUser();
       window.location.href = 'index.html';
