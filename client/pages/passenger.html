@@ -11,7 +11,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <link rel="stylesheet" href="../css/passenger.css?v=103">
+  <link rel="stylesheet" href="../css/passenger.css?v=105">
   <link rel="stylesheet" href="../css/theme.css?v=5">
 </head>
 <body data-page="passenger" class="is-passenger-home">
@@ -127,6 +127,9 @@
       <div class="passenger-main">
         <div class="map-stack">
           <div id="map" class="passenger-map"></div>
+          <div id="route-legend" class="route-legend" style="display:none;">
+            <span class="route-legend-item"><span class="route-legend-swatch route-legend-actual"></span>Driver's actual path</span>
+          </div>
           <article id="ride-status-panel" class="ride-status-floating dashboard-card">
             <h3><span class="copy-full">Current ride status</span><span class="copy-short">Ride status</span></h3>
             <p id="ride-status-empty">No active ride request yet.</p>
@@ -247,6 +250,6 @@
   </footer>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="../js/app.js?v=144"></script>
+  <script src="../js/app.js?v=146"></script>
 </body>
 </html>
