@@ -1539,10 +1539,10 @@ function resetPwSvg(icon, viewBox, strokeWidth) {
 }
 
 // Reset-password modal — built dynamically (like openChatModal/
-// showConfirmModal elsewhere) rather than a static block in admin.html,
+// showRideConfirmModal elsewhere) rather than a static block in admin.html,
 // since it has two states (confirm, then the one-time result) sharing one
 // overlay. Uses the real .admin-modal-* shell so it reads as native to
-// this panel, not the borrowed chat-modal one showConfirmModal uses.
+// this panel, not the borrowed chat-modal one showRideConfirmModal uses.
 function openDriverResetPasswordModal(driverId, targetName) {
   const overlay = document.createElement('div');
   overlay.className = 'admin-modal-overlay';
@@ -2827,25 +2827,76 @@ async function convertRideToSoloRemote(rideId) {
   return data;
 }
 
-// Generic yes/no confirmation popup — resolves true/false depending on
-// which button the user picks (or false if they dismiss it entirely).
-// Built dynamically the same way as openChatModal/openAvailableDriversModal
-// rather than a static block in the page HTML, since it's reused wherever
-// a destructive or easy-to-mistap action needs a second confirmation.
-function showConfirmModal({ title, messageHtml, confirmLabel = 'Confirm', cancelLabel = 'Cancel' }) {
+// Strips the repeated "(Tarlac State University)" suffix for display only
+// — both fixed campuses carry it in the dropdown's stored value, but it's
+// redundant clutter once the two stops are already shown side by side.
+function shortCampusName(locationText) {
+  return (locationText || '').replace(/\s*\(Tarlac State University\)\s*$/i, '');
+}
+
+// Ride-request confirmation popup — resolves true/false depending on which
+// button the passenger picks (or false if they dismiss it entirely). Built
+// dynamically the same way as openChatModal/openAvailableDriversModal
+// rather than a static block in the page HTML. This is the one place that
+// needs a second confirmation before an irreversible action (creating the
+// ride), so it's a dedicated layout rather than a generic message dialog.
+function showRideConfirmModal({ pickupLocation, dropoffLocation, rideType, fareText, whenLabel }) {
   return new Promise((resolve) => {
     const overlay = document.createElement('div');
     overlay.className = 'chat-overlay';
     overlay.innerHTML = `
-      <div class="chat-modal confirm-modal">
-        <div class="chat-modal-header">
-          <h3>${escapeHtml(title)}</h3>
-          <button type="button" class="chat-close-btn" aria-label="Close">&times;</button>
+      <div class="chat-modal ride-confirm-modal">
+        <div class="ride-confirm-head">
+          <span class="ride-confirm-badge">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="6.5"/><path d="M10 8.2V4M8.3 11.2L5 13.5M11.7 11.2L15 13.5"/></svg>
+          </span>
+          <div class="ride-confirm-head-text">
+            <h3>Confirm your ride</h3>
+            <p>Double-check the trip before it's sent</p>
+          </div>
+          <button type="button" class="ride-confirm-close" aria-label="Close">&times;</button>
         </div>
-        <div class="confirm-modal-body">${messageHtml}</div>
-        <div class="confirm-modal-actions">
-          <button type="button" class="btn-secondary-outline confirm-cancel-btn">${escapeHtml(cancelLabel)}</button>
-          <button type="button" class="btn-primary confirm-ok-btn">${escapeHtml(confirmLabel)}</button>
+
+        <div class="ride-confirm-journey">
+          <div class="ride-confirm-stop">
+            <span class="ride-confirm-dot a">A</span>
+            <span class="ride-confirm-stop-text">
+              <span class="ride-confirm-kicker">Pickup</span>
+              <span class="ride-confirm-name">${escapeHtml(shortCampusName(pickupLocation))}</span>
+            </span>
+          </div>
+          <span class="ride-confirm-connector"></span>
+          <div class="ride-confirm-stop">
+            <span class="ride-confirm-dot b">B</span>
+            <span class="ride-confirm-stop-text">
+              <span class="ride-confirm-kicker">Drop-off</span>
+              <span class="ride-confirm-name">${escapeHtml(shortCampusName(dropoffLocation))}</span>
+            </span>
+          </div>
+        </div>
+
+        <div class="ride-confirm-chips">
+          <span class="ride-confirm-chip">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="7"/><path d="M10 6v4l3 2"/></svg>
+            ${escapeHtml(rideType)}
+          </span>
+          <span class="ride-confirm-chip">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 6v4l2.5 2.5"/><circle cx="10" cy="10" r="7.2"/></svg>
+            ${escapeHtml(whenLabel)}
+          </span>
+        </div>
+
+        <div class="ride-confirm-fare">
+          <span class="ride-confirm-fare-label">Estimated fare</span>
+          <span class="ride-confirm-fare-value">${escapeHtml(fareText)}</span>
+        </div>
+
+        <div class="ride-confirm-actions">
+          <button type="button" class="btn-secondary-outline confirm-cancel-btn">Cancel</button>
+          <button type="button" class="btn-primary confirm-ok-btn">
+            Yes, request ride
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10h12M11 5l5 5-5 5"/></svg>
+          </button>
         </div>
       </div>
     `;
@@ -2858,7 +2909,7 @@ function showConfirmModal({ title, messageHtml, confirmLabel = 'Confirm', cancel
       resolve(result);
     }
 
-    overlay.querySelector('.chat-close-btn').addEventListener('click', () => close(false));
+    overlay.querySelector('.ride-confirm-close').addEventListener('click', () => close(false));
     overlay.querySelector('.confirm-cancel-btn').addEventListener('click', () => close(false));
     overlay.querySelector('.confirm-ok-btn').addEventListener('click', () => close(true));
     overlay.addEventListener('click', function(event) {
@@ -2933,21 +2984,20 @@ function setupPassengerRideRequestForm() {
 
     // One more explicit "are you sure" before actually creating the ride —
     // easy to fat-finger the wrong campus or ride type otherwise.
-    const rideTypeLabel = rideTypeSelect.selectedOptions[0]
-      ? rideTypeSelect.selectedOptions[0].textContent
-      : rideType;
+    // Fare text comes from the same visible button used to read rideType
+    // above, not a separately-maintained figure — one source of truth.
+    const fareText = selectedRideTypeBtn && selectedRideTypeBtn.querySelector('small')
+      ? selectedRideTypeBtn.querySelector('small').textContent
+      : '';
     const whenLabel = scheduleSelect && scheduleSelect.selectedOptions[0]
       ? scheduleSelect.selectedOptions[0].textContent
       : 'Leave now';
-    const confirmed = await showConfirmModal({
-      title: 'Confirm your ride request',
-      messageHtml: `
-        <p class="confirm-route"><strong>${escapeHtml(pickupLocation)}</strong> <span class="ride-route-arrow">→</span> <strong>${escapeHtml(dropoffLocation)}</strong></p>
-        <p><strong>Ride type:</strong> ${escapeHtml(rideTypeLabel)}</p>
-        <p><strong>When:</strong> ${escapeHtml(whenLabel)}</p>
-      `,
-      confirmLabel: 'Yes, request ride',
-      cancelLabel: 'Cancel'
+    const confirmed = await showRideConfirmModal({
+      pickupLocation,
+      dropoffLocation,
+      rideType,
+      fareText,
+      whenLabel
     });
     if (!confirmed) return;
 
@@ -3933,12 +3983,12 @@ async function renderDriverDashboardStats() {
   if (completedCount) completedCount.textContent = String(completedRides.length);
 }
  
-// Logout confirmation popup — same overlay mechanics as showConfirmModal
-// (dim+blur backdrop, Esc/click-outside to dismiss) but its own centered
-// icon layout, matching the mockup reviewed and approved before this was
-// wired up. Kept separate from showConfirmModal since that one is a left-
-// aligned header+body layout and this is deliberately calmer/centered
-// (logging out isn't a destructive action, so it shouldn't look like one).
+// Logout confirmation popup — same overlay mechanics as the other dynamic
+// modals in this file (dim+blur backdrop, Esc/click-outside to dismiss)
+// but its own centered icon layout, matching the mockup reviewed and
+// approved before this was wired up — deliberately calmer/centered rather
+// than a left-aligned header+body layout, since logging out isn't a
+// destructive action and shouldn't look like one.
 function showLogoutConfirm() {
   return new Promise((resolve) => {
     const overlay = document.createElement('div');
