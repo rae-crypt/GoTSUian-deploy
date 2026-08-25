@@ -86,6 +86,11 @@ CREATE TABLE IF NOT EXISTS ride_pools (
   status ENUM('Open', 'Closed') NOT NULL DEFAULT 'Open',
   fare_per_rider DECIMAL(6,2) NULL,
   driver_account_id INT NULL,
+  -- NULL means "leave now". A pool only ever holds riders who all picked
+  -- the same departure slot (see SCHEDULE_POOL_MATCH_TOLERANCE_MINUTES in
+  -- rideController.js) -- a "leave now" rider and a "scheduled in 1 hour"
+  -- rider never share a pool.
+  scheduled_at DATETIME NULL,
   closed_at DATETIME NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (driver_account_id) REFERENCES user_account(account_id)

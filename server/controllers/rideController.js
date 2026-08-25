@@ -13,6 +13,12 @@ const MAX_POOL_SIZE = 4;
 // requested time, instead of only starting the trip once it's already due.
 const SCHEDULE_LEAD_TIME_MINUTES = 10;
 
+// How close two "In X minutes" requests have to be to count as the same
+// departure slot for Shared pooling. Two students who both picked "In 15
+// minutes" a minute apart shouldn't end up in separate pools just because
+// their exact computed timestamps don't match to the second.
+const SCHEDULE_POOL_MATCH_TOLERANCE_MINUTES = 5;
+
 // A ride with a future scheduled_at is deliberately NOT broadcast to
 // drivers the moment it's created (see createRide below) — nothing should
 // point a driver toward a request whose pickup time is an hour away.
@@ -135,23 +141,42 @@ exports.createRide = (req, res) => {
             return res.status(503).json({ error: 'This route is busy right now — please try again in a moment.' });
           }
 
-          // Find the oldest still-open pool for this exact route with room
-          // left. A pool stays "Open" even after a driver has already
-          // accepted it early (see acceptRideInternal) — a new student can
-          // still join an in-progress pool right up until it fills to 4 or
-          // the driver actually departs.
+          // Find the oldest still-open pool for this exact route, same
+          // departure slot, with room left. A pool stays "Open" even after
+          // a driver has already accepted it early (see acceptRideInternal)
+          // — a new student can still join an in-progress pool right up
+          // until it fills to 4 or the driver actually departs.
+          //
+          // The scheduled_at condition keeps a "leave now" request (NULL)
+          // from ever pooling with a "scheduled" one, and two scheduled
+          // requests only pool if they're within SCHEDULE_POOL_MATCH_
+          // TOLERANCE_MINUTES of each other — otherwise a student leaving
+          // now could get grouped with one who wants to leave an hour
+          // later, which makes no sense for a single tricycle trip.
+          const normalizedScheduledAt = scheduled_at || null;
           const findPoolSql = `
             SELECT rp.pool_id, rp.driver_account_id, COUNT(r.ride_id) AS rider_count
             FROM ride_pools rp
             LEFT JOIN rides r ON r.pool_id = rp.pool_id AND r.status != 'Cancelled'
             WHERE rp.status = 'Open' AND rp.pickup_location = ? AND rp.dropoff_location = ?
+              AND (
+                (rp.scheduled_at IS NULL AND ? IS NULL)
+                OR (rp.scheduled_at IS NOT NULL AND ? IS NOT NULL AND ABS(TIMESTAMPDIFF(MINUTE, rp.scheduled_at, ?)) <= ?)
+              )
             GROUP BY rp.pool_id
             HAVING rider_count < ?
             ORDER BY rp.created_at ASC
             LIMIT 1
           `;
 
-          connection.query(findPoolSql, [pickup_location, dropoff_location, MAX_POOL_SIZE], (err, pools) => {
+          connection.query(
+            findPoolSql,
+            [
+              pickup_location, dropoff_location,
+              normalizedScheduledAt, normalizedScheduledAt, normalizedScheduledAt, SCHEDULE_POOL_MATCH_TOLERANCE_MINUTES,
+              MAX_POOL_SIZE
+            ],
+            (err, pools) => {
             if (err) return failWith(err);
 
             const joinPool = (poolId, poolDriverId) => {
@@ -232,8 +257,8 @@ exports.createRide = (req, res) => {
               joinPool(pools[0].pool_id, pools[0].driver_account_id);
             } else {
               connection.query(
-                `INSERT INTO ride_pools (pickup_location, dropoff_location, status) VALUES (?, ?, 'Open')`,
-                [pickup_location, dropoff_location],
+                `INSERT INTO ride_pools (pickup_location, dropoff_location, status, scheduled_at) VALUES (?, ?, 'Open', ?)`,
+                [pickup_location, dropoff_location, normalizedScheduledAt],
                 (err, poolResult) => {
                   if (err) return failWith(err);
                   joinPool(poolResult.insertId, null);
