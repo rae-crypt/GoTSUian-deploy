@@ -1967,6 +1967,41 @@ a.admin-stat-card:active { transform: translateY(0); }
 .admin-panel.is-collapsed .admin-panel-body { display: none; }
 .admin-panel.is-collapsed .admin-panel-toggle svg { transform: rotate(-90deg); }
 
+/* Loyalty panel's "view granting history" row -- deliberately its own
+   class, not .admin-panel-toggle, so it doesn't get picked up by
+   setupAdminPanelCollapse()'s generic .admin-panel-toggle selector and
+   accidentally collapse the whole panel instead of just the history list. */
+.admin-history-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 12px;
+  margin-top: 8px;
+  border: none;
+  border-top: 1px solid var(--line, #ece0d3);
+  background: var(--light);
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.admin-history-toggle svg { width: 14px; height: 14px; transition: transform 0.2s ease; }
+.admin-history-toggle[aria-expanded="true"] svg { transform: rotate(180deg); }
+
+/* Always visible once expanded (unlike .admin-mobile-list, which is
+   deliberately desktop-hidden as half of the table/card responsive swap
+   -- this history list isn't part of that swap, it needs to show on any
+   screen size once the toggle above opens it). */
+.admin-loyalty-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 4px;
+}
+
 /* ---- Accept All Pending ---- */
 .accept-all-zone { display: flex; }
 .accept-all-wrap { display: flex; }

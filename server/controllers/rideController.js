@@ -947,10 +947,32 @@ exports.updateRideStatus = (req, res) => {
   });
 };
 
-// LOYALTY / REWARDS — counts a passenger's completed rides against a fixed
-// threshold. No new table: completed rides are already tracked in `rides`,
-// so this is a pure read, no schema change needed.
-const LOYALTY_THRESHOLD = 5;
+// LOYALTY / REWARDS — the certificate used to show itself automatically the
+// moment a passenger/driver crossed 5 completed rides. Per the defense
+// panel's actual ask, an ADMIN now has to explicitly grant it (see
+// adminController.js's listLoyaltyOverview/grantLoyaltyCertificate) — this
+// endpoint just reports progress and whatever was actually granted so far.
+// Milestones repeat and escalate (5, then 10, then 15...), one grant row
+// per certificate ever awarded, not just a single yes/no flag.
+const LOYALTY_MILESTONE_STEP = 5;
+
+function buildLoyaltyStatus(completedRides, grantRows) {
+  const grantsCount = grantRows.length;
+  const nextThreshold = (grantsCount + 1) * LOYALTY_MILESTONE_STEP;
+  const latest = grantRows[0] || null;
+  return {
+    completedRides,
+    nextThreshold,
+    // How many of this leg's rides are already in (0-LOYALTY_MILESTONE_STEP),
+    // for the progress ring/dots — always resets to a fresh 5-ride bar per
+    // certificate instead of growing to fill an ever-larger threshold.
+    progressWithinLeg: Math.min(LOYALTY_MILESTONE_STEP, Math.max(0, completedRides - grantsCount * LOYALTY_MILESTONE_STEP)),
+    // True once they've crossed the next threshold but an admin hasn't
+    // granted it yet — distinct from actually having the certificate.
+    awaitingGrant: completedRides >= nextThreshold,
+    latestCertificate: latest ? { milestoneRides: latest.milestone_rides, grantedAt: latest.granted_at } : null
+  };
+}
 
 exports.getLoyaltyStatus = (req, res) => {
   const accountId = req.user.accountId;
@@ -958,14 +980,16 @@ exports.getLoyaltyStatus = (req, res) => {
   db.query(
     `SELECT COUNT(*) AS completedRides FROM rides WHERE passenger_account_id = ? AND status = 'Completed'`,
     [accountId],
-    (err, rows) => {
+    (err, rideRows) => {
       if (err) return res.status(500).json({ error: err.message });
-      const completedRides = rows[0].completedRides;
-      res.status(200).json({
-        completedRides,
-        threshold: LOYALTY_THRESHOLD,
-        eligible: completedRides >= LOYALTY_THRESHOLD
-      });
+      db.query(
+        `SELECT milestone_rides, granted_at FROM loyalty_certificates WHERE account_id = ? ORDER BY granted_at DESC`,
+        [accountId],
+        (err, certRows) => {
+          if (err) return res.status(500).json({ error: err.message });
+          res.status(200).json(buildLoyaltyStatus(rideRows[0].completedRides, certRows));
+        }
+      );
     }
   );
 };
@@ -978,14 +1002,16 @@ exports.getDriverLoyaltyStatus = (req, res) => {
   db.query(
     `SELECT COUNT(*) AS completedRides FROM rides WHERE driver_account_id = ? AND status = 'Completed'`,
     [accountId],
-    (err, rows) => {
+    (err, rideRows) => {
       if (err) return res.status(500).json({ error: err.message });
-      const completedRides = rows[0].completedRides;
-      res.status(200).json({
-        completedRides,
-        threshold: LOYALTY_THRESHOLD,
-        eligible: completedRides >= LOYALTY_THRESHOLD
-      });
+      db.query(
+        `SELECT milestone_rides, granted_at FROM loyalty_certificates WHERE account_id = ? ORDER BY granted_at DESC`,
+        [accountId],
+        (err, certRows) => {
+          if (err) return res.status(500).json({ error: err.message });
+          res.status(200).json(buildLoyaltyStatus(rideRows[0].completedRides, certRows));
+        }
+      );
     }
   );
 };

@@ -613,6 +613,11 @@ function updateHomeCtaVisibility() {
 
 // LOYALTY / REWARDS — only present on passenger-rewards.html, so this is a
 // safe no-op on every other page (all the elements it looks for won't exist).
+// Mirrors LOYALTY_MILESTONE_STEP in rideController.js -- only used here to
+// size the progress ring/dots (always a fresh 5-ride bar per certificate);
+// the server is what actually enforces the real threshold.
+const LOYALTY_MILESTONE_STEP_CLIENT = 5;
+
 async function fetchLoyaltyStatus() {
   const role = getStoredUser().role;
   const endpoint = role === 'driver' ? 'driver-loyalty' : 'loyalty';
@@ -637,13 +642,18 @@ async function renderLoyaltyStatus() {
     return;
   }
 
-  const { completedRides, threshold, eligible } = data;
-  const percent = Math.min(100, Math.round((completedRides / threshold) * 100));
+  // nextThreshold/progressWithinLeg/awaitingGrant/latestCertificate all
+  // come from buildLoyaltyStatus() server-side — see rideController.js.
+  // The certificate itself is no longer tied to "have they crossed a
+  // threshold" (that's awaitingGrant, a different thing) but to whether
+  // an admin has actually granted one (latestCertificate).
+  const { completedRides, nextThreshold, progressWithinLeg, awaitingGrant, latestCertificate } = data;
+  const percent = Math.min(100, Math.round((progressWithinLeg / LOYALTY_MILESTONE_STEP_CLIENT) * 100));
   const role = getStoredUser().role;
   const title = role === 'driver' ? 'Loyal Driver' : 'Loyal Passenger';
 
   document.querySelector('#loyalty-current').textContent = completedRides;
-  document.querySelector('#loyalty-threshold').textContent = threshold;
+  document.querySelector('#loyalty-threshold').textContent = nextThreshold;
 
   const ringFill = document.querySelector('#loyalty-ring-fill');
   if (ringFill) {
@@ -654,8 +664,8 @@ async function renderLoyaltyStatus() {
 
   const milestonesEl = document.querySelector('#loyalty-milestones');
   if (milestonesEl) {
-    milestonesEl.innerHTML = Array.from({ length: threshold }, (_, i) =>
-      `<span class="milestone-dot${i < completedRides ? ' is-filled' : ''}"></span>`
+    milestonesEl.innerHTML = Array.from({ length: LOYALTY_MILESTONE_STEP_CLIENT }, (_, i) =>
+      `<span class="milestone-dot${i < progressWithinLeg ? ' is-filled' : ''}"></span>`
     ).join('');
   }
 
@@ -664,21 +674,21 @@ async function renderLoyaltyStatus() {
 
   const statsSubEl = document.querySelector('#loyalty-stats-sub');
   if (statsSubEl) {
-    if (eligible) {
-      statsSubEl.innerHTML = 'Certificate unlocked below. 🎉';
+    if (awaitingGrant) {
+      statsSubEl.innerHTML = `You've reached ${nextThreshold} rides — an admin will review and grant your certificate soon.`;
     } else {
-      const remaining = threshold - completedRides;
-      statsSubEl.innerHTML = `Complete <strong>${remaining} more</strong> ride${remaining === 1 ? '' : 's'} to unlock your certificate.`;
+      const remaining = nextThreshold - completedRides;
+      statsSubEl.innerHTML = `Complete <strong>${remaining} more</strong> ride${remaining === 1 ? '' : 's'} to reach your next certificate milestone.`;
     }
   }
 
   const messageEl = document.querySelector('#loyalty-message');
   messageEl.classList.remove('eligible', 'in-progress');
-  if (eligible) {
-    messageEl.textContent = `🏆 Congratulations! You are now a ${title}.`;
+  if (awaitingGrant) {
+    messageEl.textContent = `🎉 You've reached ${nextThreshold} rides! Your certificate is awaiting admin approval.`;
     messageEl.classList.add('eligible');
   } else {
-    const remaining = threshold - completedRides;
+    const remaining = nextThreshold - completedRides;
     messageEl.textContent = `${remaining} more completed ride${remaining === 1 ? '' : 's'} to become a ${title}.`;
     messageEl.classList.add('in-progress');
   }
@@ -686,7 +696,7 @@ async function renderLoyaltyStatus() {
   const certificateEl = document.querySelector('#loyalty-certificate');
   const downloadBtn = document.querySelector('#certificate-download-btn');
   if (certificateEl) {
-    if (eligible) {
+    if (latestCertificate) {
       const user = getStoredUser();
       const headingEl = certificateEl.querySelector('#certificate-heading');
       const nameEl = certificateEl.querySelector('#certificate-name');
@@ -695,9 +705,9 @@ async function renderLoyaltyStatus() {
       const dateEl = certificateEl.querySelector('#certificate-date');
       if (headingEl) headingEl.textContent = `${title} Award`;
       if (nameEl) nameEl.textContent = user.name || 'GoTSUian Member';
-      if (countEl) countEl.textContent = completedRides;
+      if (countEl) countEl.textContent = latestCertificate.milestoneRides;
       if (titleEl) titleEl.textContent = title;
-      if (dateEl) dateEl.textContent = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+      if (dateEl) dateEl.textContent = new Date(latestCertificate.grantedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
       certificateEl.style.display = 'block';
       if (downloadBtn) downloadBtn.classList.remove('hidden');
     } else {
@@ -2072,6 +2082,145 @@ function renderPassengerCard(p) {
 }
 
 // ADMIN — passenger management table, only present on admin.html.
+// ADMIN — Loyalty Certificates panel. Lists every passenger/driver who's
+// crossed at least one 5-ride milestone, with a Grant button for whichever
+// milestone they haven't been given yet — see adminController.js's
+// listLoyaltyOverview/grantLoyaltyCertificate.
+function renderLoyaltyRow(r) {
+  const roleLabel = r.role === 'driver' ? `Driver${r.detail ? ' · ' + escapeHtml(r.detail) : ''}` : 'Passenger';
+  const action = r.eligible
+    ? `<button type="button" class="admin-btn" data-action="grant-loyalty" data-account-id="${r.account_id}" data-name="${escapeHtml(r.name)}" data-threshold="${r.next_threshold}">Grant certificate</button>`
+    : pillHtml('success', 'Already granted');
+  return `
+    <tr>
+      <td>${escapeHtml(r.name)}</td>
+      <td>${roleLabel}</td>
+      <td>${r.completed_rides}</td>
+      <td>${r.next_threshold} rides</td>
+      <td>${action}</td>
+    </tr>
+  `;
+}
+
+function renderLoyaltyCard(r) {
+  const roleLabel = r.role === 'driver' ? `Driver${r.detail ? ' · ' + escapeHtml(r.detail) : ''}` : 'Passenger';
+  const action = r.eligible
+    ? `<button type="button" class="admin-btn" data-action="grant-loyalty" data-account-id="${r.account_id}" data-name="${escapeHtml(r.name)}" data-threshold="${r.next_threshold}">Grant certificate</button>`
+    : pillHtml('success', 'Already granted');
+  return `
+    <div class="admin-mcard">
+      <div class="admin-mcard-top">
+        <strong style="font-size:14px;">${escapeHtml(r.name)}</strong>
+        <span style="font-size:12px;color:var(--muted);">${roleLabel}</span>
+      </div>
+      <div class="admin-mcard-rows">
+        <div class="admin-mcard-row"><span>Completed rides</span><span>${r.completed_rides}</span></div>
+        <div class="admin-mcard-row"><span>Milestone</span><span>${r.next_threshold} rides</span></div>
+      </div>
+      <div style="margin-top:10px;">${action}</div>
+    </div>
+  `;
+}
+
+async function renderAdminLoyaltyOverview() {
+  const tbody = document.querySelector('#admin-loyalty-tbody');
+  const mobileList = document.querySelector('#admin-loyalty-mobile');
+  const countBadge = document.querySelector('#admin-loyalty-count');
+  if (!tbody) return;
+
+  try {
+    const res = await fetch(`${ADMIN_API_URL}/loyalty/overview`, { headers: getAuthHeaders() });
+    if (!res.ok) return;
+    const data = await res.json();
+    const overview = data.overview || [];
+    const eligibleCount = overview.filter(r => r.eligible).length;
+    if (countBadge) countBadge.textContent = `${eligibleCount} eligible`;
+
+    if (!overview.length) {
+      tbody.innerHTML = '<tr><td colspan="5">No one has reached 5 rides yet.</td></tr>';
+      if (mobileList) mobileList.innerHTML = '<p class="admin-mcard-empty">No one has reached 5 rides yet.</p>';
+      return;
+    }
+
+    tbody.innerHTML = overview.map(renderLoyaltyRow).join('');
+    if (mobileList) mobileList.innerHTML = overview.map(renderLoyaltyCard).join('');
+
+    setupLoyaltyGrantButtons(tbody);
+    if (mobileList) setupLoyaltyGrantButtons(mobileList);
+  } catch (error) {
+    console.warn('Unable to fetch loyalty overview', error);
+  }
+}
+
+// No confirm-step modal here, matching "Mark Reviewed"'s pattern for this
+// class of low-risk admin action (additive, not destructive — worst case
+// of a mis-click is an early certificate, not lost data) rather than
+// building a dedicated modal for something this routine.
+function setupLoyaltyGrantButtons(container) {
+  container.querySelectorAll('[data-action="grant-loyalty"]').forEach(button => {
+    button.addEventListener('click', async function() {
+      const name = this.getAttribute('data-name');
+      const threshold = this.getAttribute('data-threshold');
+      this.disabled = true;
+      try {
+        const res = await fetch(`${ADMIN_API_URL}/loyalty/grant`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ account_id: this.getAttribute('data-account-id') })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Could not grant the certificate');
+        showRideFeedback('success', 'Certificate granted', `${name} was awarded a certificate for ${threshold} rides.`);
+        renderAdminLoyaltyOverview();
+        const historyEl = document.querySelector('#admin-loyalty-history');
+        if (historyEl && historyEl.style.display !== 'none') renderAdminLoyaltyHistory();
+      } catch (error) {
+        showRideFeedback('error', 'Could not grant', error.message || 'Please try again.');
+        this.disabled = false;
+      }
+    });
+  });
+}
+
+function renderLoyaltyHistoryRow(h) {
+  const roleLabel = h.role === 'driver' ? 'Driver' : 'Passenger';
+  return `
+    <div class="admin-mcard-row">
+      <span>${escapeHtml(h.name)} (${roleLabel}) — ${h.milestone_rides} rides</span>
+      <span>${new Date(h.granted_at).toLocaleDateString()} by ${escapeHtml(h.granted_by_name || 'admin')}</span>
+    </div>
+  `;
+}
+
+async function renderAdminLoyaltyHistory() {
+  const listEl = document.querySelector('#admin-loyalty-history-list');
+  if (!listEl) return;
+  try {
+    const res = await fetch(`${ADMIN_API_URL}/loyalty/history`, { headers: getAuthHeaders() });
+    if (!res.ok) return;
+    const data = await res.json();
+    const history = data.history || [];
+    listEl.innerHTML = history.length
+      ? history.map(renderLoyaltyHistoryRow).join('')
+      : '<p class="admin-mcard-empty">No certificates granted yet.</p>';
+  } catch (error) {
+    console.warn('Unable to fetch loyalty history', error);
+  }
+}
+
+function setupLoyaltyHistoryToggle() {
+  const toggleBtn = document.querySelector('#admin-loyalty-history-toggle');
+  const historyEl = document.querySelector('#admin-loyalty-history');
+  if (!toggleBtn || !historyEl) return;
+
+  toggleBtn.addEventListener('click', () => {
+    const isHidden = historyEl.style.display === 'none' || !historyEl.style.display;
+    historyEl.style.display = isHidden ? 'block' : 'none';
+    toggleBtn.setAttribute('aria-expanded', String(isHidden));
+    if (isHidden) renderAdminLoyaltyHistory();
+  });
+}
+
 async function renderAdminPassengerManagement() {
   const tbody = document.querySelector('#admin-passengers-tbody');
   const mobileList = document.querySelector('#admin-passengers-mobile');
@@ -5616,6 +5765,7 @@ function refreshAuthState() {
   renderAdminBookings();
   renderAdminComplaints();
   renderAdminStats();
+  renderAdminLoyaltyOverview();
   renderLoyaltyStatus();
   renderDriverRating();
   renderDriverRatingsFull();
@@ -5649,6 +5799,7 @@ document.addEventListener('DOMContentLoaded', function() {
   setupLicenseModal();
   setupAcceptAllForDriverPanel();
   setupAdminPanelCollapse();
+  setupLoyaltyHistoryToggle();
   setupDashboardCardCollapse();
   setupProfilePanelCollapse();
   setupNavMenu();

@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link href="https://api.fontshare.com/v2/css?f[]=clash-display@500,600,700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="../css/admin.css?v=46">
+  <link rel="stylesheet" href="../css/admin.css?v=47">
   <link rel="stylesheet" href="../css/theme.css?v=5">
 </head>
 <body data-page="admin" class="admin-portal">
@@ -197,6 +197,42 @@
         </div>
       </div>
 
+      <div class="admin-panel is-collapsed" id="loyalty-panel">
+        <div class="admin-panel-head">
+          <div class="admin-panel-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5L15.5 6H8.5L12 2.5Z"/><circle cx="12" cy="13" r="7"/><path d="M9.5 12.3L11.3 14.2L14.7 10.8"/></svg>
+          </div>
+          <div class="admin-panel-head-text">
+            <h2>Loyalty Certificates</h2>
+            <p>Passengers &amp; drivers eligible for their next 5-ride milestone certificate.</p>
+          </div>
+          <button type="button" class="admin-panel-toggle" aria-expanded="false" aria-label="Expand this section">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7.5L10 12.5L15 7.5"/></svg>
+          </button>
+        </div>
+
+        <div class="admin-panel-body">
+          <div class="admin-table-scroll">
+            <table class="admin-table">
+              <thead><tr><th>Name</th><th>Role</th><th>Completed rides</th><th>Milestone</th><th>Action</th></tr></thead>
+              <tbody id="admin-loyalty-tbody">
+                <tr><td colspan="5">Loading...</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="admin-mobile-list" id="admin-loyalty-mobile">
+            <p class="admin-mcard-empty">Loading...</p>
+          </div>
+          <button type="button" class="admin-history-toggle" id="admin-loyalty-history-toggle" aria-expanded="false">
+            View granting history
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7.5L10 12.5L15 7.5"/></svg>
+          </button>
+          <div id="admin-loyalty-history" style="display:none;">
+            <div id="admin-loyalty-history-list" class="admin-loyalty-history-list"></div>
+          </div>
+        </div>
+      </div>
+
       <div class="admin-panel is-collapsed" id="complaints-panel">
         <div class="admin-panel-head">
           <div class="admin-panel-icon">
@@ -281,6 +317,6 @@
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="../js/app.js?v=150"></script>
+  <script src="../js/app.js?v=151"></script>
 </body>
 </html>
