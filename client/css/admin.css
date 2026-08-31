@@ -2002,13 +2002,29 @@ a.admin-stat-card:active { transform: translateY(0); }
   padding: 12px 4px;
 }
 
-/* Loyalty panel's own icon treatment — gold gradient badge instead of the
-   flat maroon-on-cream every other admin panel icon uses, so this section
-   (an award/recognition action) reads distinctly from account-management
-   ones at a glance. */
+/* Each panel gets its own icon color instead of every section sharing the
+   same flat maroon-on-cream badge — makes the accordion list scannable at
+   a glance instead of a wall of identical icons. Colors are otherwise
+   decorative (no semantic meaning tied to a specific hue here). */
+#driver-management-panel .admin-panel-icon {
+  background: linear-gradient(140deg, #7dabe8, #4d7fc4);
+  color: #fff;
+}
+#passenger-management-panel .admin-panel-icon {
+  background: linear-gradient(140deg, #6bcf97, #3ba86a);
+  color: #fff;
+}
+#bookings-panel .admin-panel-icon {
+  background: linear-gradient(140deg, #b6a0f0, #8a68d9);
+  color: #fff;
+}
 #loyalty-panel .admin-panel-icon {
   background: linear-gradient(140deg, var(--gold, #f7b733), var(--accent-gold, #f0a93a));
   color: var(--primary-deep, #4a0f0f);
+}
+#complaints-panel .admin-panel-icon {
+  background: linear-gradient(140deg, #f2867e, #dc5c53);
+  color: #fff;
 }
 
 .admin-panel-count {

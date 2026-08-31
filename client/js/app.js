@@ -644,10 +644,16 @@ async function renderLoyaltyStatus() {
 
   // nextThreshold/progressWithinLeg/awaitingGrant/latestCertificate all
   // come from buildLoyaltyStatus() server-side — see rideController.js.
-  // The certificate itself is no longer tied to "have they crossed a
-  // threshold" (that's awaitingGrant, a different thing) but to whether
-  // an admin has actually granted one (latestCertificate).
   const { completedRides, nextThreshold, progressWithinLeg, awaitingGrant, latestCertificate } = data;
+
+  // Per explicit request: the WHOLE loyalty section — not just the
+  // certificate — stays out of the UI entirely (both dashboard teaser
+  // card and profile-page card, both roles) until an admin has actually
+  // granted at least one certificate. No progress ring/milestone teaser
+  // visible before that first grant.
+  const outerCardEl = document.querySelector('#loyalty-card') || document.querySelector('#loyalty-teaser-card');
+  if (outerCardEl) outerCardEl.style.display = latestCertificate ? '' : 'none';
+  if (!latestCertificate) return;
   const percent = Math.min(100, Math.round((progressWithinLeg / LOYALTY_MILESTONE_STEP_CLIENT) * 100));
   const role = getStoredUser().role;
   const title = role === 'driver' ? 'Loyal Driver' : 'Loyal Passenger';
