@@ -2081,22 +2081,29 @@ function renderPassengerCard(p) {
   `;
 }
 
-// ADMIN — passenger management table, only present on admin.html.
 // ADMIN — Loyalty Certificates panel. Lists every passenger/driver who's
 // crossed at least one 5-ride milestone, with a Grant button for whichever
 // milestone they haven't been given yet — see adminController.js's
 // listLoyaltyOverview/grantLoyaltyCertificate.
+const LOYALTY_GRANT_ICON = '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2.5L16.5 5.2V9C16.5 13 13.7 16.3 10 17.5C6.3 16.3 3.5 13 3.5 9V5.2L10 2.5Z"/></svg>';
+const LOYALTY_CLOCK_ICON = '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 6v4l2.5 2.5"/><circle cx="10" cy="10" r="7.2"/></svg>';
+
+// Kept from the last full fetch so the role tabs can re-filter instantly
+// without re-hitting the server on every click.
+let loyaltyOverviewCache = [];
+let loyaltyActiveRoleFilter = 'all';
+
 function renderLoyaltyRow(r) {
   const roleLabel = r.role === 'driver' ? `Driver${r.detail ? ' · ' + escapeHtml(r.detail) : ''}` : 'Passenger';
   const action = r.eligible
-    ? `<button type="button" class="admin-btn" data-action="grant-loyalty" data-account-id="${r.account_id}" data-name="${escapeHtml(r.name)}" data-threshold="${r.next_threshold}">Grant certificate</button>`
+    ? `<button type="button" class="loyalty-grant-btn" data-action="grant-loyalty" data-account-id="${r.account_id}" data-name="${escapeHtml(r.name)}" data-threshold="${r.next_threshold}">${LOYALTY_GRANT_ICON}Grant certificate</button>`
     : pillHtml('success', 'Already granted');
   return `
     <tr>
       <td>${escapeHtml(r.name)}</td>
       <td>${roleLabel}</td>
       <td>${r.completed_rides}</td>
-      <td>${r.next_threshold} rides</td>
+      <td><span class="loyalty-milestone-chip">${LOYALTY_CLOCK_ICON}${r.next_threshold} rides</span></td>
       <td>${action}</td>
     </tr>
   `;
@@ -2105,7 +2112,7 @@ function renderLoyaltyRow(r) {
 function renderLoyaltyCard(r) {
   const roleLabel = r.role === 'driver' ? `Driver${r.detail ? ' · ' + escapeHtml(r.detail) : ''}` : 'Passenger';
   const action = r.eligible
-    ? `<button type="button" class="admin-btn" data-action="grant-loyalty" data-account-id="${r.account_id}" data-name="${escapeHtml(r.name)}" data-threshold="${r.next_threshold}">Grant certificate</button>`
+    ? `<button type="button" class="loyalty-grant-btn" data-action="grant-loyalty" data-account-id="${r.account_id}" data-name="${escapeHtml(r.name)}" data-threshold="${r.next_threshold}">${LOYALTY_GRANT_ICON}Grant certificate</button>`
     : pillHtml('success', 'Already granted');
   return `
     <div class="admin-mcard">
@@ -2115,16 +2122,50 @@ function renderLoyaltyCard(r) {
       </div>
       <div class="admin-mcard-rows">
         <div class="admin-mcard-row"><span>Completed rides</span><span>${r.completed_rides}</span></div>
-        <div class="admin-mcard-row"><span>Milestone</span><span>${r.next_threshold} rides</span></div>
+        <div class="admin-mcard-row"><span>Milestone</span><span><span class="loyalty-milestone-chip">${LOYALTY_CLOCK_ICON}${r.next_threshold} rides</span></span></div>
       </div>
       <div style="margin-top:10px;">${action}</div>
     </div>
   `;
 }
 
-async function renderAdminLoyaltyOverview() {
+function renderLoyaltyOverviewFiltered() {
   const tbody = document.querySelector('#admin-loyalty-tbody');
   const mobileList = document.querySelector('#admin-loyalty-mobile');
+  if (!tbody) return;
+
+  const filtered = loyaltyActiveRoleFilter === 'all'
+    ? loyaltyOverviewCache
+    : loyaltyOverviewCache.filter(r => r.role === loyaltyActiveRoleFilter);
+
+  if (!filtered.length) {
+    const emptyText = loyaltyOverviewCache.length ? 'No one in this category yet.' : 'No one has reached 5 rides yet.';
+    tbody.innerHTML = `<tr><td colspan="5">${emptyText}</td></tr>`;
+    if (mobileList) mobileList.innerHTML = `<p class="admin-mcard-empty">${emptyText}</p>`;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(renderLoyaltyRow).join('');
+  if (mobileList) mobileList.innerHTML = filtered.map(renderLoyaltyCard).join('');
+
+  setupLoyaltyGrantButtons(tbody);
+  if (mobileList) setupLoyaltyGrantButtons(mobileList);
+}
+
+function setupLoyaltyRoleTabs() {
+  const tabs = document.querySelectorAll('#admin-loyalty-tabs .loyalty-role-tab');
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      tabs.forEach(t => t.classList.remove('is-active'));
+      tab.classList.add('is-active');
+      loyaltyActiveRoleFilter = tab.getAttribute('data-role');
+      renderLoyaltyOverviewFiltered();
+    });
+  });
+}
+
+async function renderAdminLoyaltyOverview() {
+  const tbody = document.querySelector('#admin-loyalty-tbody');
   const countBadge = document.querySelector('#admin-loyalty-count');
   if (!tbody) return;
 
@@ -2132,21 +2173,11 @@ async function renderAdminLoyaltyOverview() {
     const res = await fetch(`${ADMIN_API_URL}/loyalty/overview`, { headers: getAuthHeaders() });
     if (!res.ok) return;
     const data = await res.json();
-    const overview = data.overview || [];
-    const eligibleCount = overview.filter(r => r.eligible).length;
+    loyaltyOverviewCache = data.overview || [];
+    const eligibleCount = loyaltyOverviewCache.filter(r => r.eligible).length;
     if (countBadge) countBadge.textContent = `${eligibleCount} eligible`;
 
-    if (!overview.length) {
-      tbody.innerHTML = '<tr><td colspan="5">No one has reached 5 rides yet.</td></tr>';
-      if (mobileList) mobileList.innerHTML = '<p class="admin-mcard-empty">No one has reached 5 rides yet.</p>';
-      return;
-    }
-
-    tbody.innerHTML = overview.map(renderLoyaltyRow).join('');
-    if (mobileList) mobileList.innerHTML = overview.map(renderLoyaltyCard).join('');
-
-    setupLoyaltyGrantButtons(tbody);
-    if (mobileList) setupLoyaltyGrantButtons(mobileList);
+    renderLoyaltyOverviewFiltered();
   } catch (error) {
     console.warn('Unable to fetch loyalty overview', error);
   }
@@ -5800,6 +5831,7 @@ document.addEventListener('DOMContentLoaded', function() {
   setupAcceptAllForDriverPanel();
   setupAdminPanelCollapse();
   setupLoyaltyHistoryToggle();
+  setupLoyaltyRoleTabs();
   setupDashboardCardCollapse();
   setupProfilePanelCollapse();
   setupNavMenu();
