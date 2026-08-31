@@ -2093,6 +2093,7 @@ function renderPassengerCard(p) {
 // listLoyaltyOverview/grantLoyaltyCertificate.
 const LOYALTY_GRANT_ICON = '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2.5L16.5 5.2V9C16.5 13 13.7 16.3 10 17.5C6.3 16.3 3.5 13 3.5 9V5.2L10 2.5Z"/></svg>';
 const LOYALTY_CLOCK_ICON = '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 6v4l2.5 2.5"/><circle cx="10" cy="10" r="7.2"/></svg>';
+const LOYALTY_CHECK_ICON = '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10l4 4 8-8"/></svg>';
 
 // Kept from the last full fetch so the role tabs can re-filter instantly
 // without re-hitting the server on every click.
@@ -2103,7 +2104,7 @@ function renderLoyaltyRow(r) {
   const roleLabel = r.role === 'driver' ? `Driver${r.detail ? ' · ' + escapeHtml(r.detail) : ''}` : 'Passenger';
   const action = r.eligible
     ? `<button type="button" class="loyalty-grant-btn" data-action="grant-loyalty" data-account-id="${r.account_id}" data-name="${escapeHtml(r.name)}" data-threshold="${r.next_threshold}">${LOYALTY_GRANT_ICON}Grant certificate</button>`
-    : pillHtml('success', 'Already granted');
+    : `<span class="loyalty-granted-tag">${LOYALTY_CHECK_ICON}Already granted</span>`;
   return `
     <tr>
       <td>${escapeHtml(r.name)}</td>
@@ -2119,7 +2120,7 @@ function renderLoyaltyCard(r) {
   const roleLabel = r.role === 'driver' ? `Driver${r.detail ? ' · ' + escapeHtml(r.detail) : ''}` : 'Passenger';
   const action = r.eligible
     ? `<button type="button" class="loyalty-grant-btn" data-action="grant-loyalty" data-account-id="${r.account_id}" data-name="${escapeHtml(r.name)}" data-threshold="${r.next_threshold}">${LOYALTY_GRANT_ICON}Grant certificate</button>`
-    : pillHtml('success', 'Already granted');
+    : `<span class="loyalty-granted-tag">${LOYALTY_CHECK_ICON}Already granted</span>`;
   return `
     <div class="admin-mcard">
       <div class="admin-mcard-top">
