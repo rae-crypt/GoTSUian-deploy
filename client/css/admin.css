@@ -2002,6 +2002,78 @@ a.admin-stat-card:active { transform: translateY(0); }
   padding: 12px 4px;
 }
 
+/* Loyalty panel's own icon treatment — gold gradient badge instead of the
+   flat maroon-on-cream every other admin panel icon uses, so this section
+   (an award/recognition action) reads distinctly from account-management
+   ones at a glance. */
+#loyalty-panel .admin-panel-icon {
+  background: linear-gradient(140deg, var(--gold, #f7b733), var(--accent-gold, #f0a93a));
+  color: var(--primary-deep, #4a0f0f);
+}
+
+.admin-panel-count {
+  flex: none;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: rgba(127, 29, 29, 0.08);
+  color: var(--primary);
+}
+
+.loyalty-role-tabs {
+  display: flex;
+  gap: 6px;
+  padding: 14px 4px 0;
+}
+.loyalty-role-tab {
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1px solid #f1d9d9;
+  background: var(--white);
+  color: var(--muted);
+  cursor: pointer;
+}
+.loyalty-role-tab.is-active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff8f6;
+}
+
+.loyalty-milestone-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgba(240, 169, 58, 0.18);
+  color: #9a6212;
+}
+.loyalty-milestone-chip svg { width: 12px; height: 12px; }
+
+.loyalty-grant-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  padding: 9px 15px;
+  border-radius: 999px;
+  border: none;
+  background: var(--primary);
+  color: #fff8f6;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.loyalty-grant-btn svg { width: 13px; height: 13px; }
+.loyalty-grant-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
 /* ---- Accept All Pending ---- */
 .accept-all-zone { display: flex; }
 .accept-all-wrap { display: flex; }

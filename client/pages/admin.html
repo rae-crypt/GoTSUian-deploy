@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link href="https://api.fontshare.com/v2/css?f[]=clash-display@500,600,700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="../css/admin.css?v=47">
+  <link rel="stylesheet" href="../css/admin.css?v=48">
   <link rel="stylesheet" href="../css/theme.css?v=5">
 </head>
 <body data-page="admin" class="admin-portal">
@@ -204,17 +204,23 @@
           </div>
           <div class="admin-panel-head-text">
             <h2>Loyalty Certificates</h2>
-            <p>Passengers &amp; drivers eligible for their next 5-ride milestone certificate.</p>
+            <p>Passengers &amp; drivers eligible for their next milestone</p>
           </div>
+          <span class="admin-panel-count" id="admin-loyalty-count">0 eligible</span>
           <button type="button" class="admin-panel-toggle" aria-expanded="false" aria-label="Expand this section">
             <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7.5L10 12.5L15 7.5"/></svg>
           </button>
         </div>
 
         <div class="admin-panel-body">
+          <div class="loyalty-role-tabs" id="admin-loyalty-tabs">
+            <button type="button" class="loyalty-role-tab is-active" data-role="all">All</button>
+            <button type="button" class="loyalty-role-tab" data-role="passenger">Passengers</button>
+            <button type="button" class="loyalty-role-tab" data-role="driver">Drivers</button>
+          </div>
           <div class="admin-table-scroll">
             <table class="admin-table">
-              <thead><tr><th>Name</th><th>Role</th><th>Completed rides</th><th>Milestone</th><th>Action</th></tr></thead>
+              <thead><tr><th>Name</th><th>Role</th><th>Completed rides</th><th>Milestone reached</th><th>Action</th></tr></thead>
               <tbody id="admin-loyalty-tbody">
                 <tr><td colspan="5">Loading...</td></tr>
               </tbody>
@@ -317,6 +323,6 @@
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="../js/app.js?v=151"></script>
+  <script src="../js/app.js?v=152"></script>
 </body>
 </html>
