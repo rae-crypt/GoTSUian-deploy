@@ -58,8 +58,119 @@ exports.rearmScheduledRideTimers = function rearmScheduledRideTimers() {
   );
 };
 
+// ─── "OTHERS" DROP-OFF (Solo-only, backlog item, NOT deployed) ──────────
+// Lets a passenger request a drop-off beyond the normal fixed endpoint
+// (e.g. SM Tarlac, past Main Campus) instead of only the two campuses.
+// Fare = the flat Solo fare (₱60, unchanged) + a per-km surcharge for the
+// stretch beyond the normal endpoint. The rate is grounded in Tarlac
+// City's real tricycle fare ordinance (IX-4-001-2024), the student-
+// discount row's "per additional kilometer" figure — ₱5/km. The
+// ordinance's ₱20 "first kilometer" charge deliberately does NOT apply
+// here: that's a flagdown/base fee for a trip starting at zero, and this
+// isn't one — it's a continuation of a ride whose own base cost is
+// already covered by the ₱60 flat fare.
+const CAMPUS_COORDS = {
+  sanIsidro: [15.502749, 120.578693],
+  mainCampus: [15.485127, 120.587373]
+};
+const OTHERS_RATE_PER_KM = 5;
+const MAX_OTHERS_EXTRA_KM = 5;
+// Applied to the straight-line distance only when the live routing call
+// fails or times out — real roads are rarely as short as a straight
+// line, so this keeps the fallback from undercharging too badly.
+const OTHERS_STRAIGHT_LINE_BUFFER = 1.3;
+
+function getNormalEndpoint(pickupLocation) {
+  return (pickupLocation || '').includes('San Isidro') ? CAMPUS_COORDS.mainCampus : CAMPUS_COORDS.sanIsidro;
+}
+
+function haversineKm([lat1, lng1], [lat2, lng2]) {
+  const toRad = (deg) => (deg * Math.PI) / 180;
+  const R = 6371;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// Nominatim (OpenStreetMap's free geocoder, no API key) — turns the
+// passenger's typed "Others" text into coordinates. Biased to a
+// Tarlac-area bounding box so short names like "SM" resolve to SM
+// Tarlac, not some other branch elsewhere in the country.
+async function geocodeAddress(text) {
+  const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&viewbox=120.45,15.65,120.75,15.35&bounded=1&q=${encodeURIComponent(text + ', Tarlac City, Philippines')}`;
+  const res = await fetch(url, {
+    headers: { 'User-Agent': 'GoTSUian/1.0 (capstone project, TSU San Isidro)' },
+    signal: AbortSignal.timeout(6000)
+  });
+  if (!res.ok) throw new Error('Location lookup failed');
+  const results = await res.json();
+  if (!results.length) throw new Error('LOCATION_NOT_FOUND');
+  return [parseFloat(results[0].lat), parseFloat(results[0].lon)];
+}
+
+// OSRM's public demo routing server — real road distance. Falls back to
+// a buffered straight-line distance if it's slow, down, or errors, so an
+// "Others" booking never just fails outright because of a free third-
+// party service having a bad moment (important since this gets demoed
+// live).
+async function getRoadDistanceKm(from, to) {
+  try {
+    const url = `https://router.project-osrm.org/route/v1/driving/${from[1]},${from[0]};${to[1]},${to[0]}?overview=false`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
+    if (!res.ok) throw new Error('routing request failed');
+    const data = await res.json();
+    if (data.code !== 'Ok' || !data.routes || !data.routes.length) throw new Error('no route found');
+    return data.routes[0].distance / 1000;
+  } catch (error) {
+    console.warn('OSRM lookup failed, falling back to straight-line distance:', error.message);
+    return haversineKm(from, to) * OTHERS_STRAIGHT_LINE_BUFFER;
+  }
+}
+
+// Computes the real fare for a custom "Others" drop-off. Throws a plain
+// Error with a passenger-facing message on failure (location not found,
+// or outside the service area) — callers should catch and respond 400.
+async function computeOthersFare(pickupLocation, dropoffText) {
+  let point;
+  try {
+    point = await geocodeAddress(dropoffText);
+  } catch (error) {
+    throw new Error('Could not find that location. Please try a more specific address.');
+  }
+
+  const normalEndpoint = getNormalEndpoint(pickupLocation);
+  const straightLineKm = haversineKm(normalEndpoint, point);
+  if (straightLineKm > MAX_OTHERS_EXTRA_KM) {
+    throw new Error(`GoTSUian only serves drop-offs within about ${MAX_OTHERS_EXTRA_KM}km of campus. That location is too far.`);
+  }
+
+  const extraKm = await getRoadDistanceKm(normalEndpoint, point);
+  const extraFare = Math.ceil(extraKm) * OTHERS_RATE_PER_KM;
+  const fare = FARE_BY_HEADCOUNT[1] + extraFare;
+
+  return { fare, extraKm: Math.round(extraKm * 100) / 100, lat: point[0], lng: point[1] };
+}
+
+// QUOTE — lets the client show the real fare before the passenger
+// commits, without creating a ride yet. createRide recomputes the same
+// thing at actual booking time, so nothing from this response is trusted
+// later — this is purely a preview.
+exports.quoteOthersDropoff = async (req, res) => {
+  const { pickup_location, dropoff_text } = req.body;
+  if (!pickup_location || !dropoff_text) {
+    return res.status(400).json({ error: 'Pickup location and drop-off text are required' });
+  }
+  try {
+    const quote = await computeOthersFare(pickup_location, dropoff_text);
+    res.status(200).json(quote);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+};
+
 // CREATE A RIDE REQUEST
-exports.createRide = (req, res) => {
+exports.createRide = async (req, res) => {
   const passenger_account_id = req.user.accountId;
   const {
     pickup_location,
@@ -68,7 +179,8 @@ exports.createRide = (req, res) => {
     pickup_lng,
     ride_type,
     scheduled_at,
-    notes
+    notes,
+    dropoff_is_custom
   } = req.body;
 
   if (!passenger_account_id || !pickup_location || !dropoff_location || !ride_type) {
@@ -77,6 +189,23 @@ exports.createRide = (req, res) => {
 
   if (pickup_location === dropoff_location) {
     return res.status(400).json({ error: 'Pickup and drop-off must be different' });
+  }
+
+  if (dropoff_is_custom && ride_type !== 'Solo') {
+    return res.status(400).json({ error: 'A custom drop-off location is only available for Solo rides.' });
+  }
+
+  // A custom drop-off's fare isn't a lookup — it's geocoded and measured
+  // fresh here, never trusting whatever number the client's earlier
+  // /others-quote preview showed (that endpoint exists purely for UX, not
+  // as a source of truth).
+  let othersQuote = null;
+  if (dropoff_is_custom) {
+    try {
+      othersQuote = await computeOthersFare(pickup_location, dropoff_location);
+    } catch (error) {
+      return res.status(400).json({ error: error.message });
+    }
   }
 
   // A passenger can only have one active (not yet finished) ride at a
@@ -92,16 +221,20 @@ exports.createRide = (req, res) => {
       }
 
       if (ride_type === 'Solo') {
+        const soloFare = othersQuote ? othersQuote.fare : FARE_BY_HEADCOUNT[1];
+        const dropoffLat = othersQuote ? othersQuote.lat : null;
+        const dropoffLng = othersQuote ? othersQuote.lng : null;
+        const extraKm = othersQuote ? othersQuote.extraKm : null;
         const sql = `
-          INSERT INTO rides (passenger_account_id, pickup_location, dropoff_location, pickup_lat, pickup_lng, ride_type, fare, status, scheduled_at, notes)
-          VALUES (?, ?, ?, ?, ?, 'Solo', ?, 'Pending', ?, ?)
+          INSERT INTO rides (passenger_account_id, pickup_location, dropoff_location, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, extra_km, ride_type, fare, status, scheduled_at, notes)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Solo', ?, 'Pending', ?, ?)
         `;
         db.query(
           sql,
-          [passenger_account_id, pickup_location, dropoff_location, pickup_lat || null, pickup_lng || null, FARE_BY_HEADCOUNT[1], scheduled_at || null, notes || null],
+          [passenger_account_id, pickup_location, dropoff_location, pickup_lat || null, pickup_lng || null, dropoffLat, dropoffLng, extraKm, soloFare, scheduled_at || null, notes || null],
           (err, result) => {
             if (err) return res.status(500).json({ error: err.message });
-            res.status(201).json({ message: 'Ride requested', rideId: result.insertId, fare: FARE_BY_HEADCOUNT[1] });
+            res.status(201).json({ message: 'Ride requested', rideId: result.insertId, fare: soloFare });
             emitPendingOrSchedule(scheduled_at);
           }
         );

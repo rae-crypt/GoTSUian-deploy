@@ -2663,6 +2663,22 @@ async function createRideRequest(payload) {
   return data;
 }
 
+// Previews the real fare for a custom "Others" drop-off (geocodes the
+// typed text and measures the distance server-side) without creating a
+// ride yet — lets the confirm modal show the actual number instead of a
+// placeholder. Throws with a passenger-facing message on failure (location
+// not found, or outside the service area).
+async function quoteOthersDropoff(pickupLocation, dropoffText) {
+  const res = await fetch(`${RIDES_API_URL}/others-quote`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ pickup_location: pickupLocation, dropoff_text: dropoffText })
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Could not calculate a fare for that location.');
+  return data;
+}
+
 // Fire-and-forget — attaches a GPS snapshot to an already-created ride once
 // it resolves. Never blocks or surfaces errors to the passenger; the ride
 // itself was already created successfully regardless of whether this lands.
@@ -3011,6 +3027,37 @@ function setupRideTypeToggle() {
   });
 }
 
+// "Other" drop-off — reveals the free-text field and forces Solo (a
+// custom destination can't be pooled with anyone else's fixed-route trip)
+// the moment it's picked, reverting both the moment the passenger picks
+// a fixed campus again.
+function setupOthersDropoff() {
+  const dropoffSelect = document.querySelector('#dropoff-location');
+  const otherField = document.querySelector('#dropoff-other-field');
+  const otherInput = document.querySelector('#dropoff-other-text');
+  const sharedBtn = document.querySelector('.ride-type-btn[data-ride-type="Shared"]');
+  const soloBtn = document.querySelector('.ride-type-btn[data-ride-type="Solo"]');
+  const hiddenSelect = document.querySelector('#ride-type');
+  if (!dropoffSelect || !otherField) return;
+
+  dropoffSelect.addEventListener('change', () => {
+    const isOther = dropoffSelect.value === '__other__';
+    otherField.style.display = isOther ? '' : 'none';
+
+    if (isOther) {
+      if (otherInput) otherInput.focus();
+      if (soloBtn && sharedBtn) {
+        soloBtn.classList.add('is-selected');
+        sharedBtn.classList.remove('is-selected');
+        sharedBtn.disabled = true;
+      }
+      if (hiddenSelect) hiddenSelect.value = 'Solo';
+    } else if (sharedBtn) {
+      sharedBtn.disabled = false;
+    }
+  });
+}
+
 function setupPassengerRideRequestForm() {
   const form = document.querySelector('#ride-request-form');
   if (!form) return;
@@ -3025,7 +3072,17 @@ function setupPassengerRideRequestForm() {
     }
 
     const pickupLocation = document.querySelector('#pickup-location').value;
-    const dropoffLocation = document.querySelector('#dropoff-location').value;
+    const dropoffSelectValue = document.querySelector('#dropoff-location').value;
+    // "Other" is a third dropdown option (value "__other__") that reveals a
+    // free-text field instead of picking one of the two fixed campuses —
+    // see setupOthersDropoff(). The real destination text lives there, not
+    // in the select itself.
+    const isCustomDropoff = dropoffSelectValue === '__other__';
+    const dropoffOtherInput = document.querySelector('#dropoff-other-text');
+    const dropoffOtherError = document.querySelector('#dropoff-other-error');
+    const dropoffLocation = isCustomDropoff
+      ? (dropoffOtherInput ? dropoffOtherInput.value.trim() : '')
+      : dropoffSelectValue;
     const rideTypeSelect = document.querySelector('#ride-type');
     // The highlighted Solo/Shared BUTTON is the source of truth, not the
     // hidden <select> that mirrors it. form.reset() (fired after every
@@ -3035,9 +3092,13 @@ function setupPassengerRideRequestForm() {
     // Reading what the passenger can actually see makes that mismatch
     // impossible, regardless of reset timing or a stale cached script.
     const selectedRideTypeBtn = form.querySelector('.ride-type-btn.is-selected');
-    const rideType = selectedRideTypeBtn
-      ? selectedRideTypeBtn.getAttribute('data-ride-type')
-      : rideTypeSelect.value;
+    // A custom drop-off is always Solo (see setupOthersDropoff() — the
+    // Shared button is disabled the moment "Other" is picked), but this is
+    // the actual value creating the ride, so it's enforced here too, not
+    // just in the UI.
+    const rideType = isCustomDropoff
+      ? 'Solo'
+      : (selectedRideTypeBtn ? selectedRideTypeBtn.getAttribute('data-ride-type') : rideTypeSelect.value);
     // Keep the select in step so the confirmation modal's label below
     // (read from its selected <option>) describes the same ride type.
     rideTypeSelect.value = rideType;
@@ -3046,9 +3107,12 @@ function setupPassengerRideRequestForm() {
     const scheduledAt = scheduleMinutes > 0 ? toMySQLDateTime(new Date(Date.now() + scheduleMinutes * 60000)) : null;
     const routeError = document.querySelector('#route-error');
     if (routeError) routeError.textContent = '';
+    if (dropoffOtherError) dropoffOtherError.textContent = '';
 
     if (!pickupLocation || !dropoffLocation) {
-      if (routeError) routeError.textContent = 'Please select both a pickup and a drop-off point.';
+      const message = isCustomDropoff ? 'Please tell us where you want to be dropped off.' : 'Please select both a pickup and a drop-off point.';
+      if (isCustomDropoff && dropoffOtherError) dropoffOtherError.textContent = message;
+      else if (routeError) routeError.textContent = message;
       return;
     }
 
@@ -3057,13 +3121,35 @@ function setupPassengerRideRequestForm() {
       return;
     }
 
+    // A custom drop-off's real fare isn't known until the server geocodes
+    // it and measures the distance — get that quote now, before showing
+    // the confirm modal, so the passenger sees the real number instead of
+    // a placeholder. This never trusts what it gets back for the actual
+    // booking — createRide recomputes the same thing server-side.
+    let othersQuote = null;
+    if (isCustomDropoff) {
+      const submitButtonForQuote = form.querySelector('button[type="submit"]');
+      if (submitButtonForQuote) submitButtonForQuote.disabled = true;
+      try {
+        othersQuote = await quoteOthersDropoff(pickupLocation, dropoffLocation);
+      } catch (error) {
+        if (dropoffOtherError) dropoffOtherError.textContent = error.message || 'Could not calculate a fare for that location.';
+        if (submitButtonForQuote) submitButtonForQuote.disabled = false;
+        return;
+      }
+      if (submitButtonForQuote) submitButtonForQuote.disabled = false;
+    }
+
     // One more explicit "are you sure" before actually creating the ride —
     // easy to fat-finger the wrong campus or ride type otherwise.
     // Fare text comes from the same visible button used to read rideType
     // above, not a separately-maintained figure — one source of truth.
-    const fareText = selectedRideTypeBtn && selectedRideTypeBtn.querySelector('small')
-      ? selectedRideTypeBtn.querySelector('small').textContent
-      : '';
+    // (A custom drop-off has no such button — it uses the real quote.)
+    const fareText = othersQuote
+      ? `₱${othersQuote.fare}`
+      : (selectedRideTypeBtn && selectedRideTypeBtn.querySelector('small')
+        ? selectedRideTypeBtn.querySelector('small').textContent
+        : '');
     const whenLabel = scheduleSelect && scheduleSelect.selectedOptions[0]
       ? scheduleSelect.selectedOptions[0].textContent
       : 'Leave now';
@@ -3101,7 +3187,8 @@ function setupPassengerRideRequestForm() {
         pickup_location: pickupLocation,
         dropoff_location: dropoffLocation,
         ride_type: rideType,
-        scheduled_at: scheduledAt
+        scheduled_at: scheduledAt,
+        dropoff_is_custom: isCustomDropoff
       });
 
       form.reset();
@@ -5578,6 +5665,7 @@ document.addEventListener('DOMContentLoaded', function() {
   setupCertificateDownload();
   setupPassengerRideRequestForm();
   setupRideTypeToggle();
+  setupOthersDropoff();
   setupProfileForm();
   setupChangePasswordForm();
   setupAvailabilityToggle();

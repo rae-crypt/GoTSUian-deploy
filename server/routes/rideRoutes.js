@@ -4,6 +4,7 @@ const rideController = require('../controllers/rideController');
 const authMiddleware = require('../middleware/authMiddleware');
 
 router.post('/', authMiddleware, rideController.createRide);
+router.post('/others-quote', authMiddleware, rideController.quoteOthersDropoff);
 router.get('/pending', authMiddleware, rideController.listPendingRides);
 router.get('/mine', authMiddleware, rideController.getMyRides);
 router.get('/driver', authMiddleware, rideController.getDriverRides);

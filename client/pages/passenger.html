@@ -91,8 +91,15 @@
                 <option value="">Select drop-off point</option>
                 <option value="San Isidro Campus (Tarlac State University)">San Isidro Campus (Tarlac State University)</option>
                 <option value="Main Campus (Tarlac State University)">Main Campus (Tarlac State University)</option>
+                <option value="__other__">Other (type your destination)</option>
               </select>
               <small class="error-msg" id="route-error"></small>
+            </div>
+            <div class="form-field" id="dropoff-other-field" style="display:none;">
+              <label for="dropoff-other-text">Where exactly?</label>
+              <input type="text" id="dropoff-other-text" name="dropoffOther" placeholder="e.g. SM Tarlac">
+              <small class="field-note">Solo only — within about 5km of campus. ₱5 added per extra kilometer beyond the usual drop-off point.</small>
+              <small class="error-msg" id="dropoff-other-error"></small>
             </div>
             <div class="form-field">
               <label>Ride type</label>
