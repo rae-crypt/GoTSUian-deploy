@@ -3233,6 +3233,7 @@ body[data-page="passenger"] .ride-type-btn {
 }
 body[data-page="passenger"] .ride-type-btn small { display: block; font-weight: 500; opacity: 0.85; font-size: 11px; margin-top: 2px; }
 body[data-page="passenger"] .ride-type-btn.is-selected { background: var(--primary); border-color: var(--primary); color: #fff8f6; }
+body[data-page="passenger"] .ride-type-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 body[data-page="passenger"] .field-note { display: block; font-size: 11.5px; color: var(--gt-muted); line-height: 1.5; margin: 4px 0 16px; }
 body[data-page="passenger"] #ride-request-form .btn-primary {
   width: 100%; font-family: inherit; font-size: 15px; font-weight: 700; padding: 14px; border-radius: 12px;

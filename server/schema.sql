@@ -107,6 +107,11 @@ CREATE TABLE IF NOT EXISTS rides (
   dropoff_location VARCHAR(100) NOT NULL,
   pickup_lat DECIMAL(10,7) NULL,
   pickup_lng DECIMAL(10,7) NULL,
+  -- Only set for a custom "Others" drop-off (see computeOthersFare() in
+  -- rideController.js) -- NULL for a normal fixed-campus drop-off.
+  dropoff_lat DECIMAL(10,7) NULL,
+  dropoff_lng DECIMAL(10,7) NULL,
+  extra_km DECIMAL(6,2) NULL,
   ride_type ENUM('Solo', 'Shared') NOT NULL DEFAULT 'Solo',
   pool_id INT NULL,
   fare DECIMAL(6,2) NULL,
@@ -252,3 +257,13 @@ ALTER TABLE violations ADD COLUMN escalated BOOLEAN NOT NULL DEFAULT FALSE AFTER
 -- Admin's Passenger management panel show who's actually logged in right
 -- now instead of the old "has ever booked a ride" heuristic.
 ALTER TABLE student ADD COLUMN is_online BOOLEAN NOT NULL DEFAULT FALSE;
+
+-- === "Others" drop-off migration (run against an EXISTING database) ===
+-- NOT YET DEPLOYED as of this comment -- backlog item, code exists in
+-- rideController.js (computeOthersFare/quoteOthersDropoff) but is not
+-- live on Railway pending adviser/professor/group sign-off. Run this
+-- ALTER only once that approval happens and this feature is actually
+-- being deployed -- do not run it speculatively.
+ALTER TABLE rides ADD COLUMN dropoff_lat DECIMAL(10,7) NULL AFTER pickup_lng;
+ALTER TABLE rides ADD COLUMN dropoff_lng DECIMAL(10,7) NULL AFTER dropoff_lat;
+ALTER TABLE rides ADD COLUMN extra_km DECIMAL(6,2) NULL AFTER dropoff_lng;
