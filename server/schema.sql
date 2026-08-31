@@ -267,3 +267,20 @@ ALTER TABLE student ADD COLUMN is_online BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE rides ADD COLUMN dropoff_lat DECIMAL(10,7) NULL AFTER pickup_lng;
 ALTER TABLE rides ADD COLUMN dropoff_lng DECIMAL(10,7) NULL AFTER dropoff_lat;
 ALTER TABLE rides ADD COLUMN extra_km DECIMAL(6,2) NULL AFTER dropoff_lng;
+
+-- === Admin-granted loyalty certificates migration (run against an EXISTING database) ===
+-- Replaces the old auto-shown-at-5-rides certificate with an admin action.
+-- One row per certificate actually granted (not per eligibility check) --
+-- milestone_rides is a snapshot of the ride count at the moment it was
+-- granted, so the certificate's own text never has to be recomputed later
+-- even as the passenger/driver keeps booking more rides. A given account
+-- can accumulate multiple rows over time as they cross 5, 10, 15...
+CREATE TABLE IF NOT EXISTS loyalty_certificates (
+  certificate_id INT AUTO_INCREMENT PRIMARY KEY,
+  account_id INT NOT NULL,
+  granted_by_admin_id INT NOT NULL,
+  milestone_rides INT NOT NULL,
+  granted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (account_id) REFERENCES user_account(account_id),
+  FOREIGN KEY (granted_by_admin_id) REFERENCES administrator(admin_id)
+);
