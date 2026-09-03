@@ -2309,8 +2309,10 @@ table.admin-table tbody tr:hover { background: var(--light); }
   .admin-panel-head { margin-bottom: 14px; }
   .admin-panel-icon { width: 34px; height: 34px; border-radius: 9px; }
   .admin-panel-icon svg { width: 17px; height: 17px; }
+  .admin-panel-head-text { flex: 1 1 0; min-width: 0; }
   .admin-panel-head-text h2 { font-size: 15.5px; }
   .admin-panel-head-text p { font-size: 12px; }
+  .admin-panel-count { font-size: 11px; padding: 4px 9px; }
 
   .accept-all-zone { width: 100%; margin-top: 4px; }
   .accept-all-wrap { width: 100%; }
