@@ -2981,6 +2981,63 @@ function stopDriverLocationSharing(label) {
   label.textContent = '';
 }
 
+// DRIVER'S OWN "YOU ARE HERE" MARKER WHILE IDLE — mirrors
+// syncPassengerSelfLocationSharing above, but for the opposite window: a
+// driver isn't tracked/sent anywhere while idle (see the comment on
+// syncDriverLocationSharing), so without this a driver waiting for a
+// booking sees a blank map with no sense of their own position. This is
+// purely local display, same as the passenger's version — never sent to
+// the server, since nothing else needs an idle driver's position.
+let driverSelfWatchId = null;
+let driverSelfMarker = null;
+
+async function syncDriverSelfLocationSharing() {
+  if (!driverMapInstance || !navigator.geolocation) return;
+  const user = getStoredUser();
+  if (!isAuthenticated() || user.role !== 'driver') return;
+
+  const rides = await fetchDriverRides();
+  const hasActiveRide = rides.some(r => ['Accepted', 'Picked Up', 'In Progress'].includes(r.status));
+
+  if (!hasActiveRide && driverSelfWatchId === null) {
+    startDriverSelfLocationSharing();
+  } else if (hasActiveRide && driverSelfWatchId !== null) {
+    stopDriverSelfLocationSharing();
+  }
+}
+
+function startDriverSelfLocationSharing() {
+  driverSelfWatchId = navigator.geolocation.watchPosition(
+    (position) => {
+      const point = [position.coords.latitude, position.coords.longitude];
+      if (!driverSelfMarker) {
+        const icon = L.divIcon({
+          className: 'you-are-here-icon',
+          html: '<span class="you-are-here-pulse"></span><span class="you-are-here-dot"></span>',
+          iconSize: [22, 22],
+          iconAnchor: [11, 11]
+        });
+        driverSelfMarker = L.marker(point, { icon, zIndexOffset: 1100 }).addTo(driverMapInstance).bindPopup('You are here');
+      } else {
+        driverSelfMarker.setLatLng(point);
+      }
+    },
+    (error) => console.warn('Could not get driver location', error),
+    { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
+  );
+}
+
+function stopDriverSelfLocationSharing() {
+  if (driverSelfWatchId !== null) {
+    navigator.geolocation.clearWatch(driverSelfWatchId);
+    driverSelfWatchId = null;
+  }
+  if (driverSelfMarker) {
+    driverMapInstance.removeLayer(driverSelfMarker);
+    driverSelfMarker = null;
+  }
+}
+
 // PASSENGER-facing reassurance indicator — only present on passenger.html.
 async function renderAvailableDriversIndicator() {
   const dot = document.querySelector('#availability-dot');
@@ -5767,6 +5824,7 @@ function manageRealtimeConnection() {
     renderDriverRideRequests();
     renderDriverMapTracking();
     syncDriverLocationSharing();
+    syncDriverSelfLocationSharing();
     syncPassengerSelfLocationSharing();
   });
 
@@ -5835,6 +5893,7 @@ function refreshAuthState() {
   renderAvailableDriversIndicator();
   checkRideMilestones();
   syncDriverLocationSharing();
+  syncDriverSelfLocationSharing();
   syncPassengerSelfLocationSharing();
   pollDriverLocation();
   renderDriverMapTracking();
