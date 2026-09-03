@@ -1853,6 +1853,34 @@ body.admin-portal {
 }
 .admin-field textarea { resize: vertical; font-size: 15px; }
 .admin-field input::placeholder { color: #b98d8d; }
+
+/* Show/hide toggle for the admin login password field — same
+   .toggle-eye pattern as auth.html/driver.css/passenger.css, scoped
+   under .admin-field so it doesn't touch admin-field's own input styling. */
+.admin-field .password-input-group { position: relative; display: flex; align-items: center; }
+.admin-field .password-input-group input { padding-right: 46px; }
+.admin-field .password-input-group input[type="password"]::-ms-reveal,
+.admin-field .password-input-group input[type="password"]::-ms-clear { display: none; }
+.admin-field .toggle-eye {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  color: var(--muted);
+}
+.admin-field .toggle-eye svg { width: 20px; height: 20px; }
+.admin-field .toggle-eye.is-showing { color: var(--primary); }
+.admin-field .toggle-eye .eye-off { display: none; }
+.admin-field .toggle-eye.is-showing .eye-on { display: none; }
+.admin-field .toggle-eye.is-showing .eye-off { display: block; }
 .admin-btn-primary {
   width: 100%;
   font-family: inherit;
