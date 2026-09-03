@@ -94,6 +94,20 @@ function emitChatMessage(recipientAccountId) {
   io.to(accountRoom(recipientAccountId)).emit('chat:message');
 }
 
+// The filer of a complaint cares the moment admin marks it Reviewed/Resolved
+// — previously this only ever showed up on their next page load.
+function emitComplaintUpdated(filedByAccountId) {
+  if (!io || !filedByAccountId) return;
+  io.to(accountRoom(filedByAccountId)).emit('complaint:updated');
+}
+
+// Same gap on the other side — a Warning/Violation should reach the
+// account's standing card live, not just after their next refresh.
+function emitViolationIssued(accountId) {
+  if (!io || !accountId) return;
+  io.to(accountRoom(accountId)).emit('violation:issued');
+}
+
 module.exports = {
   initSocket,
   getIO,
@@ -102,5 +116,7 @@ module.exports = {
   emitDriverLocation,
   emitAvailabilityChanged,
   emitDriverAccountStatus,
-  emitChatMessage
+  emitChatMessage,
+  emitComplaintUpdated,
+  emitViolationIssued
 };

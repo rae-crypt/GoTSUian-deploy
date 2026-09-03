@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { emitComplaintUpdated, emitViolationIssued } = require('../socket');
 
 // Categories mirror rules.html's Code of Conduct — passengers report the
 // "For Drivers" violations, drivers report the "For Students / Passengers"
@@ -112,6 +113,10 @@ exports.updateComplaintStatus = (req, res) => {
       if (err) return res.status(500).json({ error: err.message });
       if (result.affectedRows === 0) return res.status(404).json({ error: 'Complaint not found' });
       res.status(200).json({ message: `Complaint marked as ${status}` });
+
+      db.query(`SELECT filed_by_account_id FROM complaints WHERE complaint_id = ?`, [complaintId], (err2, rows) => {
+        if (!err2 && rows[0]) emitComplaintUpdated(rows[0].filed_by_account_id);
+      });
     }
   );
 };
@@ -128,6 +133,7 @@ function insertViolationRow(res, { account_id, issued_by_admin_id, complaint_id,
       if (err) return res.status(500).json({ error: err.message });
 
       const responseBody = { message, escalated, finalSeverity: severity };
+      emitViolationIssued(account_id);
 
       if (!complaint_id) {
         return res.status(201).json(responseBody);
@@ -140,6 +146,10 @@ function insertViolationRow(res, { account_id, issued_by_admin_id, complaint_id,
           if (err2) return res.status(500).json({ error: err2.message });
           responseBody.message += ' and complaint resolved';
           res.status(201).json(responseBody);
+
+          db.query(`SELECT filed_by_account_id FROM complaints WHERE complaint_id = ?`, [complaint_id], (err3, rows) => {
+            if (!err3 && rows[0]) emitComplaintUpdated(rows[0].filed_by_account_id);
+          });
         }
       );
     }
