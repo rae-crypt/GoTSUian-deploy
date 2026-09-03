@@ -2550,11 +2550,16 @@ function fillDashboardWelcome() {
   const welcomeName = document.querySelector('[data-dashboard-welcome]');
   if (!welcomeName) return;
   const user = getStoredUser();
-  const fullName = user.name || user.role || 'User';
-  // "Welcome back, Juan" reads friendlier than "Welcome back, Juan Dela Cruz"
-  // — just the first name here; the full name is still used elsewhere (reviews, admin tables).
-  const displayName = fullName.split(' ')[0];
-  welcomeName.textContent = displayName;
+  // Admin greets as "Admin", not the signed-in admin's own first name —
+  // this is a shared account login, not a personal one.
+  if (user.role === 'admin') {
+    welcomeName.textContent = 'Admin';
+  } else {
+    const fullName = user.name || user.role || 'User';
+    // "Welcome back, Juan" reads friendlier than "Welcome back, Juan Dela Cruz"
+    // — just the first name here; the full name is still used elsewhere (reviews, admin tables).
+    welcomeName.textContent = fullName.split(' ')[0];
+  }
 
   // Matches the "Good morning, Student 👋" style already used in the
   // homepage phone mockup — real time-of-day greeting here since this is
