@@ -4058,6 +4058,15 @@ function setupComplaintPrompts(container) {
   });
 }
 
+// Same "leave in X minutes" scheduled_at a driver's card should surface —
+// otherwise a released scheduled ride looks identical to one just booked,
+// and the driver has no way to see when the passenger actually wants to go.
+function scheduledBadgeHtml(scheduledAt) {
+  if (!scheduledAt) return '';
+  const label = new Date(scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return `<span class="ride-badge tone-info">Scheduled ${label}</span>`;
+}
+
 function renderPendingRideCard(group) {
   if (group.type === 'solo') {
     const ride = group.ride;
@@ -4074,6 +4083,7 @@ function renderPendingRideCard(group) {
         <div class="driver-card-meta">
           <span>Fare: ₱${Number(ride.fare || 60).toFixed(0)}</span>
           <span>${new Date(ride.created_at).toLocaleString()}</span>
+          ${scheduledBadgeHtml(ride.scheduled_at)}
         </div>
         <div class="driver-card-actions">
           <button type="button" class="btn-primary" data-action="accept-ride" data-ride-id="${ride.ride_id}">Accept</button>
@@ -4118,6 +4128,7 @@ function renderPendingRideCard(group) {
       </div>
       <div class="driver-card-meta">
         <span>${names}</span>
+        ${scheduledBadgeHtml(group.scheduled_at)}
       </div>
       ${fareTierRow}
       <p class="driver-card-description">${description}</p>
@@ -5775,6 +5786,15 @@ function manageRealtimeConnection() {
     if (activeChatLoadMessages) activeChatLoadMessages();
     renderPassengerRideStatus();
     renderDriverRideRequests();
+  });
+
+  realtimeSocket.on('complaint:updated', function() {
+    renderMyReports();
+  });
+
+  realtimeSocket.on('violation:issued', function() {
+    renderMyViolations();
+    renderAccountStanding();
   });
 }
 

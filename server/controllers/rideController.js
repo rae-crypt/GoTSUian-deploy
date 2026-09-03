@@ -58,7 +58,7 @@ exports.rearmScheduledRideTimers = function rearmScheduledRideTimers() {
   );
 };
 
-// ─── "OTHERS" DROP-OFF (Solo-only, backlog item, NOT deployed) ──────────
+// ─── "OTHERS" DROP-OFF (Solo-only, LIVE on Railway since 2026-08-26) ────
 // Lets a passenger request a drop-off beyond the normal fixed endpoint
 // (e.g. SM Tarlac, past Main Campus) instead of only the two campuses.
 // Fare = the flat Solo fare (₱60, unchanged) + a per-km surcharge for the

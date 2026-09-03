@@ -259,11 +259,9 @@ ALTER TABLE violations ADD COLUMN escalated BOOLEAN NOT NULL DEFAULT FALSE AFTER
 ALTER TABLE student ADD COLUMN is_online BOOLEAN NOT NULL DEFAULT FALSE;
 
 -- === "Others" drop-off migration (run against an EXISTING database) ===
--- NOT YET DEPLOYED as of this comment -- backlog item, code exists in
--- rideController.js (computeOthersFare/quoteOthersDropoff) but is not
--- live on Railway pending adviser/professor/group sign-off. Run this
--- ALTER only once that approval happens and this feature is actually
--- being deployed -- do not run it speculatively.
+-- LIVE on Railway as of 2026-08-26 -- this ALTER has already been applied
+-- to the production database. Kept here for anyone rebuilding the schema
+-- from scratch (the CREATE TABLE above already includes these columns).
 ALTER TABLE rides ADD COLUMN dropoff_lat DECIMAL(10,7) NULL AFTER pickup_lng;
 ALTER TABLE rides ADD COLUMN dropoff_lng DECIMAL(10,7) NULL AFTER dropoff_lat;
 ALTER TABLE rides ADD COLUMN extra_km DECIMAL(6,2) NULL AFTER dropoff_lng;
