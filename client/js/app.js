@@ -1259,8 +1259,25 @@ const CAMPUS_PIN_COORDS = {
   sanIsidro: [15.502749, 120.578693],
   mainCampus: [15.485127, 120.587373]
 };
-function getPinCoords(locationText) {
-  return (locationText || '').includes('San Isidro') ? CAMPUS_PIN_COORDS.sanIsidro : CAMPUS_PIN_COORDS.mainCampus;
+
+// Coordinates come back from the API as strings often enough that a plain
+// truthiness check isn't enough, and a half-present pair has to read as "no
+// point" rather than quietly becoming NaN on the map.
+function ridePoint(lat, lng) {
+  const latNum = parseFloat(lat);
+  const lngNum = parseFloat(lng);
+  if (!Number.isFinite(latNum) || !Number.isFinite(lngNum)) return null;
+  return [latNum, lngNum];
+}
+
+// A ride stores where it actually starts and ends, so those coordinates are
+// the truth. The campus lookup below is only a fallback for older rides
+// saved before coordinates were recorded — on its own it would drop any
+// non-campus location onto Main Campus, since that's its "not San Isidro"
+// branch.
+function getPinCoords(locationText, lat, lng) {
+  return ridePoint(lat, lng)
+    || ((locationText || '').includes('San Isidro') ? CAMPUS_PIN_COORDS.sanIsidro : CAMPUS_PIN_COORDS.mainCampus);
 }
 
 function clearDriverTracking() {
@@ -1291,6 +1308,14 @@ function clearDriverTracking() {
 // that display just orients them, unlike the passenger side where an
 // inaccurate reference line would be misleading.
 function getRouteForRide(ride) {
+  // A ride between two arbitrary points has no pre-traced path to show. A
+  // straight line between its real endpoints at least points the driver the
+  // right way, where the campus polyline would confidently draw a road they
+  // aren't taking at all.
+  const pickup = ridePoint(ride.pickup_lat, ride.pickup_lng);
+  const dropoff = ridePoint(ride.dropoff_lat, ride.dropoff_lng);
+  if (pickup && dropoff) return [pickup, dropoff];
+
   const pickupIsSanIsidro = (ride.pickup_location || '').includes('San Isidro');
   return pickupIsSanIsidro ? ROUTE_SAN_ISIDRO_TO_MAIN : ROUTE_MAIN_TO_SAN_ISIDRO;
 }
@@ -1344,8 +1369,16 @@ async function pollDriverLocation() {
     }).addTo(passengerMapInstance);
     const pickupIcon = L.divIcon({ className: 'route-pin-icon', html: '<span class="route-pin-badge route-pin-pickup">A</span>', iconSize: [26, 26], iconAnchor: [13, 26] });
     const dropoffIcon = L.divIcon({ className: 'route-pin-icon', html: '<span class="route-pin-badge route-pin-dropoff">B</span>', iconSize: [26, 26], iconAnchor: [13, 26] });
-    driverPickupPin = L.marker(getPinCoords(activeRide.pickup_location), { icon: pickupIcon }).addTo(passengerMapInstance).bindPopup('Pickup: ' + activeRide.pickup_location);
-    driverDropoffPin = L.marker(getPinCoords(activeRide.dropoff_location), { icon: dropoffIcon }).addTo(passengerMapInstance).bindPopup('Drop-off: ' + activeRide.dropoff_location);
+    const pickupPoint = getPinCoords(activeRide.pickup_location, activeRide.pickup_lat, activeRide.pickup_lng);
+    const dropoffPoint = getPinCoords(activeRide.dropoff_location, activeRide.dropoff_lat, activeRide.dropoff_lng);
+    driverPickupPin = L.marker(pickupPoint, { icon: pickupIcon }).addTo(passengerMapInstance).bindPopup('Pickup: ' + activeRide.pickup_location);
+    driverDropoffPin = L.marker(dropoffPoint, { icon: dropoffIcon }).addTo(passengerMapInstance).bindPopup('Drop-off: ' + activeRide.dropoff_location);
+    // The map opens on a fixed view between the two campuses, which is the
+    // wrong part of the province for a ride booked anywhere else. Framing the
+    // trip's own endpoints once, as the ride starts, puts the passenger where
+    // their ride actually is. Only on this first pass, so it never yanks the
+    // view back while they're panning around during the trip.
+    passengerMapInstance.fitBounds(L.latLngBounds([pickupPoint, dropoffPoint]).pad(0.3));
     const legend = document.querySelector('#route-legend');
     if (legend) legend.style.display = 'flex';
   }
@@ -1411,6 +1444,10 @@ function startPassengerSelfLocationSharing() {
           iconAnchor: [11, 11]
         });
         passengerSelfMarker = L.marker(point, { icon, zIndexOffset: 1100 }).addTo(passengerMapInstance).bindPopup('You are here');
+        // Without this the map sits on its default view between the two
+        // campuses, so a passenger anywhere else opens their dashboard looking
+        // at the wrong town with their own dot off-screen.
+        passengerMapInstance.setView(point, 15);
       } else {
         passengerSelfMarker.setLatLng(point);
       }
@@ -3030,6 +3067,10 @@ function startDriverSelfLocationSharing() {
           iconAnchor: [11, 11]
         });
         driverSelfMarker = L.marker(point, { icon, zIndexOffset: 1100 }).addTo(driverMapInstance).bindPopup('You are here');
+        // Same reason as the passenger's own marker: a driver waiting for a
+        // booking outside the campus area would otherwise be staring at a map
+        // of somewhere they aren't.
+        driverMapInstance.setView(point, 15);
       } else {
         driverSelfMarker.setLatLng(point);
       }
