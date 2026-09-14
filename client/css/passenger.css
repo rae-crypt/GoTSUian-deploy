@@ -3225,6 +3225,37 @@ body[data-page="passenger"] .form-field select {
   width: 100%; font-family: inherit; font-size: 14.5px; padding: 11px 14px; border-radius: 11px;
   border: 1.5px solid #f1d9d9; background: var(--light); color: var(--text);
 }
+/* Text inputs had no rule of their own, so the pickup and drop-off boxes
+   rendered as raw browser defaults next to the styled select. */
+body[data-page="passenger"] .form-field input[type="text"] {
+  width: 100%; box-sizing: border-box; font-family: inherit; font-size: 14.5px;
+  padding: 11px 14px; border-radius: 11px;
+  border: 1.5px solid #f1d9d9; background: var(--light); color: var(--text);
+}
+body[data-page="passenger"] .form-field input[type="text"]:focus {
+  outline: none; border-color: var(--primary);
+}
+body[data-page="passenger"] .form-field input[type="text"]::placeholder { color: #b08a8a; }
+body[data-page="passenger"] .form-field input[type="text"]:disabled { opacity: 0.7; }
+
+/* ---- drop-off type-ahead ---- */
+body[data-page="passenger"] .place-suggest-wrap { position: relative; }
+body[data-page="passenger"] .place-suggest-list {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 500;
+  margin: 0; padding: 4px; list-style: none;
+  background: var(--white); border: 1.5px solid #f1d9d9; border-radius: 11px;
+  box-shadow: var(--shadow); max-height: 240px; overflow-y: auto;
+}
+body[data-page="passenger"] .place-suggest-item {
+  display: block; width: 100%; text-align: left; cursor: pointer;
+  font-family: inherit; font-size: 13.5px; line-height: 1.45; color: var(--text);
+  padding: 9px 11px; border: none; border-radius: 8px; background: transparent;
+}
+body[data-page="passenger"] .place-suggest-item:hover,
+body[data-page="passenger"] .place-suggest-item:focus-visible {
+  background: var(--light); outline: none;
+}
+
 body[data-page="passenger"] .ride-type-select-hidden { display: none; }
 body[data-page="passenger"] .ride-type-toggle { display: flex; gap: 8px; }
 body[data-page="passenger"] .ride-type-btn {
