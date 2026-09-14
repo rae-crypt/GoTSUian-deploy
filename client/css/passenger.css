@@ -3256,6 +3256,22 @@ body[data-page="passenger"] .place-suggest-item:focus-visible {
   background: var(--light); outline: none;
 }
 
+/* Error lines reserve height so the form doesn't jump when a message appears.
+   The drop-off field carries two of them (its own and the shared route error),
+   which reserved that space twice over and left a visible hole above the ride
+   type. Collapsing only the empty ones keeps the form tight; whichever error
+   actually fires still takes its space. */
+body[data-page="passenger"] #ride-request-form .error-msg:empty {
+  min-height: 0; margin-top: 0;
+}
+
+/* Sized to share a row with Shared. On its own it stretched into a full-width
+   slab that read as the page's main button, competing with "Request ride". */
+body[data-page="passenger"] .ride-type-toggle .ride-type-btn:only-child {
+  flex: 0 1 auto; align-self: flex-start; padding-left: 26px; padding-right: 26px;
+  cursor: default;
+}
+
 body[data-page="passenger"] .ride-type-select-hidden { display: none; }
 body[data-page="passenger"] .ride-type-toggle { display: flex; gap: 8px; }
 body[data-page="passenger"] .ride-type-btn {
