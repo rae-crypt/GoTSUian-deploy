@@ -3831,8 +3831,8 @@ async function renderPassengerRideStatus() {
 // ride hits a key transition (driver on the way, picked up, arrived at
 // destination), instead of the ride silently vanishing from the dashboard
 // the moment it's marked Completed. Each milestone only shows once per
-// ride+status, tracked in sessionStorage so it doesn't reappear on every
-// refresh or poll.
+// ride+status, tracked in localStorage so it doesn't reappear on every
+// refresh, poll, or login.
 const RIDE_MILESTONES = {
   Accepted: {
     icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21c-4-4.5-7-8-7-11a7 7 0 0 1 14 0c0 3-3 6.5-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>',
@@ -3877,9 +3877,15 @@ async function checkRideMilestones() {
   const milestone = RIDE_MILESTONES[latest.status];
   if (!milestone) return;
 
+  // localStorage, not sessionStorage: the auth token lives in sessionStorage
+  // and is cleared on logout, so a milestone marked seen there was forgotten
+  // the moment the passenger logged out. Logging back in re-showed the same
+  // "your trip was cancelled" popup for a ride they had already dismissed,
+  // every single time. localStorage survives logout, so an acknowledged
+  // milestone stays acknowledged.
   const seenKey = `ride-milestone-${latest.ride_id}-${latest.status}`;
-  if (sessionStorage.getItem(seenKey)) return;
-  sessionStorage.setItem(seenKey, 'shown');
+  if (localStorage.getItem(seenKey)) return;
+  localStorage.setItem(seenKey, 'shown');
 
   showRideMilestoneModal(milestone, latest);
 }
@@ -5984,6 +5990,14 @@ function manageRealtimeConnection() {
     syncDriverLocationSharing();
     syncDriverSelfLocationSharing();
     syncPassengerSelfLocationSharing();
+    // These render the booking history, the driver's own counters, and the
+    // admin dashboard. They were left out originally, so those screens only
+    // ever showed whatever was true at page load — a completed ride or a new
+    // booking wouldn't appear until someone manually refreshed.
+    renderBookingsList();
+    renderDriverDashboardStats();
+    renderAdminBookings();
+    renderAdminStats();
   });
 
   realtimeSocket.on('driver:location', function() {
