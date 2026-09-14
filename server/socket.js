@@ -108,6 +108,14 @@ function emitViolationIssued(accountId) {
   io.to(accountRoom(accountId)).emit('violation:issued');
 }
 
+// A certificate is granted by an admin acting on someone else's account, so
+// the recipient has no reason to reload just then — without this their
+// loyalty card kept showing the old count until they happened to refresh.
+function emitLoyaltyGranted(accountId) {
+  if (!io || !accountId) return;
+  io.to(accountRoom(accountId)).emit('loyalty:granted');
+}
+
 module.exports = {
   initSocket,
   getIO,
@@ -118,5 +126,6 @@ module.exports = {
   emitDriverAccountStatus,
   emitChatMessage,
   emitComplaintUpdated,
-  emitViolationIssued
+  emitViolationIssued,
+  emitLoyaltyGranted
 };

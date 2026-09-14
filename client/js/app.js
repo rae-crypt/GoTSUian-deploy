@@ -6026,6 +6026,10 @@ function manageRealtimeConnection() {
     renderMyViolations();
     renderAccountStanding();
   });
+
+  realtimeSocket.on('loyalty:granted', function() {
+    renderLoyaltyStatus();
+  });
 }
 
 // Bundles every function whose only job is to reflect the current
