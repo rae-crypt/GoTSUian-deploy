@@ -119,6 +119,12 @@
               </select>
             </div>
 
+            <!-- Advance booking hidden for now. Every ride leaves immediately
+                 while this is commented out: the booking code already treats a
+                 missing schedule field as "leave now", so nothing else needed
+                 changing and uncommenting this block brings the feature back
+                 exactly as it was. The scheduling logic on the server is
+                 untouched and still works.
             <div class="form-field">
               <label for="ride-schedule">When</label>
               <select id="ride-schedule" name="scheduledIn">
@@ -130,7 +136,8 @@
                 <option value="60">In 1 hour</option>
               </select>
             </div>
-            <small class="field-note">Your ride leaves right away. "When" lets you time a ride for right after your class ends.</small>
+            -->
+            <small class="field-note">Your ride leaves right away.</small>
 
             <button type="submit" class="btn-primary">Request ride</button>
           </form>
@@ -263,6 +270,6 @@
   </footer>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="../js/app.js?v=163"></script>
+  <script src="../js/app.js?v=164"></script>
 </body>
 </html>
