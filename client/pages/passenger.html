@@ -83,7 +83,15 @@
                 <option value="">Select pickup point</option>
                 <option value="San Isidro Campus (Tarlac State University)">San Isidro Campus (Tarlac State University)</option>
                 <option value="Main Campus (Tarlac State University)">Main Campus (Tarlac State University)</option>
+                <option value="__current__">Use my current location</option>
+                <option value="__other__">Other (type an address)</option>
               </select>
+            </div>
+            <div class="form-field" id="pickup-other-field" style="display:none;">
+              <label for="pickup-other-text">Pickup address</label>
+              <input type="text" id="pickup-other-text" name="pickupOther" placeholder="e.g. Barangay Hall, Cut-cut">
+              <small class="field-note">Solo only — a pickup away from the campuses can't be pooled with another student's trip.</small>
+              <small class="error-msg" id="pickup-other-error"></small>
             </div>
             <div class="form-field">
               <label for="dropoff-location">Drop-off location</label>
@@ -91,6 +99,7 @@
                 <option value="">Select drop-off point</option>
                 <option value="San Isidro Campus (Tarlac State University)">San Isidro Campus (Tarlac State University)</option>
                 <option value="Main Campus (Tarlac State University)">Main Campus (Tarlac State University)</option>
+                <option value="__current__">Use my current location</option>
                 <option value="__other__">Other (type your destination)</option>
               </select>
               <small class="error-msg" id="route-error"></small>
@@ -257,6 +266,6 @@
   </footer>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="../js/app.js?v=157"></script>
+  <script src="../js/app.js?v=158"></script>
 </body>
 </html>
