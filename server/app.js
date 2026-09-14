@@ -39,7 +39,23 @@ app.use(express.json());
 // via LAN IP, or through an ngrok tunnel. Previously the frontend was only
 // ever opened via Live Server on a different port, which is why every API
 // URL used to be hardcoded to http://localhost:3000.
-app.use(express.static(path.join(__dirname, '..', 'client')));
+// The ?v= suffixes on app.js and the stylesheets only bust their caches if
+// the PAGE asking for them is itself current — and phones hold onto HTML for
+// a long time by default, since nothing here told them otherwise. The result
+// was a deploy going out, the page still loading its old HTML from cache, and
+// that old HTML still requesting the previous ?v=, so a device could sit on a
+// stale build through any number of refreshes and re-logins.
+//
+// "no-cache" doesn't mean don't store it — it means ask before reusing it. The
+// browser still keeps the copy and still gets a cheap 304 when nothing has
+// changed; it just can't serve a stale page without checking first. Everything
+// else (scripts, styles, images) keeps caching normally, which is safe because
+// those are the things the ?v= suffixes version.
+app.use(express.static(path.join(__dirname, '..', 'client'), {
+  setHeaders(res, filePath) {
+    if (filePath.endsWith('.html')) res.setHeader('Cache-Control', 'no-cache');
+  }
+}));
 
 app.get('/', (req, res) => {
   res.redirect('/pages/index.html');
