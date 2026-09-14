@@ -15,7 +15,30 @@
 const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
 const FROM_EMAIL = 'noreply@gotsuian.com';
 
+// Local development has no SendGrid key — the real one lives only in
+// Railway's dashboard variables, and copying it onto a laptop is one more
+// place for it to leak from. Without this, every OTP send fails locally and
+// registration can't be tested at all. Printing the code to the terminal
+// instead keeps the key off development machines entirely.
+//
+// This can never take effect in production: Railway always has the variable
+// set, so the branch below is unreachable there. The warning is deliberately
+// loud so that a deploy which somehow lost the key is obvious in the logs
+// rather than silently accepting registrations nobody can complete.
 async function sendMail({ to, subject, text, html }) {
+  if (!SENDGRID_API_KEY) {
+    console.warn(
+      '\n' +
+      '  ┌─────────────────────────────────────────────────────────────┐\n' +
+      '  │  NO SENDGRID_API_KEY — EMAIL NOT SENT (local dev fallback)  │\n' +
+      '  └─────────────────────────────────────────────────────────────┘\n' +
+      `  To:      ${to}\n` +
+      `  Subject: ${subject}\n` +
+      `  ${text}\n`
+    );
+    return;
+  }
+
   const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
     method: 'POST',
     headers: {
