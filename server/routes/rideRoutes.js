@@ -6,6 +6,7 @@ const authMiddleware = require('../middleware/authMiddleware');
 router.post('/', authMiddleware, rideController.createRide);
 router.post('/others-quote', authMiddleware, rideController.quoteOthersDropoff);
 router.post('/reverse-geocode', authMiddleware, rideController.reverseGeocode);
+router.post('/search-places', authMiddleware, rideController.searchPlaces);
 router.get('/pending', authMiddleware, rideController.listPendingRides);
 router.get('/mine', authMiddleware, rideController.getMyRides);
 router.get('/driver', authMiddleware, rideController.getDriverRides);

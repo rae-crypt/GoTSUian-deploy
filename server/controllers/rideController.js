@@ -142,6 +142,41 @@ async function reverseGeocodePoint(lat, lng) {
   return data.display_name.split(',').slice(0, 3).map(s => s.trim()).filter(Boolean).join(', ');
 }
 
+// Type-ahead for the drop-off box. Same Tarlac-biased Nominatim search that
+// geocodeAddress uses, but it returns several candidates instead of silently
+// committing to the first: a partial string like "SM" matches plenty of
+// places, and letting the passenger pick the right one beats guessing and
+// sending a driver somewhere else.
+//
+// Failures deliberately return an empty list rather than an error status —
+// this fires while someone is typing, and a red message every few keystrokes
+// because a free geocoder hiccuped would be worse than no suggestions.
+exports.searchPlaces = async (req, res) => {
+  const query = (req.body.q || '').trim();
+  if (query.length < 3) return res.status(200).json({ places: [] });
+
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?format=json&limit=6&viewbox=120.45,15.65,120.75,15.35&bounded=1&q=${encodeURIComponent(query + ', Tarlac, Philippines')}`;
+    const response = await fetch(url, {
+      headers: { 'User-Agent': 'GoTSUian/1.0 (capstone project, TSU San Isidro)' },
+      signal: AbortSignal.timeout(6000)
+    });
+    if (!response.ok) throw new Error('Place search failed');
+    const results = await response.json();
+
+    res.status(200).json({
+      places: results.map((result) => ({
+        label: result.display_name.split(',').slice(0, 3).map(s => s.trim()).filter(Boolean).join(', '),
+        lat: parseFloat(result.lat),
+        lng: parseFloat(result.lon)
+      }))
+    });
+  } catch (error) {
+    console.warn('Place search failed:', error.message);
+    res.status(200).json({ places: [] });
+  }
+};
+
 // Used by the passenger booking form's "Use my current location" option.
 // A failure here is never fatal to booking — the client falls back to
 // showing the raw coordinates as the location label.

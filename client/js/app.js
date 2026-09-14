@@ -3412,6 +3412,93 @@ function setupOthersDropoff() {
   setupCustomLocationField('dropoff');
 }
 
+async function searchPlaces(query) {
+  const res = await fetch(`${RIDES_API_URL}/search-places`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ q: query })
+  });
+  const data = await res.json();
+  return data.places || [];
+}
+
+// Type-ahead under the drop-off box. Picking a suggestion stores its exact
+// coordinates, so the server uses the place the passenger actually chose
+// rather than re-guessing from the text — the difference between a driver
+// arriving at the right SM branch and the wrong one.
+function setupDropoffSuggestions() {
+  const input = document.querySelector('#dropoff-other-text');
+  if (!input || !input.parentNode) return;
+
+  const wrapper = document.createElement('div');
+  wrapper.className = 'place-suggest-wrap';
+  input.parentNode.insertBefore(wrapper, input);
+  wrapper.appendChild(input);
+
+  const list = document.createElement('ul');
+  list.className = 'place-suggest-list';
+  list.hidden = true;
+  wrapper.appendChild(list);
+
+  let debounceTimer = null;
+  let requestToken = 0;
+
+  function closeList() {
+    list.hidden = true;
+    list.innerHTML = '';
+  }
+
+  function renderSuggestions(places) {
+    if (!places.length) return closeList();
+
+    list.innerHTML = places
+      .map((place, index) => `<li><button type="button" class="place-suggest-item" data-index="${index}">${escapeHtml(place.label)}</button></li>`)
+      .join('');
+    list.hidden = false;
+
+    list.querySelectorAll('.place-suggest-item').forEach((button) => {
+      button.addEventListener('click', () => {
+        const place = places[Number(button.dataset.index)];
+        input.value = place.label;
+        customLocationCoords.dropoff = { lat: place.lat, lng: place.lng };
+        closeList();
+      });
+    });
+  }
+
+  input.addEventListener('input', () => {
+    // Typing after choosing a suggestion means the stored point no longer
+    // describes what's written, so the server falls back to geocoding text.
+    customLocationCoords.dropoff = null;
+    const query = input.value.trim();
+    clearTimeout(debounceTimer);
+    if (query.length < 3) return closeList();
+
+    // Nominatim's usage policy asks for at most one request per second, and
+    // a lookup per keystroke would blow past that immediately.
+    debounceTimer = setTimeout(async () => {
+      const token = ++requestToken;
+      let places = [];
+      try {
+        places = await searchPlaces(query);
+      } catch (error) {
+        return closeList();
+      }
+      // A slower earlier request must not overwrite a newer one's results.
+      if (token !== requestToken) return;
+      renderSuggestions(places);
+    }, 450);
+  });
+
+  input.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') closeList();
+  });
+
+  document.addEventListener('click', (event) => {
+    if (!wrapper.contains(event.target)) closeList();
+  });
+}
+
 function setupPassengerRideRequestForm() {
   const form = document.querySelector('#ride-request-form');
   if (!form) return;
@@ -6116,6 +6203,7 @@ document.addEventListener('DOMContentLoaded', function() {
   setupPassengerRideRequestForm();
   setupRideTypeToggle();
   setupOthersDropoff();
+  setupDropoffSuggestions();
   setupProfileForm();
   setupChangePasswordForm();
   setupAvailabilityToggle();
