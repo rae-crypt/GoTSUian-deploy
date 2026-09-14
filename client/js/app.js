@@ -3437,7 +3437,12 @@ function setupPassengerRideRequestForm() {
       ? (pickupOtherInput ? pickupOtherInput.value.trim() : '')
       : pickupSelectValue;
 
-    const dropoffSelectValue = document.querySelector('#dropoff-location').value;
+    // With the campus presets hidden, drop-off is a plain "type your
+    // destination" box with no select above it. An absent select therefore
+    // means every drop-off is a typed one; if the presets are restored, this
+    // reads them again with no further change.
+    const dropoffSelect = document.querySelector('#dropoff-location');
+    const dropoffSelectValue = dropoffSelect ? dropoffSelect.value : '__other__';
     const isCustomDropoff = isCustomLocationValue(dropoffSelectValue);
     const dropoffOtherInput = document.querySelector('#dropoff-other-text');
     const dropoffOtherError = document.querySelector('#dropoff-other-error');
