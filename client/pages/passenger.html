@@ -77,44 +77,41 @@
         <article class="dashboard-card">
           <h3><span class="card-icon-badge"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 11V6.5C6 5.1 7.1 4 8.5 4H11.5C12.9 4 14 5.1 14 6.5V11"/><rect x="4.5" y="11" width="11" height="4" rx="1.5"/></svg></span>Request a ride</h3>
           <form id="ride-request-form" class="auth-form">
+            <!-- The campus presets and the typed-address option are commented
+                 out rather than deleted. The fixed San Isidro <-> Main Campus
+                 route is expected back once the bridge is repaired, and the
+                 booking logic still understands every one of these values, so
+                 restoring the old form means uncommenting these lines (and the
+                 Shared button further down). -->
             <div class="form-field">
               <label for="pickup-location">Pickup location</label>
               <select id="pickup-location" name="pickup" required>
                 <option value="">Select pickup point</option>
-                <option value="San Isidro Campus (Tarlac State University)">San Isidro Campus (Tarlac State University)</option>
-                <option value="Main Campus (Tarlac State University)">Main Campus (Tarlac State University)</option>
+                <!-- <option value="San Isidro Campus (Tarlac State University)">San Isidro Campus (Tarlac State University)</option> -->
+                <!-- <option value="Main Campus (Tarlac State University)">Main Campus (Tarlac State University)</option> -->
                 <option value="__current__">Use my current location</option>
-                <option value="__other__">Other (type an address)</option>
+                <!-- <option value="__other__">Other (type an address)</option> -->
               </select>
             </div>
             <div class="form-field" id="pickup-other-field" style="display:none;">
-              <label for="pickup-other-text">Pickup address</label>
-              <input type="text" id="pickup-other-text" name="pickupOther" placeholder="e.g. Barangay Hall, Cut-cut">
-              <small class="field-note">Solo only — a pickup away from the campuses can't be pooled with another student's trip.</small>
+              <label for="pickup-other-text">Your pickup point</label>
+              <input type="text" id="pickup-other-text" name="pickupOther" placeholder="Your location will appear here">
               <small class="error-msg" id="pickup-other-error"></small>
             </div>
             <div class="form-field">
-              <label for="dropoff-location">Drop-off location</label>
-              <select id="dropoff-location" name="dropoff" required>
-                <option value="">Select drop-off point</option>
-                <option value="San Isidro Campus (Tarlac State University)">San Isidro Campus (Tarlac State University)</option>
-                <option value="Main Campus (Tarlac State University)">Main Campus (Tarlac State University)</option>
-                <option value="__current__">Use my current location</option>
-                <option value="__other__">Other (type your destination)</option>
-              </select>
-              <small class="error-msg" id="route-error"></small>
-            </div>
-            <div class="form-field" id="dropoff-other-field" style="display:none;">
-              <label for="dropoff-other-text">Where exactly?</label>
-              <input type="text" id="dropoff-other-text" name="dropoffOther" placeholder="e.g. SM Tarlac">
-              <small class="field-note">Solo only — within about 5km of campus. ₱5 added per extra kilometer beyond the usual drop-off point.</small>
+              <label for="dropoff-other-text">Drop-off location</label>
+              <input type="text" id="dropoff-other-text" name="dropoff" placeholder="Type your destination" required>
               <small class="error-msg" id="dropoff-other-error"></small>
+              <small class="error-msg" id="route-error"></small>
             </div>
             <div class="form-field">
               <label>Ride type</label>
               <div class="ride-type-toggle" role="group" aria-label="Ride type">
                 <button type="button" class="ride-type-btn is-selected" data-ride-type="Solo">Solo<small>₱60</small></button>
-                <button type="button" class="ride-type-btn" data-ride-type="Shared">Shared<small>₱20–35</small></button>
+                <!-- Shared hidden: pooling groups riders by an identical pickup
+                     and drop-off, which only ever holds for the two fixed campus
+                     points. With every booking now starting from a passenger's
+                     own GPS position, no two riders would ever match. -->
               </div>
               <select id="ride-type" name="rideType" class="ride-type-select-hidden" aria-hidden="true" tabindex="-1">
                 <option value="Solo">Solo — ₱60</option>
@@ -133,7 +130,7 @@
                 <option value="60">In 1 hour</option>
               </select>
             </div>
-            <small class="field-note">Solo leaves right away. Shared waits for more students — fare drops the more who join. "When" lets you time a ride for right after your class ends.</small>
+            <small class="field-note">Your ride leaves right away. "When" lets you time a ride for right after your class ends.</small>
 
             <button type="submit" class="btn-primary">Request ride</button>
           </form>
@@ -266,6 +263,6 @@
   </footer>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="../js/app.js?v=160"></script>
+  <script src="../js/app.js?v=161"></script>
 </body>
 </html>
