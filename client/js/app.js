@@ -2860,11 +2860,18 @@ async function createRideRequest(payload) {
 // ride yet — lets the confirm modal show the actual number instead of a
 // placeholder. Throws with a passenger-facing message on failure (location
 // not found, or outside the service area).
-async function quoteOthersDropoff(pickupLocation, dropoffText) {
+async function quoteOthersDropoff(pickupLocation, dropoffText, options) {
+  const { pickupIsCustom, dropoffCoords } = options || {};
   const res = await fetch(`${RIDES_API_URL}/others-quote`, {
     method: 'POST',
     headers: getAuthHeaders(),
-    body: JSON.stringify({ pickup_location: pickupLocation, dropoff_text: dropoffText })
+    body: JSON.stringify({
+      pickup_location: pickupLocation,
+      dropoff_text: dropoffText,
+      pickup_is_custom: !!pickupIsCustom,
+      dropoff_lat: dropoffCoords ? dropoffCoords.lat : null,
+      dropoff_lng: dropoffCoords ? dropoffCoords.lng : null
+    })
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Could not calculate a fare for that location.');
@@ -3276,35 +3283,133 @@ function setupRideTypeToggle() {
   });
 }
 
-// "Other" drop-off — reveals the free-text field and forces Solo (a
-// custom destination can't be pooled with anyone else's fixed-route trip)
-// the moment it's picked, reverting both the moment the passenger picks
-// a fixed campus again.
-function setupOthersDropoff() {
+// Either endpoint can be a place that isn't one of the two campuses —
+// picked off the passenger's own GPS ("__current__") or typed by hand
+// ("__other__"). Both reveal the same free-text field; the only difference
+// is whether it gets filled in automatically.
+function isCustomLocationValue(value) {
+  return value === '__current__' || value === '__other__';
+}
+
+// Coordinates captured by "Use my current location", kept per side. Cleared
+// the moment the passenger edits that field by hand, because the text no
+// longer describes the captured point and sending both would put the pin
+// somewhere the address doesn't match.
+const customLocationCoords = { pickup: null, dropoff: null };
+
+async function reverseGeocodeCoords(lat, lng) {
+  const res = await fetch(`${RIDES_API_URL}/reverse-geocode`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ lat, lng })
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Reverse lookup failed');
+  return data.label;
+}
+
+// Shared pooling matches riders by an exact pickup/drop-off text match, so
+// it only works between the fixed campus points — a freely-entered location
+// would never match anyone else's. Whenever either side is custom, the ride
+// is forced to Solo and the Shared button is locked.
+function syncRideTypeAvailability() {
+  const pickupSelect = document.querySelector('#pickup-location');
   const dropoffSelect = document.querySelector('#dropoff-location');
-  const otherField = document.querySelector('#dropoff-other-field');
-  const otherInput = document.querySelector('#dropoff-other-text');
   const sharedBtn = document.querySelector('.ride-type-btn[data-ride-type="Shared"]');
   const soloBtn = document.querySelector('.ride-type-btn[data-ride-type="Solo"]');
   const hiddenSelect = document.querySelector('#ride-type');
-  if (!dropoffSelect || !otherField) return;
+  if (!sharedBtn || !soloBtn) return;
 
-  dropoffSelect.addEventListener('change', () => {
-    const isOther = dropoffSelect.value === '__other__';
-    otherField.style.display = isOther ? '' : 'none';
+  const anyCustom = isCustomLocationValue(pickupSelect && pickupSelect.value)
+    || isCustomLocationValue(dropoffSelect && dropoffSelect.value);
 
-    if (isOther) {
-      if (otherInput) otherInput.focus();
-      if (soloBtn && sharedBtn) {
-        soloBtn.classList.add('is-selected');
-        sharedBtn.classList.remove('is-selected');
-        sharedBtn.disabled = true;
+  sharedBtn.disabled = anyCustom;
+  if (anyCustom) {
+    soloBtn.classList.add('is-selected');
+    sharedBtn.classList.remove('is-selected');
+    if (hiddenSelect) hiddenSelect.value = 'Solo';
+  }
+}
+
+function fillWithCurrentLocation(side) {
+  const input = document.querySelector(`#${side}-other-text`);
+  const error = document.querySelector(`#${side}-other-error`);
+  if (!input) return;
+  if (error) error.textContent = '';
+
+  if (!navigator.geolocation) {
+    if (error) error.textContent = 'This device cannot share its location. Please type the address instead.';
+    return;
+  }
+
+  input.value = 'Detecting your location...';
+  input.disabled = true;
+  input.dataset.detecting = 'true';
+
+  navigator.geolocation.getCurrentPosition(
+    async (position) => {
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+      customLocationCoords[side] = { lat, lng };
+      // The coordinates are what the ride actually travels to — the label is
+      // only there so the driver reads a place name instead of numbers, so a
+      // failed lookup falls back to the numbers rather than failing the pick.
+      let label = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+      try {
+        label = await reverseGeocodeCoords(lat, lng);
+      } catch (lookupError) {
+        console.warn('Could not name that location, using coordinates', lookupError);
       }
-      if (hiddenSelect) hiddenSelect.value = 'Solo';
-    } else if (sharedBtn) {
-      sharedBtn.disabled = false;
+      input.disabled = false;
+      delete input.dataset.detecting;
+      input.value = label;
+    },
+    () => {
+      customLocationCoords[side] = null;
+      input.disabled = false;
+      delete input.dataset.detecting;
+      input.value = '';
+      if (error) error.textContent = 'Could not get your location — allow location access in your browser, or type the address instead.';
+    },
+    { enableHighAccuracy: true, timeout: 10000 }
+  );
+}
+
+function setupCustomLocationField(side) {
+  const select = document.querySelector(`#${side}-location`);
+  const field = document.querySelector(`#${side}-other-field`);
+  const input = document.querySelector(`#${side}-other-text`);
+  if (!select || !field) return;
+
+  select.addEventListener('change', () => {
+    const isCustom = isCustomLocationValue(select.value);
+    field.style.display = isCustom ? '' : 'none';
+    customLocationCoords[side] = null;
+
+    if (!isCustom) {
+      if (input) input.value = '';
+    } else if (select.value === '__current__') {
+      fillWithCurrentLocation(side);
+    } else if (input) {
+      input.value = '';
+      input.focus();
     }
+
+    syncRideTypeAvailability();
   });
+
+  // Typing over an auto-filled address means the captured point no longer
+  // describes what's written, so the ride falls back to geocoding the text.
+  if (input) {
+    input.addEventListener('input', () => {
+      customLocationCoords[side] = null;
+    });
+  }
+}
+
+function setupOthersDropoff() {
+  setupCustomLocationField('pickup');
+  setupCustomLocationField('dropoff');
 }
 
 function setupPassengerRideRequestForm() {
@@ -3320,13 +3425,20 @@ function setupPassengerRideRequestForm() {
       return;
     }
 
-    const pickupLocation = document.querySelector('#pickup-location').value;
+    // Either side can be a non-campus place, picked either off the
+    // passenger's GPS ("__current__") or typed ("__other__") — see
+    // setupCustomLocationField(). In both cases the real location text lives
+    // in that side's free-text field, not in the select itself.
+    const pickupSelectValue = document.querySelector('#pickup-location').value;
+    const isCustomPickup = isCustomLocationValue(pickupSelectValue);
+    const pickupOtherInput = document.querySelector('#pickup-other-text');
+    const pickupOtherError = document.querySelector('#pickup-other-error');
+    const pickupLocation = isCustomPickup
+      ? (pickupOtherInput ? pickupOtherInput.value.trim() : '')
+      : pickupSelectValue;
+
     const dropoffSelectValue = document.querySelector('#dropoff-location').value;
-    // "Other" is a third dropdown option (value "__other__") that reveals a
-    // free-text field instead of picking one of the two fixed campuses —
-    // see setupOthersDropoff(). The real destination text lives there, not
-    // in the select itself.
-    const isCustomDropoff = dropoffSelectValue === '__other__';
+    const isCustomDropoff = isCustomLocationValue(dropoffSelectValue);
     const dropoffOtherInput = document.querySelector('#dropoff-other-text');
     const dropoffOtherError = document.querySelector('#dropoff-other-error');
     const dropoffLocation = isCustomDropoff
@@ -3341,11 +3453,11 @@ function setupPassengerRideRequestForm() {
     // Reading what the passenger can actually see makes that mismatch
     // impossible, regardless of reset timing or a stale cached script.
     const selectedRideTypeBtn = form.querySelector('.ride-type-btn.is-selected');
-    // A custom drop-off is always Solo (see setupOthersDropoff() — the
-    // Shared button is disabled the moment "Other" is picked), but this is
-    // the actual value creating the ride, so it's enforced here too, not
-    // just in the UI.
-    const rideType = isCustomDropoff
+    // A ride with a custom pickup or drop-off is always Solo (see
+    // syncRideTypeAvailability() — the Shared button is disabled the moment
+    // either side stops being a campus), but this is the actual value
+    // creating the ride, so it's enforced here too, not just in the UI.
+    const rideType = (isCustomPickup || isCustomDropoff)
       ? 'Solo'
       : (selectedRideTypeBtn ? selectedRideTypeBtn.getAttribute('data-ride-type') : rideTypeSelect.value);
     // Keep the select in step so the confirmation modal's label below
@@ -3357,16 +3469,34 @@ function setupPassengerRideRequestForm() {
     const routeError = document.querySelector('#route-error');
     if (routeError) routeError.textContent = '';
     if (dropoffOtherError) dropoffOtherError.textContent = '';
+    if (pickupOtherError) pickupOtherError.textContent = '';
 
-    if (!pickupLocation || !dropoffLocation) {
-      const message = isCustomDropoff ? 'Please tell us where you want to be dropped off.' : 'Please select both a pickup and a drop-off point.';
-      if (isCustomDropoff && dropoffOtherError) dropoffOtherError.textContent = message;
-      else if (routeError) routeError.textContent = message;
+    if (!pickupLocation) {
+      if (isCustomPickup && pickupOtherError) pickupOtherError.textContent = 'Please tell us where you want to be picked up.';
+      else if (routeError) routeError.textContent = 'Please select a pickup point.';
+      return;
+    }
+
+    if (!dropoffLocation) {
+      if (isCustomDropoff && dropoffOtherError) dropoffOtherError.textContent = 'Please tell us where you want to be dropped off.';
+      else if (routeError) routeError.textContent = 'Please select a drop-off point.';
       return;
     }
 
     if (pickupLocation === dropoffLocation) {
-      if (routeError) routeError.textContent = 'Pickup and drop-off must be different campuses.';
+      if (routeError) routeError.textContent = 'Pickup and drop-off must be different places.';
+      return;
+    }
+
+    // Submitting while a GPS lock is still resolving would book the
+    // placeholder text ("Detecting your location...") as the actual address.
+    const stillDetecting = [
+      [pickupOtherInput, pickupOtherError],
+      [dropoffOtherInput, dropoffOtherError]
+    ].find(([field]) => field && field.dataset.detecting === 'true');
+    if (stillDetecting) {
+      const [, errorEl] = stillDetecting;
+      if (errorEl) errorEl.textContent = 'Still finding your location — give it a moment, then try again.';
       return;
     }
 
@@ -3380,7 +3510,10 @@ function setupPassengerRideRequestForm() {
       const submitButtonForQuote = form.querySelector('button[type="submit"]');
       if (submitButtonForQuote) submitButtonForQuote.disabled = true;
       try {
-        othersQuote = await quoteOthersDropoff(pickupLocation, dropoffLocation);
+        othersQuote = await quoteOthersDropoff(pickupLocation, dropoffLocation, {
+          pickupIsCustom: isCustomPickup,
+          dropoffCoords: customLocationCoords.dropoff
+        });
       } catch (error) {
         if (dropoffOtherError) dropoffOtherError.textContent = error.message || 'Could not calculate a fare for that location.';
         if (submitButtonForQuote) submitButtonForQuote.disabled = false;
@@ -3420,7 +3553,12 @@ function setupPassengerRideRequestForm() {
     // feeling instant). Ride creation goes ahead immediately; the
     // coordinates, if they ever resolve, get attached to the ride
     // afterward in the background (see updateRidePickupLocation below).
-    const locationPromise = navigator.geolocation
+    // Skipped entirely for a custom pickup: the point is already known (from
+    // "Use my current location") or the passenger typed an address that is
+    // deliberately somewhere other than where they're standing, and
+    // overwriting it with their current position would send the driver to
+    // the wrong place.
+    const locationPromise = navigator.geolocation && !isCustomPickup
       ? new Promise((resolve) => {
           navigator.geolocation.getCurrentPosition(
             (position) => resolve({ lat: position.coords.latitude, lng: position.coords.longitude }),
@@ -3435,9 +3573,14 @@ function setupPassengerRideRequestForm() {
         passenger_account_id: user.accountId,
         pickup_location: pickupLocation,
         dropoff_location: dropoffLocation,
+        pickup_lat: customLocationCoords.pickup ? customLocationCoords.pickup.lat : null,
+        pickup_lng: customLocationCoords.pickup ? customLocationCoords.pickup.lng : null,
+        dropoff_lat: customLocationCoords.dropoff ? customLocationCoords.dropoff.lat : null,
+        dropoff_lng: customLocationCoords.dropoff ? customLocationCoords.dropoff.lng : null,
         ride_type: rideType,
         scheduled_at: scheduledAt,
-        dropoff_is_custom: isCustomDropoff
+        dropoff_is_custom: isCustomDropoff,
+        pickup_is_custom: isCustomPickup
       });
 
       form.reset();
@@ -3451,6 +3594,16 @@ function setupPassengerRideRequestForm() {
       // reverted to Solo — a passenger who trusted the highlighted button
       // and didn't re-click Shared got a real Solo ride with no warning.
       form.querySelectorAll('.ride-type-btn').forEach(b => b.classList.toggle('is-selected', b.getAttribute('data-ride-type') === rideTypeSelect.value));
+      // The custom pickup/drop-off fields are shown and hidden by script, so
+      // form.reset() leaves them on screen with the selects already back on
+      // their placeholder — and any captured coordinates would otherwise
+      // carry into the next, unrelated booking.
+      ['pickup', 'dropoff'].forEach((side) => {
+        const field = document.querySelector(`#${side}-other-field`);
+        if (field) field.style.display = 'none';
+        customLocationCoords[side] = null;
+      });
+      syncRideTypeAvailability();
       renderPassengerRideStatus();
       renderDriverRideRequests();
       renderDriverDashboardStats();

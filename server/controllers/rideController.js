@@ -84,6 +84,17 @@ function getNormalEndpoint(pickupLocation) {
   return (pickupLocation || '').includes('San Isidro') ? CAMPUS_COORDS.mainCampus : CAMPUS_COORDS.sanIsidro;
 }
 
+// Coordinates arriving from a request body are strings as often as numbers,
+// and a half-supplied pair (lat but no lng) has to read as "no point given"
+// rather than silently becoming NaN somewhere downstream.
+function normalizePoint(coords) {
+  if (!coords) return null;
+  const lat = parseFloat(coords.lat);
+  const lng = parseFloat(coords.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  return [lat, lng];
+}
+
 function haversineKm([lat1, lng1], [lat2, lng2]) {
   const toRad = (deg) => (deg * Math.PI) / 180;
   const R = 6371;
@@ -109,6 +120,44 @@ async function geocodeAddress(text) {
   return [parseFloat(results[0].lat), parseFloat(results[0].lon)];
 }
 
+// The reverse of geocodeAddress — turns the coordinates a passenger's
+// browser captured into a readable place name, so a driver sees "Barangay
+// Hall, Cut-cut" on the ride card instead of "15.4851, 120.5873". Proxied
+// through the server rather than called from the browser so Nominatim gets
+// the same identifying User-Agent it already gets from geocodeAddress
+// (their usage policy asks for one) and so a rate-limit or outage is
+// handled in one place.
+async function reverseGeocodePoint(lat, lng) {
+  const url = `https://nominatim.openstreetmap.org/reverse?format=json&zoom=18&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lng)}`;
+  const res = await fetch(url, {
+    headers: { 'User-Agent': 'GoTSUian/1.0 (capstone project, TSU San Isidro)' },
+    signal: AbortSignal.timeout(6000)
+  });
+  if (!res.ok) throw new Error('Reverse lookup failed');
+  const data = await res.json();
+  if (!data || !data.display_name) throw new Error('REVERSE_NOT_FOUND');
+  // display_name is a long comma-chained address ("Barangay Hall, Cut-cut,
+  // Tarlac City, Tarlac, Central Luzon, 2300, Philippines"). The first
+  // three parts are the useful bit for a driver reading a ride card.
+  return data.display_name.split(',').slice(0, 3).map(s => s.trim()).filter(Boolean).join(', ');
+}
+
+// Used by the passenger booking form's "Use my current location" option.
+// A failure here is never fatal to booking — the client falls back to
+// showing the raw coordinates as the location label.
+exports.reverseGeocode = async (req, res) => {
+  const lat = parseFloat(req.body.lat);
+  const lng = parseFloat(req.body.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+    return res.status(400).json({ error: 'Valid lat and lng are required' });
+  }
+  try {
+    res.status(200).json({ label: await reverseGeocodePoint(lat, lng) });
+  } catch (error) {
+    res.status(502).json({ error: 'Could not look up that location name.' });
+  }
+};
+
 // OSRM's public demo routing server — real road distance. Falls back to
 // a buffered straight-line distance if it's slow, down, or errors, so an
 // "Others" booking never just fails outright because of a free third-
@@ -131,12 +180,17 @@ async function getRoadDistanceKm(from, to) {
 // Computes the real fare for a custom "Others" drop-off. Throws a plain
 // Error with a passenger-facing message on failure (location not found,
 // or outside the service area) — callers should catch and respond 400.
-async function computeOthersFare(pickupLocation, dropoffText) {
-  let point;
-  try {
-    point = await geocodeAddress(dropoffText);
-  } catch (error) {
-    throw new Error('Could not find that location. Please try a more specific address.');
+async function computeOthersFare(pickupLocation, dropoffText, dropoffCoords) {
+  // A drop-off picked with "Use my current location" already has exact
+  // coordinates from the passenger's own device — geocoding its label back
+  // into a point would only lose precision, so those are used as-is.
+  let point = normalizePoint(dropoffCoords);
+  if (!point) {
+    try {
+      point = await geocodeAddress(dropoffText);
+    } catch (error) {
+      throw new Error('Could not find that location. Please try a more specific address.');
+    }
   }
 
   const normalEndpoint = getNormalEndpoint(pickupLocation);
@@ -152,17 +206,40 @@ async function computeOthersFare(pickupLocation, dropoffText) {
   return { fare, extraKm: Math.round(extraKm * 100) / 100, lat: point[0], lng: point[1] };
 }
 
+// A pickup away from the two campuses has no "normal endpoint" to measure a
+// deviation from — the surcharge model above only means anything for a trip
+// that starts at a campus and runs past the usual drop-off. Anchoring it to
+// an arbitrary campus instead would bill a number with no basis, so a
+// custom-pickup ride is charged the plain Solo fare and its drop-off is
+// resolved only so the map and the driver's card can show a real point.
+// Deliberately interim: replacing this with a distance-based fare for every
+// ride needs figures grounded in the city ordinance, not invented here.
+async function resolveCustomPickupDropoff(dropoffText, dropoffCoords) {
+  let point = normalizePoint(dropoffCoords);
+  if (!point) {
+    try {
+      point = await geocodeAddress(dropoffText);
+    } catch (error) {
+      throw new Error('Could not find that drop-off location. Please try a more specific address.');
+    }
+  }
+  return { fare: FARE_BY_HEADCOUNT[1], extraKm: null, lat: point[0], lng: point[1] };
+}
+
 // QUOTE — lets the client show the real fare before the passenger
 // commits, without creating a ride yet. createRide recomputes the same
 // thing at actual booking time, so nothing from this response is trusted
 // later — this is purely a preview.
 exports.quoteOthersDropoff = async (req, res) => {
-  const { pickup_location, dropoff_text } = req.body;
+  const { pickup_location, dropoff_text, dropoff_lat, dropoff_lng, pickup_is_custom } = req.body;
   if (!pickup_location || !dropoff_text) {
     return res.status(400).json({ error: 'Pickup location and drop-off text are required' });
   }
+  const dropoffCoords = { lat: dropoff_lat, lng: dropoff_lng };
   try {
-    const quote = await computeOthersFare(pickup_location, dropoff_text);
+    const quote = pickup_is_custom
+      ? await resolveCustomPickupDropoff(dropoff_text, dropoffCoords)
+      : await computeOthersFare(pickup_location, dropoff_text, dropoffCoords);
     res.status(200).json(quote);
   } catch (error) {
     res.status(400).json({ error: error.message });
@@ -177,10 +254,13 @@ exports.createRide = async (req, res) => {
     dropoff_location,
     pickup_lat,
     pickup_lng,
+    dropoff_lat,
+    dropoff_lng,
     ride_type,
     scheduled_at,
     notes,
-    dropoff_is_custom
+    dropoff_is_custom,
+    pickup_is_custom
   } = req.body;
 
   if (!passenger_account_id || !pickup_location || !dropoff_location || !ride_type) {
@@ -195,18 +275,47 @@ exports.createRide = async (req, res) => {
     return res.status(400).json({ error: 'A custom drop-off location is only available for Solo rides.' });
   }
 
+  // Same reasoning as the custom drop-off rule above: Shared pooling groups
+  // riders by an exact pickup/drop-off text match, which only holds for the
+  // fixed campus points. A freely-entered pickup would never match another
+  // rider's, so it can't be pooled.
+  if (pickup_is_custom && ride_type !== 'Solo') {
+    return res.status(400).json({ error: 'A custom pickup location is only available for Solo rides.' });
+  }
+
   // A custom drop-off's fare isn't a lookup — it's geocoded and measured
   // fresh here, never trusting whatever number the client's earlier
   // /others-quote preview showed (that endpoint exists purely for UX, not
   // as a source of truth).
   let othersQuote = null;
-  if (dropoff_is_custom) {
+  if (pickup_is_custom && dropoff_is_custom) {
     try {
-      othersQuote = await computeOthersFare(pickup_location, dropoff_location);
+      othersQuote = await resolveCustomPickupDropoff(dropoff_location, { lat: dropoff_lat, lng: dropoff_lng });
+    } catch (error) {
+      return res.status(400).json({ error: error.message });
+    }
+  } else if (dropoff_is_custom) {
+    try {
+      othersQuote = await computeOthersFare(pickup_location, dropoff_location, { lat: dropoff_lat, lng: dropoff_lng });
     } catch (error) {
       return res.status(400).json({ error: error.message });
     }
   }
+
+  // A pickup typed by hand has no coordinates of its own, so the map would
+  // have nothing to draw and the driver would get only a line of text.
+  // Geocoding it here gives both a real point. Non-fatal — the ride is still
+  // bookable on the address alone if the lookup fails.
+  let resolvedPickup = normalizePoint({ lat: pickup_lat, lng: pickup_lng });
+  if (pickup_is_custom && !resolvedPickup) {
+    try {
+      resolvedPickup = await geocodeAddress(pickup_location);
+    } catch (error) {
+      console.warn('Could not geocode custom pickup:', error.message);
+    }
+  }
+  const pickupLatValue = resolvedPickup ? resolvedPickup[0] : null;
+  const pickupLngValue = resolvedPickup ? resolvedPickup[1] : null;
 
   // A passenger can only have one active (not yet finished) ride at a
   // time — stops accidental double-booking from tapping "Request ride"
@@ -231,7 +340,7 @@ exports.createRide = async (req, res) => {
         `;
         db.query(
           sql,
-          [passenger_account_id, pickup_location, dropoff_location, pickup_lat || null, pickup_lng || null, dropoffLat, dropoffLng, extraKm, soloFare, scheduled_at || null, notes || null],
+          [passenger_account_id, pickup_location, dropoff_location, pickupLatValue, pickupLngValue, dropoffLat, dropoffLng, extraKm, soloFare, scheduled_at || null, notes || null],
           (err, result) => {
             if (err) return res.status(500).json({ error: err.message });
             res.status(201).json({ message: 'Ride requested', rideId: result.insertId, fare: soloFare });
@@ -324,7 +433,7 @@ exports.createRide = async (req, res) => {
               `;
               connection.query(
                 insertRideSql,
-                [passenger_account_id, pickup_location, dropoff_location, pickup_lat || null, pickup_lng || null, poolId, poolDriverId || null, initialStatus, scheduled_at || null, notes || null],
+                [passenger_account_id, pickup_location, dropoff_location, pickupLatValue, pickupLngValue, poolId, poolDriverId || null, initialStatus, scheduled_at || null, notes || null],
                 (err, result) => {
                   if (err) return failWith(err);
 
