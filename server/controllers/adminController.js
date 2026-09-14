@@ -3,7 +3,7 @@ const fs = require('fs');
 const crypto = require('crypto');
 const bcrypt = require('bcrypt');
 const db = require('../config/db');
-const { emitDriverAccountStatus } = require('../socket');
+const { emitDriverAccountStatus, emitLoyaltyGranted } = require('../socket');
 
 // Excludes visually-ambiguous characters (0/O, 1/l/I) since this gets read
 // aloud or copied over a phone call, not typed by the person who generated it.
@@ -167,6 +167,7 @@ exports.grantLoyaltyCertificate = (req, res) => {
           [account_id, grantedByAdminId, nextThreshold],
           (err) => {
             if (err) return res.status(500).json({ error: err.message });
+            emitLoyaltyGranted(account_id);
             res.status(201).json({ message: 'Certificate granted', milestone: nextThreshold });
           }
         );
