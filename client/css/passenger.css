@@ -3184,7 +3184,16 @@ body[data-page="passenger"] .hero.hero-simple p {
   body[data-page="passenger"] .hero.hero-simple p { font-size: 12px; }
 }
 
-body[data-page="passenger"] .passenger-layout { align-items: flex-start; gap: 20px; }
+/* No align-items here on purpose. This selector applies to BOTH layouts:
+   the desktop grid (which already gets align-items: start from the base
+   .passenger-layout rule) and the <=900px flex column further down. In a
+   column flex container align-items is the HORIZONTAL axis, so the
+   flex-start that used to sit here shrink-wrapped the sidebar and the map
+   column to their own content width -- on a phone the availability pill,
+   the "Request a ride" card and the map all ended up narrower than the
+   hero above them, each a different ragged width. Letting it default to
+   stretch makes every stacked card span the same full width. */
+body[data-page="passenger"] .passenger-layout { gap: 20px; }
 body[data-page="passenger"] .passenger-sidebar { gap: 16px; }
 body[data-page="passenger"] .passenger-main { gap: 0; }
 
@@ -3415,7 +3424,18 @@ body[data-page="passenger"] .dashboard-panel-link p { margin: 0; font-size: 12.5
 
 body[data-page="passenger"] .copy-short { display: none; }
 @media (max-width: 900px) {
-  body[data-page="passenger"] .passenger-layout { display: flex; flex-direction: column; max-width: 100%; }
+  /* align-items: stretch is not the browser default here -- it is undoing
+     the align-items: start that the base .passenger-layout rule sets for
+     the DESKTOP grid, where it means "do not stretch rows vertically".
+     That same keyword follows the element into this flex column, where
+     align-items runs horizontally instead and shrink-wraps both columns
+     to their content. Stretch restores the full-width stack. */
+  body[data-page="passenger"] .passenger-layout {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    max-width: 100%;
+  }
   body[data-page="passenger"] .copy-full { display: none; }
   body[data-page="passenger"] .copy-short { display: inline; }
   body[data-page="passenger"] p.copy-short { display: block; }
