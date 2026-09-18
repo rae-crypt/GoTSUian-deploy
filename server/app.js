@@ -48,12 +48,20 @@ app.use(express.json());
 //
 // "no-cache" doesn't mean don't store it — it means ask before reusing it. The
 // browser still keeps the copy and still gets a cheap 304 when nothing has
-// changed; it just can't serve a stale page without checking first. Everything
-// else (scripts, styles, images) keeps caching normally, which is safe because
-// those are the things the ?v= suffixes version.
+// changed; it just can't serve a stale page without checking first. Images and
+// fonts still cache normally -- they are replaced under new filenames.
+//
+// The stylesheets and app.js now get the same treatment, because relying on
+// the ?v= suffixes alone had already failed in practice: passenger.css was
+// edited in eight commits after its ?v= was last bumped, so phones kept
+// serving the month-old stylesheet against the current markup -- the booking
+// form rendered with an unstyled drop-off box, a full-width Solo button and a
+// gap where an error line used to reserve space, none of which are bugs in the
+// CSS as it stands today. These files are small and 304 in a few hundred
+// bytes; a number nobody remembers to increment is not worth that risk.
 app.use(express.static(path.join(__dirname, '..', 'client'), {
   setHeaders(res, filePath) {
-    if (filePath.endsWith('.html')) res.setHeader('Cache-Control', 'no-cache');
+    if (/\.(html|css|js)$/.test(filePath)) res.setHeader('Cache-Control', 'no-cache');
   }
 }));
 
