@@ -13,7 +13,14 @@ exports.registerStudent = async (req, res) => {
     birth_date, age, sex, contact_number, current_address
   } = req.body;
 
-  if (!username || !password || !first_name || !last_name || !student_number) {
+  // student_number is deliberately NOT required. Testing moved off campus to a
+  // partner TODA after the bridge collapsed, so the people registering are
+  // members of the public with no student number to give; the column is
+  // nullable and the field is gone from the passenger form. It stays in the
+  // destructure (and in the INSERT below) so that restoring the field is a
+  // front-end change only -- a real number sent by any client is still stored
+  // and still has to be unique.
+  if (!username || !password || !first_name || !last_name) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
 
@@ -59,11 +66,17 @@ exports.registerStudent = async (req, res) => {
 
               const accountId = accountResult.insertId;
 
+              // '' would satisfy NOT NULL but not UNIQUE -- the first blank
+              // registration would succeed and every one after it would fail
+              // on a duplicate key. Anything empty becomes a real NULL, which
+              // a UNIQUE index lets repeat freely.
+              const studentNumber = (student_number || '').trim() || null;
+
               const studentSql = `
                 INSERT INTO student (account_id, student_number, first_name, middle_name, last_name, birth_date, age, sex, contact_number, current_address, is_online)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE)
               `;
-              connection.query(studentSql, [accountId, student_number, first_name, middle_name || null, last_name, birth_date || null, age || null, sex || null, contact_number || null, current_address || null], (err, studentResult) => {
+              connection.query(studentSql, [accountId, studentNumber, first_name, middle_name || null, last_name, birth_date || null, age || null, sex || null, contact_number || null, current_address || null], (err, studentResult) => {
                 if (err) {
                   return connection.rollback(() => {
                     connection.release();

@@ -4897,27 +4897,6 @@ function validateStudentIdFormat(id) {
   return /^\d{10}$/.test(id);
 }
  
-async function validateStudentIdServer(id) {
-  // Local preview runs from a static server, so skip the backend check there to avoid noisy errors.
-  if (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost') {
-    return true;
-  }
- 
-  try {
-    const res = await fetch('/api/validate-student-id', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ studentId: id })
-    });
-    if (!res.ok) return true;
-    const data = await res.json();
-    return Boolean(data && data.valid);
-  } catch (e) {
-    console.warn('Student ID server validation failed', e);
-    return true;
-  }
-}
- 
  
 function showAuthFeedback(type, title, message) {
   const modal = document.querySelector('#auth-modal');
@@ -5019,8 +4998,7 @@ function setupAuthForm() {
   }
  
   if (registerForm) {
-    const fnameInput = document.querySelector('#reg-fname');
-    const lnameInput = document.querySelector('#reg-lname');
+    const fullNameLiveInput = document.querySelector('#reg-fullname');
     const emailInput = document.querySelector('#reg-email');
     const contactInput = document.querySelector('#reg-contact');
     const passwordInput = document.querySelector('#reg-password');
@@ -5266,18 +5244,23 @@ function setupAuthForm() {
     }
 
     // Real-time validation for first name
-    if (fnameInput) {
-      fnameInput.addEventListener('input', function() {
-        const sanitized = sanitizeName(this.value.trim());
-        const isEmpty = this.value.trim().length === 0;
-        const isValid = !isEmpty && isValidName(this.value.trim());
-        
+    // Live feedback for the single "Full name" box that replaced the separate
+    // first/last inputs. It only flags characters that can't be in a name --
+    // the "you also need a surname" check is left to submit, so it doesn't
+    // accuse someone of an error while they're still mid-way through typing.
+    if (fullNameLiveInput) {
+      fullNameLiveInput.addEventListener('input', function() {
+        const value = this.value.trim();
+        const isEmpty = value.length === 0;
+        const isValid = !isEmpty && isValidName(value);
+        const errorEl = document.querySelector('#fullname-error');
+
         this.classList.remove('input-error', 'input-valid');
-        document.querySelector('#fname-error').textContent = '';
-        
+        if (errorEl) errorEl.textContent = '';
+
         if (!isEmpty && !isValid) {
           this.classList.add('input-error');
-          document.querySelector('#fname-error').textContent = 'Only letters allowed (minimum 2 characters)';
+          if (errorEl) errorEl.textContent = 'Only letters allowed (minimum 2 characters)';
         } else if (isValid) {
           this.classList.add('input-valid');
         }
@@ -5300,24 +5283,6 @@ function setupAuthForm() {
       });
     }
  
-    // Real-time validation for last name
-    if (lnameInput) {
-      lnameInput.addEventListener('input', function() {
-        const sanitized = sanitizeName(this.value.trim());
-        const isEmpty = this.value.trim().length === 0;
-        const isValid = !isEmpty && isValidName(this.value.trim());
-        
-        this.classList.remove('input-error', 'input-valid');
-        document.querySelector('#lname-error').textContent = '';
-        
-        if (!isEmpty && !isValid) {
-          this.classList.add('input-error');
-          document.querySelector('#lname-error').textContent = 'Only letters allowed (minimum 2 characters)';
-        } else if (isValid) {
-          this.classList.add('input-valid');
-        }
-      });
-    }
  
     // Real-time validation for email
     if (emailInput) {
@@ -5359,22 +5324,57 @@ function setupAuthForm() {
       });
     }
 
-    // Toggle student ID visibility based on role
-    const toggleStudentSection = () => {
-      if (!studentSection || !roleSelect) return;
-      if (roleSelect.value === 'passenger') {
-        studentSection.style.display = '';
-        if (studentIdInput) studentIdInput.setAttribute('required', 'required');
-      } else {
-        studentSection.style.display = 'none';
-        if (studentIdInput) {
-          studentIdInput.value = '';
-          document.querySelector('#student-id-error').textContent = '';
-          studentIdInput.classList.remove('input-error', 'input-valid');
-          studentIdInput.removeAttribute('required');
+    // Passengers now register with name, email and password only. Testing moved
+    // off campus to a partner TODA after the bridge collapsed, so the people
+    // signing up are members of the public: they have no student number, and
+    // their contact number is never shown to a driver anywhere (they coordinate
+    // in the in-app chat), so asking for it only adds a field to fail on.
+    //
+    // Both inputs stay in the DOM rather than being deleted. A driver's contact
+    // number is still REQUIRED -- it is their login ID -- and restoring the
+    // student field if testing returns to campus is then a matter of flipping
+    // this function back, with no markup to rebuild.
+    const toggleRoleFields = () => {
+      if (!roleSelect) return;
+      const isDriver = roleSelect.value === 'driver';
+
+      // Student ID: hidden for everyone now, so it must never block submit.
+      if (studentSection) studentSection.style.display = 'none';
+      if (studentIdInput) {
+        studentIdInput.value = '';
+        const studentErr = document.querySelector('#student-id-error');
+        if (studentErr) studentErr.textContent = '';
+        studentIdInput.classList.remove('input-error', 'input-valid');
+        studentIdInput.removeAttribute('required');
+      }
+
+      // Contact number: drivers only.
+      const contactField = document.querySelector('#reg-contact-field');
+      const contactRow = document.querySelector('#reg-email-contact-row');
+      const regContact = document.querySelector('#reg-contact');
+      if (contactField) contactField.style.display = isDriver ? '' : 'none';
+      // That row is a two-column grid holding email + contact, and exactly one
+      // of the two is always hidden now: contact for passengers (just above),
+      // email for drivers (toggleDriverSection below -- they log in by contact
+      // number and have no email). So it collapses unconditionally; a hidden
+      // grid item leaves its column standing empty otherwise. The wrapper is
+      // kept rather than flattened so restoring either field needs no markup.
+      if (contactRow) contactRow.classList.add('is-single-column');
+      if (regContact) {
+        if (isDriver) {
+          regContact.setAttribute('required', 'required');
+        } else {
+          // Leaving a stale value here would post a contact number the
+          // passenger can no longer see or correct.
+          regContact.value = '';
+          const contactErr = document.querySelector('#contact-error');
+          if (contactErr) contactErr.textContent = '';
+          regContact.classList.remove('input-error', 'input-valid');
+          regContact.removeAttribute('required');
         }
       }
     };
+    const toggleStudentSection = toggleRoleFields;
  
     if (roleSelect) roleSelect.addEventListener('change', toggleStudentSection);
     toggleStudentSection();
@@ -5549,15 +5549,20 @@ function setupAuthForm() {
  
     registerForm.addEventListener('submit', async function(event) {
       event.preventDefault();
-      const fnameInput = document.querySelector('#reg-fname');
-      const lnameInput = document.querySelector('#reg-lname');
+      const fullNameInput = document.querySelector('#reg-fullname');
       const emailInput = document.querySelector('#reg-email');
       const contactInput = document.querySelector('#reg-contact');
       const passwordInput = document.querySelector('#reg-password');
       const roleSelect = document.querySelector('#reg-role');
 
-      const firstNameRaw = fnameInput.value.trim();
-      const lastNameRaw = lnameInput.value.trim();
+      // One visible "Full name" box still has to fill student.first_name and
+      // student.last_name, which are both NOT NULL. Splitting on the LAST space
+      // keeps multi-word first names intact ("Rica Mae Flores" -> "Rica Mae" +
+      // "Flores"), which is what Filipino names usually need.
+      const fullNameRaw = fullNameInput ? fullNameInput.value.trim().replace(/\s+/g, ' ') : '';
+      const lastSpace = fullNameRaw.lastIndexOf(' ');
+      const firstNameRaw = lastSpace === -1 ? fullNameRaw : fullNameRaw.slice(0, lastSpace);
+      const lastNameRaw = lastSpace === -1 ? '' : fullNameRaw.slice(lastSpace + 1);
       const email = emailInput.value.trim().toLowerCase();
       const contactNumber = contactInput ? contactInput.value.trim() : '';
       const password = passwordInput.value;
@@ -5583,30 +5588,26 @@ function setupAuthForm() {
       document.querySelectorAll('.error-msg').forEach(el => el.textContent = '');
       document.querySelectorAll('input, select').forEach(el => el.classList.remove('input-error', 'input-valid'));
  
-      // Validate first name
-      if (!firstNameRaw) {
-        fnameInput.classList.add('input-error');
-        document.querySelector('#fname-error').textContent = 'First name is required';
+      // Validate full name. isValidName already allows spaces, apostrophes and
+      // hyphens, so it takes a whole name as-is. The surname check is what
+      // matters here: a single word leaves last_name empty, and that column is
+      // NOT NULL -- caught in the browser so it can't reach the server as a
+      // confusing 500.
+      const fullNameError = document.querySelector('#fullname-error');
+      if (!fullNameRaw) {
+        if (fullNameInput) fullNameInput.classList.add('input-error');
+        if (fullNameError) fullNameError.textContent = 'Full name is required';
         isValid = false;
-      } else if (!isValidName(firstNameRaw)) {
-        fnameInput.classList.add('input-error');
-        document.querySelector('#fname-error').textContent = 'First name must contain only letters (minimum 2 characters)';
+      } else if (!isValidName(fullNameRaw)) {
+        if (fullNameInput) fullNameInput.classList.add('input-error');
+        if (fullNameError) fullNameError.textContent = 'Name must contain only letters (minimum 2 characters)';
         isValid = false;
-      } else {
-        fnameInput.classList.add('input-valid');
-      }
- 
-      // Validate last name
-      if (!lastNameRaw) {
-        lnameInput.classList.add('input-error');
-        document.querySelector('#lname-error').textContent = 'Last name is required';
+      } else if (!lastNameRaw) {
+        if (fullNameInput) fullNameInput.classList.add('input-error');
+        if (fullNameError) fullNameError.textContent = 'Please enter both your first name and surname';
         isValid = false;
-      } else if (!isValidName(lastNameRaw)) {
-        lnameInput.classList.add('input-error');
-        document.querySelector('#lname-error').textContent = 'Last name must contain only letters (minimum 2 characters)';
-        isValid = false;
-      } else {
-        lnameInput.classList.add('input-valid');
+      } else if (fullNameInput) {
+        fullNameInput.classList.add('input-valid');
       }
  
       // Validate email (drivers don't have an email field — they log in by contact number)
@@ -5624,44 +5625,27 @@ function setupAuthForm() {
         emailInput.classList.add('input-valid');
       }
 
-      // Validate contact number
-      if (!contactNumber) {
-        document.querySelector('#contact-error').textContent = 'Contact number is required';
-        if (contactInput) contactInput.classList.add('input-error');
-        isValid = false;
-      } else if (!isValidContactNumber(contactNumber)) {
-        document.querySelector('#contact-error').textContent = 'Enter an 11-digit number starting with 09';
-        if (contactInput) contactInput.classList.add('input-error');
-        isValid = false;
-      } else if (contactInput) {
-        contactInput.classList.add('input-valid');
-      }
-
-      // Validate student ID for passengers
-      if (role === 'passenger') {
-        if (!studentId) {
-          document.querySelector('#student-id-error').textContent = 'Student ID is required for passengers';
-          if (studentIdInput) studentIdInput.classList.add('input-error');
+      // Validate contact number -- drivers only. It is a driver's login ID, so
+      // it stays required for them; passengers no longer see the field at all,
+      // and validating a hidden empty box would block every signup.
+      if (role === 'driver') {
+        if (!contactNumber) {
+          document.querySelector('#contact-error').textContent = 'Contact number is required';
+          if (contactInput) contactInput.classList.add('input-error');
           isValid = false;
-        } else if (!/^\d{10}$/.test(studentId)) {
-          document.querySelector('#student-id-error').textContent = 'Student ID must be 10 digits';
-          if (studentIdInput) studentIdInput.classList.add('input-error');
+        } else if (!isValidContactNumber(contactNumber)) {
+          document.querySelector('#contact-error').textContent = 'Enter an 11-digit number starting with 09';
+          if (contactInput) contactInput.classList.add('input-error');
           isValid = false;
-        } else {
-          // Optionally perform server-side check to verify the student ID belongs to a student
-          try {
-            const serverOk = await validateStudentIdServer(studentId);
-            if (!serverOk) {
-              document.querySelector('#student-id-error').textContent = 'Student ID not recognized';
-              if (studentIdInput) studentIdInput.classList.add('input-error');
-              isValid = false;
-            }
-          } catch (e) {
-            // On network failure, allow registration but log the issue
-            console.warn('Student ID server validation failed, proceeding locally', e);
-          }
+        } else if (contactInput) {
+          contactInput.classList.add('input-valid');
         }
       }
+
+      // No student-ID validation any more -- the field is hidden and passengers
+      // are members of the public. The server-side check this used to call
+      // (/api/validate-student-id) was never implemented: it 404'd and the
+      // helper returned true regardless, so nothing is actually lost here.
  
       // Validate driver's license number for drivers
       if (role === 'driver') {
@@ -5835,13 +5819,17 @@ function setupAuthForm() {
         if (licenseFile) formData.append('licenseDocument', licenseFile);
         fetchOptions = { method: 'POST', body: formData };
       } else {
+        // student_number and contact_number are both nullable now and neither is
+        // collected from a passenger, so they go up as null rather than ''. An
+        // empty string would land in a UNIQUE column and make the SECOND
+        // passenger to register fail on a duplicate key.
         const payload = {
           username: email,
           password: password,
           first_name: firstName,
           last_name: lastName,
-          student_number: studentId,
-          contact_number: contactNumber
+          student_number: studentId || null,
+          contact_number: contactNumber || null
         };
         fetchOptions = {
           method: 'POST',
