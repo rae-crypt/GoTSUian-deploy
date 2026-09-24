@@ -1187,17 +1187,29 @@ function setupChangePasswordForm() {
 let passengerMapInstance = null;
 let driverLocationMarker = null;
 
-// Keeps both maps locked to the Tarlac area — without this, a user can
-// zoom/pan all the way out to a world view, which is disorienting for a
-// system that only ever serves two fixed points a few km apart.
-const TARLAC_BOUNDS = [[15.35, 120.45], [15.65, 120.75]];
+// Hard pan/zoom limit for both maps — maxBoundsViscosity: 1.0 below makes it
+// completely rigid, so this is the literal edge of the world as far as anyone
+// dragging the map is concerned.
+//
+// These are the administrative bounds of TARLAC PROVINCE, matching
+// TARLAC_VIEWBOX in rideController.js (keep the two in step). The previous
+// values were a ~33km box around Tarlac City whose southern wall fell at
+// 15.35, which put a dead stop in the middle of Capas: the map simply
+// refused to scroll past Barangay Dolores (15.3696), and Concepcion, Bamban
+// and Camiling could not be reached at all. That looked like missing map
+// data rather than a deliberate limit, because the drag just stopped.
+//
+// The old comment justified it as "a system that only ever serves two fixed
+// points a few km apart" — no longer true since pickup became the
+// passenger's own GPS position and drop-off became any address.
+const TARLAC_BOUNDS = [[15.15, 120.15], [15.89, 120.80]];
 
 function setupPassengerMap() {
   const mapEl = document.querySelector('#map');
   if (!mapEl || typeof L === 'undefined') return;
 
   passengerMapInstance = L.map('map', {
-    minZoom: 12,
+    minZoom: 10,
     maxBounds: TARLAC_BOUNDS,
     maxBoundsViscosity: 1.0
   }).setView([15.494, 120.583], 14);
@@ -1348,7 +1360,13 @@ async function pollDriverLocation() {
   if (!isAuthenticated() || user.role !== 'passenger') return;
 
   const rides = await fetchMyRides();
-  const activeRide = rides.find(r => ['Accepted', 'Picked Up', 'In Progress'].includes(r.status));
+  // 'Pending' is included so the A and B pins appear the moment a ride is
+  // requested, not only once a driver accepts. Waiting for acceptance can be
+  // minutes, and the map sat showing nothing at all about the trip that had
+  // just been booked -- no pickup pin, no destination, no framing of either.
+  // Deliberately NOT mirrored in renderDriverMapTrackingBody below, which
+  // has the same line: a driver should only ever track a ride they accepted.
+  const activeRide = rides.find(r => ['Pending', 'Accepted', 'Picked Up', 'In Progress'].includes(r.status));
 
   if (!activeRide) {
     if (driverTrackedRideId !== null) clearDriverTracking();
@@ -1379,8 +1397,6 @@ async function pollDriverLocation() {
     // their ride actually is. Only on this first pass, so it never yanks the
     // view back while they're panning around during the trip.
     passengerMapInstance.fitBounds(L.latLngBounds([pickupPoint, dropoffPoint]).pad(0.3));
-    const legend = document.querySelector('#route-legend');
-    if (legend) legend.style.display = 'flex';
   }
 
   try {
@@ -1399,6 +1415,11 @@ async function pollDriverLocation() {
     if (!driverLocationMarker) {
       const driverIcon = L.divIcon({ className: 'driver-location-icon', html: '<span class="driver-location-badge">🛺</span>', iconSize: [36, 36], iconAnchor: [18, 18] });
       driverLocationMarker = L.marker(point, { icon: driverIcon, zIndexOffset: 1000 }).addTo(passengerMapInstance).bindPopup('Your driver');
+      // Legend moved here from the pin-drawing block above. It captions the
+      // driver's trail, and a Pending ride has no driver yet -- shown any
+      // earlier it would label a line that cannot exist.
+      const legend = document.querySelector('#route-legend');
+      if (legend) legend.style.display = 'flex';
     } else {
       driverLocationMarker.setLatLng(point);
     }
@@ -1485,7 +1506,7 @@ function setupDriverMap() {
   if (!mapEl || typeof L === 'undefined') return;
 
   driverMapInstance = L.map('driver-map', {
-    minZoom: 12,
+    minZoom: 10,
     maxBounds: TARLAC_BOUNDS,
     maxBoundsViscosity: 1.0
   }).setView([15.494, 120.583], 14);
