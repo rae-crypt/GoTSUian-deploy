@@ -104,12 +104,28 @@ function haversineKm([lat1, lng1], [lat2, lng2]) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+// Bounding box for place lookups, as Nominatim wants it: lon,lat of the
+// top-left corner then lon,lat of the bottom-right. These are the real
+// administrative bounds of TARLAC PROVINCE (OSM relation), rounded outward
+// slightly so border barangays aren't clipped.
+//
+// It used to be a ~33km square around Tarlac City (120.45,15.65,120.75,15.35),
+// which cut the province in half: the southern edge landed at 15.35, so
+// Capas stopped at Barangay Dolores (15.3696) and the whole of Concepcion
+// (town proper at 15.3249), Bamban, Paniqui and Camiling were unreachable.
+// Worse than unreachable, actually — `bounded=1` is a hard filter, so typing
+// "Concepcion" didn't report "outside our area", it silently returned six
+// roads on Concepcion's northern fringe that looked like valid answers.
+const TARLAC_VIEWBOX = '120.15,15.89,120.80,15.15';
+
 // Nominatim (OpenStreetMap's free geocoder, no API key) — turns the
-// passenger's typed "Others" text into coordinates. Biased to a
-// Tarlac-area bounding box so short names like "SM" resolve to SM
-// Tarlac, not some other branch elsewhere in the country.
+// passenger's typed "Others" text into coordinates.
 async function geocodeAddress(text) {
-  const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&viewbox=120.45,15.65,120.75,15.35&bounded=1&q=${encodeURIComponent(text + ', Tarlac City, Philippines')}`;
+  // Suffix is ", Tarlac" (the province), NOT ", Tarlac City". The old
+  // city suffix fought the province-wide box above: "Concepcion" became
+  // "Concepcion, Tarlac City", a contradiction that pushed the real town
+  // down the results in favour of anything inside the city limits.
+  const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&viewbox=${TARLAC_VIEWBOX}&bounded=1&q=${encodeURIComponent(text + ', Tarlac, Philippines')}`;
   const res = await fetch(url, {
     headers: { 'User-Agent': 'GoTSUian/1.0 (capstone project, TSU San Isidro)' },
     signal: AbortSignal.timeout(6000)
@@ -156,7 +172,7 @@ exports.searchPlaces = async (req, res) => {
   if (query.length < 3) return res.status(200).json({ places: [] });
 
   try {
-    const url = `https://nominatim.openstreetmap.org/search?format=json&limit=6&viewbox=120.45,15.65,120.75,15.35&bounded=1&q=${encodeURIComponent(query + ', Tarlac, Philippines')}`;
+    const url = `https://nominatim.openstreetmap.org/search?format=json&limit=6&viewbox=${TARLAC_VIEWBOX}&bounded=1&q=${encodeURIComponent(query + ', Tarlac, Philippines')}`;
     const response = await fetch(url, {
       headers: { 'User-Agent': 'GoTSUian/1.0 (capstone project, TSU San Isidro)' },
       signal: AbortSignal.timeout(6000)
