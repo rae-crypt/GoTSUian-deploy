@@ -3277,7 +3277,14 @@ body[data-page="passenger"] #ride-request-form .error-msg:empty {
 /* Sized to share a row with Shared. On its own it stretched into a full-width
    slab that read as the page's main button, competing with "Request ride". */
 body[data-page="passenger"] .ride-type-toggle .ride-type-btn:only-child {
-  flex: 0 1 auto; align-self: flex-start; padding-left: 26px; padding-right: 26px;
+  /* width:auto is doing real work here. The ride form carries class
+     "auth-form", and `.auth-form button { width: 100% }` higher up this file
+     therefore hits every button inside it -- including this one. flex-basis
+     resolves to `auto`, which means "use the width property", so that 100%
+     came straight back and Solo rendered as a full-width slab again despite
+     flex-grow: 0. Overriding width is what actually lets it hug its label. */
+  flex: 0 1 auto; width: auto; align-self: flex-start;
+  padding-left: 26px; padding-right: 26px;
   cursor: default;
 }
 
