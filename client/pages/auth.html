@@ -8,8 +8,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link href="https://api.fontshare.com/v2/css?f[]=clash-display@500,600,700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="../css/auth.css?v=20260918">
-  <link rel="stylesheet" href="../css/theme.css?v=20260918">
+  <link rel="stylesheet" href="../css/auth.css?v=20260918b">
+  <link rel="stylesheet" href="../css/theme.css?v=20260918b">
 </head>
 <body data-page="auth">
   <header>
@@ -81,26 +81,19 @@
               </select>
             </div>
 
-            <div class="form-row-2">
-              <div class="form-field">
-                <label for="reg-fname">First name <span class="required-star">*</span></label>
-                <input type="text" id="reg-fname" name="firstName" placeholder="Jane" required>
-                <small class="error-msg" id="fname-error"></small>
-              </div>
-              <div class="form-field">
-                <label for="reg-lname">Last name <span class="required-star">*</span></label>
-                <input type="text" id="reg-lname" name="lastName" placeholder="Doe" required>
-                <small class="error-msg" id="lname-error"></small>
-              </div>
+            <div class="form-field">
+              <label for="reg-fullname">Full name <span class="required-star">*</span></label>
+              <input type="text" id="reg-fullname" name="fullName" placeholder="Jane Doe" required>
+              <small class="error-msg" id="fullname-error"></small>
             </div>
 
-            <div class="form-row-2">
+            <div class="form-row-2" id="reg-email-contact-row">
               <div class="form-field" id="reg-email-field">
                 <label for="reg-email">Email address <span class="required-star">*</span></label>
                 <input type="email" id="reg-email" name="email" placeholder="jane@gmail.com" required>
                 <small class="error-msg" id="email-error"></small>
               </div>
-              <div class="form-field">
+              <div class="form-field" id="reg-contact-field">
                 <label for="reg-contact">Contact number <span class="required-star">*</span></label>
                 <input type="tel" id="reg-contact" name="contactNumber" placeholder="09XXXXXXXXX" maxlength="11" inputmode="numeric" required>
                 <small class="error-msg" id="contact-error"></small>
@@ -379,6 +372,6 @@
   </footer>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="../js/app.js?v=20260918"></script>
+  <script src="../js/app.js?v=20260918b"></script>
 </body>
 </html>

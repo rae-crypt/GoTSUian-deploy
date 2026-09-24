@@ -23,7 +23,12 @@ CREATE TABLE IF NOT EXISTS user_account (
 CREATE TABLE IF NOT EXISTS student (
   student_id INT AUTO_INCREMENT PRIMARY KEY,
   account_id INT NOT NULL,
-  student_number VARCHAR(10) NOT NULL UNIQUE,
+  -- Nullable since 2026-09-18. Testing moved off campus to a partner TODA
+  -- after the bridge collapsed, so passengers signing up are members of
+  -- the public, not students, and have no student number to give. NULL
+  -- means "not a student"; UNIQUE still applies to real numbers, and
+  -- MySQL permits any number of NULLs under a UNIQUE index.
+  student_number VARCHAR(10) NULL UNIQUE,
   first_name VARCHAR(100) NOT NULL,
   middle_name VARCHAR(100),
   last_name VARCHAR(100) NOT NULL,

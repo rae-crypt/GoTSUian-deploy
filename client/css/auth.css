@@ -1815,6 +1815,13 @@ gap: 12px;
   gap: 0 16px;
 }
 
+/* Contact number is hidden for passengers, which leaves its row with a single
+   visible child. Without this the email field keeps its half-width column and
+   sits next to an empty gap half the form wide. Toggled from the role switch. */
+.form-row-2.is-single-column {
+  grid-template-columns: 1fr;
+}
+
 .form-field {
   min-width: 0;
 }
