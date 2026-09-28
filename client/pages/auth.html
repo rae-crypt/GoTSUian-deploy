@@ -253,8 +253,42 @@
           <div class="modal-progress-bar" id="modal-progress-bar"></div>
         </div>
           <div class="modal-actions">
+            <button id="modal-reupload-btn" type="button" class="btn-primary hidden">Upload license again</button>
             <button id="modal-ok-btn" class="btn-secondary">OK</button>
           </div>
+      </div>
+    </div>
+
+    <!-- Re-upload License Modal (Pending drivers only, opened from the
+         "waiting for verification" notice after a login attempt) -->
+    <div id="reupload-license-modal" class="auth-modal hidden">
+      <div class="auth-modal-content">
+        <div id="reupload-step-1">
+          <h2>Upload your license again</h2>
+          <p>If the TODA admin couldn't open or read your first file, send a new photo or scan here.</p>
+          <div class="form-field" style="text-align:left;">
+            <label for="reupload-license-file">Driver's license photo or scan</label>
+            <input type="file" id="reupload-license-file" accept="image/jpeg,image/png,application/pdf">
+          </div>
+          <small class="error-msg" id="reupload-license-error"></small>
+          <div class="modal-actions otp-modal-actions">
+            <button type="button" id="reupload-submit-btn" class="btn-primary otp-verify-btn">Upload license</button>
+          </div>
+          <p class="otp-modal-links">
+            <button type="button" id="reupload-cancel-btn" class="btn-link">Cancel</button>
+          </p>
+        </div>
+
+        <div id="reupload-step-2" class="hidden">
+          <div class="auth-modal-icon neutral">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+          </div>
+          <h2>License sent!</h2>
+          <p>The TODA admin will review it. You can log in once your account has been approved.</p>
+          <div class="modal-actions">
+            <button type="button" id="reupload-done-btn" class="btn-primary">OK</button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -372,6 +406,6 @@
   </footer>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="../js/app.js?v=20260928e"></script>
+  <script src="../js/app.js?v=20260928f"></script>
 </body>
 </html>

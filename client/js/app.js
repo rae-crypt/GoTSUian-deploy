@@ -5005,7 +5005,11 @@ function showAuthFeedback(type, title, message) {
   const modalRedirectText = document.querySelector('#modal-redirect-text');
   const progressBar = document.querySelector('#modal-progress-bar');
   const modalContent = document.querySelector('.auth-modal-content');
- 
+  // Only the Pending-login notice offers this; every other message starts
+  // without it (see the login submit handler).
+  const reuploadBtn = document.querySelector('#modal-reupload-btn');
+  if (reuploadBtn) reuploadBtn.classList.add('hidden');
+
   if (type === 'success') {
     modalIcon.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 13 10 18 19 7"/></svg>';
     modalIcon.className = 'auth-modal-icon';
@@ -5056,6 +5060,83 @@ function showAuthFeedback(type, title, message) {
 function hideAuthModal() {
   const modal = document.querySelector('#auth-modal');
   modal.classList.add('hidden');
+}
+
+// Contact number + password from a login attempt that came back Pending —
+// see the login submit handler. Nothing else reads or keeps them.
+let pendingDriverCredentials = null;
+
+// "Upload license again", offered on the waiting-for-verification notice.
+// A Pending driver has no token, so the upload carries the credentials they
+// just logged in with instead (see reuploadDriverLicense in authController).
+function setupReuploadLicenseModal() {
+  const openBtn = document.querySelector('#modal-reupload-btn');
+  const modal = document.querySelector('#reupload-license-modal');
+  if (!openBtn || !modal) return;
+
+  const fileInput = document.querySelector('#reupload-license-file');
+  const errorEl = document.querySelector('#reupload-license-error');
+  const submitBtn = document.querySelector('#reupload-submit-btn');
+  const step1 = document.querySelector('#reupload-step-1');
+  const step2 = document.querySelector('#reupload-step-2');
+
+  const close = () => {
+    modal.classList.add('hidden');
+    pendingDriverCredentials = null;
+  };
+
+  openBtn.addEventListener('click', () => {
+    hideAuthModal();
+    fileInput.value = '';
+    errorEl.textContent = '';
+    step1.classList.remove('hidden');
+    step2.classList.add('hidden');
+    modal.classList.remove('hidden');
+  });
+  document.querySelector('#reupload-cancel-btn').addEventListener('click', close);
+  document.querySelector('#reupload-done-btn').addEventListener('click', close);
+
+  submitBtn.addEventListener('click', async () => {
+    errorEl.textContent = '';
+    const file = fileInput.files && fileInput.files[0];
+    if (!file) {
+      errorEl.textContent = "Please choose a photo or scan of your driver's license";
+      return;
+    }
+    if (!['image/jpeg', 'image/png', 'application/pdf'].includes(file.type)) {
+      errorEl.textContent = 'Only JPG, PNG, or PDF files are allowed';
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      errorEl.textContent = 'File is too large (max 5MB)';
+      return;
+    }
+    if (!pendingDriverCredentials) {
+      errorEl.textContent = 'Please log in again first.';
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('username', pendingDriverCredentials.username);
+    formData.append('password', pendingDriverCredentials.password);
+    formData.append('licenseDocument', file);
+
+    submitBtn.disabled = true;
+    try {
+      const res = await fetch(`${API_BASE_URL}/reupload-license/driver`, { method: 'POST', body: formData });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        errorEl.textContent = data.error || 'Could not upload your license. Please try again.';
+        return;
+      }
+      step1.classList.add('hidden');
+      step2.classList.remove('hidden');
+    } catch (error) {
+      errorEl.textContent = 'Could not connect to the server. Please try again.';
+    } finally {
+      submitBtn.disabled = false;
+    }
+  });
 }
  
 // Dismiss modal on OK button or clicking overlay
@@ -6163,7 +6244,12 @@ function setupAuthForm() {
 
         if (!response.ok) {
           if (data.accountStatus === 'Pending') {
+            // Kept so the re-upload form can prove it's the same driver
+            // without asking for the number and password a second time.
+            pendingDriverCredentials = { username: identifier, password };
             showAuthFeedback('pending', 'Waiting for verification', data.error);
+            const reuploadBtn = document.querySelector('#modal-reupload-btn');
+            if (reuploadBtn) reuploadBtn.classList.remove('hidden');
             return;
           }
           if (errorEl) errorEl.textContent = data.error || 'Invalid credentials.';
@@ -6349,6 +6435,7 @@ document.addEventListener('DOMContentLoaded', function() {
   setupScrollReveal();
   setupAuthForm();
   setupPasswordToggles();
+  setupReuploadLicenseModal();
   setupAdminLoginForm();
   setupLogoutButtons();
   setupCertificateDownload();

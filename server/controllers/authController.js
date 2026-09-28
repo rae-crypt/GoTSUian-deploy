@@ -1,3 +1,4 @@
+const fs = require('fs');
 const path = require('path');
 const db = require('../config/db');
 const bcrypt = require('bcrypt');
@@ -383,6 +384,66 @@ exports.registerDriver = async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
+};
+
+// RE-UPLOAD A PENDING DRIVER'S LICENSE — a Pending driver has no token (see
+// loginDriver), so they prove who they are with the same contact number and
+// password they log in with. Used when the admin can't read the first file,
+// or when it was lost (uploads made before the Railway volume existed were
+// wiped on redeploy). Only while Pending: an approved license stays as it is.
+exports.reuploadDriverLicense = (req, res) => {
+  const { username, password } = req.body;
+  // multer has already saved the new file by this point, so every refusal
+  // below has to remove it again or it lingers on disk unattached.
+  const discardUpload = () => {
+    if (req.file) fs.unlink(req.file.path, () => {});
+  };
+
+  if (!username || !password) {
+    discardUpload();
+    return res.status(400).json({ error: 'Contact number and password are required' });
+  }
+  if (!req.file) {
+    return res.status(400).json({ error: "Please choose a photo or scan of your driver's license" });
+  }
+
+  const sql = `
+    SELECT ua.password, td.driver_id, td.account_status, td.license_document_path
+    FROM user_account ua
+    JOIN tricycle_driver td ON ua.account_id = td.account_id
+    WHERE ua.username = ? AND ua.role = 'driver'
+  `;
+  db.query(sql, [username], async (err, rows) => {
+    if (err) {
+      discardUpload();
+      return res.status(500).json({ error: err.message });
+    }
+    const driver = rows[0];
+    if (!driver || !(await bcrypt.compare(password, driver.password))) {
+      discardUpload();
+      return res.status(401).json({ error: 'Invalid contact number or password' });
+    }
+    if (driver.account_status !== 'Pending') {
+      discardUpload();
+      return res.status(409).json({ error: 'Your license can only be replaced while your account is waiting for verification.' });
+    }
+
+    const newPath = path.join('uploads', 'licenses', req.file.filename);
+    db.query(
+      `UPDATE tricycle_driver SET license_document_path = ? WHERE driver_id = ?`,
+      [newPath, driver.driver_id],
+      (updateErr) => {
+        if (updateErr) {
+          discardUpload();
+          return res.status(500).json({ error: updateErr.message });
+        }
+        if (driver.license_document_path) {
+          fs.unlink(path.join(__dirname, '..', driver.license_document_path), () => {});
+        }
+        res.status(200).json({ message: 'License uploaded' });
+      }
+    );
+  });
 };
 
 // LOGIN DRIVER

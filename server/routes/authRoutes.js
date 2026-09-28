@@ -8,6 +8,7 @@ router.post('/register/student', authController.registerStudent);
 router.post('/login/student', authController.loginStudent);
 router.post('/register/driver', uploadLicense.single('licenseDocument'), authController.registerDriver);
 router.post('/login/driver', authController.loginDriver);
+router.post('/reupload-license/driver', uploadLicense.single('licenseDocument'), authController.reuploadDriverLicense);
 router.post('/login/admin', authController.loginAdmin);
 router.post('/reset-password/student', authController.resetPasswordStudent);
 router.post('/change-password/student', authMiddleware, authController.changePasswordStudent);
