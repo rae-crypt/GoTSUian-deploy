@@ -3400,7 +3400,7 @@ function fillWithCurrentLocation(side) {
   if (error) error.textContent = '';
 
   if (!navigator.geolocation) {
-    if (error) error.textContent = 'This device cannot share its location. Please type the address instead.';
+    if (error) error.textContent = 'This device cannot share its location. Please search for your pickup point instead.';
     return;
   }
 
@@ -3431,7 +3431,7 @@ function fillWithCurrentLocation(side) {
       input.disabled = false;
       delete input.dataset.detecting;
       input.value = '';
-      if (error) error.textContent = 'Could not get your location — allow location access in your browser, or type the address instead.';
+      if (error) error.textContent = 'Could not get your location — allow location access in your browser, or search for your pickup point instead.';
     },
     { enableHighAccuracy: true, timeout: 10000 }
   );
@@ -3469,8 +3469,24 @@ function setupCustomLocationField(side) {
   }
 }
 
+// Pickup has no dropdown to choose from any more: the box fills itself from
+// GPS as soon as the booking form loads, and the button beside it re-runs
+// that lookup if the passenger has since typed over it or moved.
+function setupPickupField() {
+  const input = document.querySelector('#pickup-other-text');
+  const button = document.querySelector('#pickup-use-location');
+  if (!input) return;
+
+  input.addEventListener('input', () => {
+    customLocationCoords.pickup = null;
+  });
+  if (button) button.addEventListener('click', () => fillWithCurrentLocation('pickup'));
+
+  fillWithCurrentLocation('pickup');
+}
+
 function setupOthersDropoff() {
-  setupCustomLocationField('pickup');
+  setupPickupField();
   setupCustomLocationField('dropoff');
 }
 
@@ -3484,12 +3500,12 @@ async function searchPlaces(query) {
   return data.places || [];
 }
 
-// Type-ahead under the drop-off box. Picking a suggestion stores its exact
-// coordinates, so the server uses the place the passenger actually chose
-// rather than re-guessing from the text — the difference between a driver
-// arriving at the right SM branch and the wrong one.
-function setupDropoffSuggestions() {
-  const input = document.querySelector('#dropoff-other-text');
+// Type-ahead under the pickup and drop-off boxes. Picking a suggestion
+// stores its exact coordinates, so the server uses the place the passenger
+// actually chose rather than re-guessing from the text — the difference
+// between a driver arriving at the right SM branch and the wrong one.
+function setupPlaceSuggestions(side) {
+  const input = document.querySelector(`#${side}-other-text`);
   if (!input || !input.parentNode) return;
 
   const wrapper = document.createElement('div');
@@ -3522,7 +3538,7 @@ function setupDropoffSuggestions() {
       button.addEventListener('click', () => {
         const place = places[Number(button.dataset.index)];
         input.value = place.label;
-        customLocationCoords.dropoff = { lat: place.lat, lng: place.lng };
+        customLocationCoords[side] = { lat: place.lat, lng: place.lng };
         closeList();
       });
     });
@@ -3531,7 +3547,7 @@ function setupDropoffSuggestions() {
   input.addEventListener('input', () => {
     // Typing after choosing a suggestion means the stored point no longer
     // describes what's written, so the server falls back to geocoding text.
-    customLocationCoords.dropoff = null;
+    customLocationCoords[side] = null;
     const query = input.value.trim();
     clearTimeout(debounceTimer);
     if (query.length < 3) return closeList();
@@ -3757,6 +3773,9 @@ function setupPassengerRideRequestForm() {
         if (field) field.style.display = 'none';
         customLocationCoords[side] = null;
       });
+      // form.reset() emptied the pickup box too; refill it from GPS so the
+      // next booking starts where the passenger is, same as on page load.
+      fillWithCurrentLocation('pickup');
       syncRideTypeAvailability();
       renderPassengerRideStatus();
       renderDriverRideRequests();
@@ -6253,7 +6272,8 @@ document.addEventListener('DOMContentLoaded', function() {
   setupPassengerRideRequestForm();
   setupRideTypeToggle();
   setupOthersDropoff();
-  setupDropoffSuggestions();
+  setupPlaceSuggestions('pickup');
+  setupPlaceSuggestions('dropoff');
   setupProfileForm();
   setupChangePasswordForm();
   setupAvailabilityToggle();

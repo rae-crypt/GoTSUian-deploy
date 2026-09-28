@@ -3247,7 +3247,15 @@ body[data-page="passenger"] .form-field input[type="text"]:focus {
 body[data-page="passenger"] .form-field input[type="text"]::placeholder { color: #b08a8a; }
 body[data-page="passenger"] .form-field input[type="text"]:disabled { opacity: 0.7; }
 
-/* ---- drop-off type-ahead ---- */
+/* ---- "Use my current location" under the pickup box ---- */
+body[data-page="passenger"] .use-location-btn {
+  display: inline-flex; align-items: center; gap: 6px; margin-top: 7px;
+  padding: 4px 2px; border: none; background: none; cursor: pointer;
+  font-family: inherit; font-size: 13px; font-weight: 600; color: var(--primary);
+}
+body[data-page="passenger"] .use-location-btn:hover { color: var(--primary-soft); text-decoration: underline; }
+
+/* ---- pickup / drop-off type-ahead ---- */
 body[data-page="passenger"] .place-suggest-wrap { position: relative; }
 body[data-page="passenger"] .place-suggest-list {
   position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 500;
