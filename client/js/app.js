@@ -376,7 +376,15 @@ function enforceDashboardAccess() {
   const page = document.body.getAttribute('data-page');
   const allowedRoles = ['passenger', 'driver', 'admin'];
   const user = getStoredUser();
- 
+
+  // Every "Sign up" / "Get started" link on the site points at auth.html,
+  // which showed the Register form even to someone already logged in.
+  // Send them to their own dashboard instead, whatever their role.
+  if (page === 'auth' && isAuthenticated()) {
+    redirectToDashboard(user.role);
+    return;
+  }
+
   if (!allowedRoles.includes(page)) return;
  
   if (!isAuthenticated()) {
