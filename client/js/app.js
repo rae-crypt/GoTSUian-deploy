@@ -3392,6 +3392,38 @@ function syncRideTypeAvailability() {
   }
 }
 
+// The phone's first answer is usually a quick estimate from Wi-Fi or cell
+// towers, easily a kilometre off, with real GPS arriving a few seconds
+// later. Listen for up to PRECISE_FIX_WAIT_MS and keep the most precise
+// reading, finishing early once one is within PRECISE_FIX_METERS. Resolves
+// with a GeolocationPosition, or rejects if no reading came at all.
+const PRECISE_FIX_METERS = 30;
+const PRECISE_FIX_WAIT_MS = 12000;
+
+function getPreciseLocation() {
+  return new Promise((resolve, reject) => {
+    let best = null;
+    let watchId = null;
+    const finish = () => {
+      navigator.geolocation.clearWatch(watchId);
+      clearTimeout(timer);
+      if (best) resolve(best);
+      else reject(new Error('NO_FIX'));
+    };
+    const timer = setTimeout(finish, PRECISE_FIX_WAIT_MS);
+    watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        if (!best || position.coords.accuracy < best.coords.accuracy) best = position;
+        if (position.coords.accuracy <= PRECISE_FIX_METERS) finish();
+      },
+      // Permission denied fails at once; any other error just waits out the
+      // timer in case a later reading still arrives.
+      (err) => { if (err.code === err.PERMISSION_DENIED) finish(); },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: PRECISE_FIX_WAIT_MS }
+    );
+  });
+}
+
 function fillWithCurrentLocation(side) {
   const input = document.querySelector(`#${side}-other-text`);
   const error = document.querySelector(`#${side}-other-error`);
@@ -3403,11 +3435,11 @@ function fillWithCurrentLocation(side) {
     return;
   }
 
-  input.value = 'Detecting your location...';
+  input.value = 'Finding your exact location...';
   input.disabled = true;
   input.dataset.detecting = 'true';
 
-  navigator.geolocation.getCurrentPosition(
+  getPreciseLocation().then(
     async (position) => {
       const lat = position.coords.latitude;
       const lng = position.coords.longitude;
@@ -3424,6 +3456,12 @@ function fillWithCurrentLocation(side) {
       input.disabled = false;
       delete input.dataset.detecting;
       input.value = label;
+      // Indoors, or with location set to battery saving, the phone may never
+      // get a real GPS fix; say so instead of passing a rough guess off as exact.
+      const accuracy = Math.round(position.coords.accuracy);
+      if (error && accuracy > 150) {
+        error.textContent = `Your location may be off by about ${accuracy} m. If this address is wrong, search for your pickup point instead.`;
+      }
     },
     () => {
       customLocationCoords[side] = null;
@@ -3431,8 +3469,7 @@ function fillWithCurrentLocation(side) {
       delete input.dataset.detecting;
       input.value = '';
       if (error) error.textContent = 'Could not get your location — allow location access in your browser, or search for your pickup point instead.';
-    },
-    { enableHighAccuracy: true, timeout: 10000 }
+    }
   );
 }
 

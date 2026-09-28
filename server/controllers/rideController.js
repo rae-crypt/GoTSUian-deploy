@@ -143,8 +143,58 @@ async function geocodeAddress(text) {
 // the same identifying User-Agent it already gets from geocodeAddress
 // (their usage policy asks for one) and so a rate-limit or outage is
 // handled in one place.
+// Every barangay in Tarlac province as OpenStreetMap maps it: a single
+// point per barangay (place=village/quarter/suburb), fetched once from the
+// Overpass API and saved here so lookups are instant and never depend on
+// that service being up. Rows are [name, place type, lat, lng].
+const TARLAC_BARANGAYS = require('../data/tarlac-barangays.json');
+const BARANGAY_MAX_KM = 3;
+
+// The barangay whose mapped point is closest. Most Tarlac barangays have no
+// drawn boundary in OpenStreetMap, only that point, so Nominatim can't say
+// which one contains a location: it names the nearest point of EACH kind
+// separately and returns both. All of Sapang Tagalog came back as "San
+// Miguel, Sapang Tagalog" (San Miguel is ~1km away), and TSU San Isidro as
+// "Salapungan". Comparing distances across all kinds picks the right one.
+function nearestBarangay(lat, lng) {
+  let best = null;
+  let bestKm = Infinity;
+  for (const [name, , bLat, bLng] of TARLAC_BARANGAYS) {
+    const km = haversineKm([lat, lng], [bLat, bLng]);
+    if (km < bestKm) {
+      best = name;
+      bestKm = km;
+    }
+  }
+  return bestKm <= BARANGAY_MAX_KM ? best : null;
+}
+
+// Short "place, barangay, city" label from a Nominatim result's address
+// parts, instead of the first three parts of display_name, which carried
+// the wrong-barangay problem above straight into the pickup box. `point` is
+// the passenger's own GPS position on a reverse lookup: the result's lat/lon
+// there is the matched road or building, which can sit in the next barangay.
+function formatPlaceLabel(result, point) {
+  const address = result.address || {};
+  const [lat, lng] = point || [parseFloat(result.lat), parseFloat(result.lon)];
+  const barangay = (Number.isFinite(lat) && Number.isFinite(lng) && nearestBarangay(lat, lng))
+    || address.village || address.quarter || address.suburb || address.neighbourhood || address.hamlet;
+  const locality = address.city || address.town || address.municipality || address.county;
+  // A named spot (a mall, a school, a barangay hall) says the most; failing
+  // that, the street. Area-type results name the barangay/city themselves.
+  const isArea = result.class === 'place' || result.class === 'boundary';
+  const spot = (!isArea && result.name) || address.road;
+
+  const parts = [];
+  for (const part of [spot, barangay, locality]) {
+    if (part && !parts.some(p => p.toLowerCase() === part.toLowerCase())) parts.push(part);
+  }
+  if (parts.length) return parts.join(', ');
+  return (result.display_name || '').split(',').slice(0, 3).map(s => s.trim()).filter(Boolean).join(', ');
+}
+
 async function reverseGeocodePoint(lat, lng) {
-  const url = `https://nominatim.openstreetmap.org/reverse?format=json&zoom=18&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lng)}`;
+  const url = `https://nominatim.openstreetmap.org/reverse?format=json&addressdetails=1&zoom=18&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lng)}`;
   const res = await fetch(url, {
     headers: { 'User-Agent': 'GoTSUian/1.0 (capstone project, TSU San Isidro)' },
     signal: AbortSignal.timeout(6000)
@@ -152,10 +202,7 @@ async function reverseGeocodePoint(lat, lng) {
   if (!res.ok) throw new Error('Reverse lookup failed');
   const data = await res.json();
   if (!data || !data.display_name) throw new Error('REVERSE_NOT_FOUND');
-  // display_name is a long comma-chained address ("Barangay Hall, Cut-cut,
-  // Tarlac City, Tarlac, Central Luzon, 2300, Philippines"). The first
-  // three parts are the useful bit for a driver reading a ride card.
-  return data.display_name.split(',').slice(0, 3).map(s => s.trim()).filter(Boolean).join(', ');
+  return formatPlaceLabel(data, [Number(lat), Number(lng)]);
 }
 
 // Type-ahead for the drop-off box. Same Tarlac-biased Nominatim search that
@@ -172,7 +219,7 @@ exports.searchPlaces = async (req, res) => {
   if (query.length < 2) return res.status(200).json({ places: [] });
 
   try {
-    const url = `https://nominatim.openstreetmap.org/search?format=json&limit=6&viewbox=${TARLAC_VIEWBOX}&bounded=1&q=${encodeURIComponent(query + ', Tarlac, Philippines')}`;
+    const url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=6&viewbox=${TARLAC_VIEWBOX}&bounded=1&q=${encodeURIComponent(query + ', Tarlac, Philippines')}`;
     const response = await fetch(url, {
       headers: { 'User-Agent': 'GoTSUian/1.0 (capstone project, TSU San Isidro)' },
       signal: AbortSignal.timeout(6000)
@@ -182,7 +229,7 @@ exports.searchPlaces = async (req, res) => {
 
     res.status(200).json({
       places: results.map((result) => ({
-        label: result.display_name.split(',').slice(0, 3).map(s => s.trim()).filter(Boolean).join(', '),
+        label: formatPlaceLabel(result),
         lat: parseFloat(result.lat),
         lng: parseFloat(result.lon)
       }))
