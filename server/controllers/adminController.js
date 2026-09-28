@@ -3,7 +3,7 @@ const fs = require('fs');
 const crypto = require('crypto');
 const bcrypt = require('bcrypt');
 const db = require('../config/db');
-const { emitDriverAccountStatus, emitLoyaltyGranted } = require('../socket');
+const { emitDriverAccountStatus, emitLoyaltyGranted, getPresentPassengerIds } = require('../socket');
 
 // Excludes visually-ambiguous characters (0/O, 1/l/I) since this gets read
 // aloud or copied over a phone call, not typed by the person who generated it.
@@ -71,8 +71,10 @@ exports.getStats = (req, res) => {
 };
 // LIST ALL PASSENGERS — every registered student, with how many rides
 // they've made, when they last booked, and whether they're actually
-// logged in right now (is_online, same login/logout-flipped flag pattern
-// as tricycle_driver — see loginStudent/logoutStudent in authController.js).
+// logged in right now. is_online (flipped at login/logout, see
+// loginStudent/logoutStudent in authController.js) stays on for anyone who
+// closed the app without pressing Logout, so it also has to have a page
+// open right now (see getPresentPassengerIds in socket.js).
 exports.listPassengers = (req, res) => {
   const sql = `
     SELECT s.account_id, CONCAT(s.first_name, ' ', s.last_name) AS name,
@@ -84,7 +86,13 @@ exports.listPassengers = (req, res) => {
   `;
   db.query(sql, (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
-    res.status(200).json({ passengers: rows });
+    const presentIds = new Set(getPresentPassengerIds().map(String));
+    res.status(200).json({
+      passengers: rows.map((row) => ({
+        ...row,
+        is_online: Boolean(row.is_online) && presentIds.has(String(row.account_id))
+      }))
+    });
   });
 };
 

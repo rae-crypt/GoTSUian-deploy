@@ -4814,7 +4814,10 @@ function setupLogoutButtons() {
             body: JSON.stringify({ is_online: false }),
             keepalive: true
           });
-        } else if (loggedOutRole === 'student') {
+        } else if (loggedOutRole === 'passenger' || loggedOutRole === 'student') {
+          // Stored as "passenger" (login normalizes the server's "student"),
+          // so checking only "student" meant this call never went out and
+          // every passenger stayed Active in admin after logging out.
           await fetch(`${API_BASE_URL}/logout/student`, {
             method: 'POST',
             headers: getAuthHeaders(),
@@ -6286,6 +6289,12 @@ function manageRealtimeConnection() {
 
   realtimeSocket.on('drivers:availability-changed', function() {
     renderAvailableDriversIndicator();
+  });
+
+  // Sent to admins only, whenever a passenger opens the app or has been
+  // gone past the grace period — keeps the Active/Offline pills current.
+  realtimeSocket.on('passengers:presence-changed', function() {
+    renderAdminPassengerManagement();
   });
 
   realtimeSocket.on('driver:account-status-changed', function() {

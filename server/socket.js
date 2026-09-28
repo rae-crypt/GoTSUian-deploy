@@ -13,40 +13,56 @@ function accountRoom(accountId) {
   return `account:${accountId}`;
 }
 
-// A driver's is_online flag only goes back off when they press Logout, so a
-// driver who just closed the tab, lost signal or let their phone die stayed
-// listed as online indefinitely. Passenger-facing availability therefore
-// also requires a live socket: every open driver page holds one. Moving
-// between pages drops and reopens it, so a driver whose last socket closes
-// is kept for a grace period before being dropped from the list.
+// The is_online flags only go back off when someone presses Logout, so a
+// driver or passenger who just closed the tab, lost signal or let their
+// phone die stayed listed as online indefinitely. "Online" therefore also
+// requires a live socket: every open page holds one. Moving between pages
+// drops and reopens it, so an account whose last socket closes is kept for
+// a grace period before counting as gone. onChange fires whenever an
+// account arrives or finally leaves.
 const PRESENCE_GRACE_MS = 60 * 1000;
-const driverSockets = new Map();   // accountId -> number of open sockets
-const driverGraceTimers = new Map();
 
-function markDriverConnected(accountId) {
-  const wasPresent = isDriverPresent(accountId);
-  clearTimeout(driverGraceTimers.get(accountId));
-  driverGraceTimers.delete(accountId);
-  driverSockets.set(accountId, (driverSockets.get(accountId) || 0) + 1);
-  if (!wasPresent) emitAvailabilityChanged();
+function createPresenceTracker(onChange) {
+  const sockets = new Map();   // accountId -> number of open sockets
+  const graceTimers = new Map();
+  const isPresent = (accountId) => sockets.has(accountId) || graceTimers.has(accountId);
+
+  return {
+    connected(accountId) {
+      const wasPresent = isPresent(accountId);
+      clearTimeout(graceTimers.get(accountId));
+      graceTimers.delete(accountId);
+      sockets.set(accountId, (sockets.get(accountId) || 0) + 1);
+      if (!wasPresent) onChange();
+    },
+    disconnected(accountId) {
+      const remaining = (sockets.get(accountId) || 1) - 1;
+      if (remaining > 0) return sockets.set(accountId, remaining);
+      sockets.delete(accountId);
+      graceTimers.set(accountId, setTimeout(() => {
+        graceTimers.delete(accountId);
+        onChange();
+      }, PRESENCE_GRACE_MS));
+    },
+    ids() {
+      return [...new Set([...sockets.keys(), ...graceTimers.keys()])];
+    }
+  };
 }
 
-function markDriverDisconnected(accountId) {
-  const remaining = (driverSockets.get(accountId) || 1) - 1;
-  if (remaining > 0) return driverSockets.set(accountId, remaining);
-  driverSockets.delete(accountId);
-  driverGraceTimers.set(accountId, setTimeout(() => {
-    driverGraceTimers.delete(accountId);
-    emitAvailabilityChanged();
-  }, PRESENCE_GRACE_MS));
-}
-
-function isDriverPresent(accountId) {
-  return driverSockets.has(accountId) || driverGraceTimers.has(accountId);
-}
+const driverPresence = createPresenceTracker(() => emitAvailabilityChanged());
+// Admin's Passenger management panel re-renders on this, so a passenger's
+// Active/Offline pill changes without the admin having to reload.
+const passengerPresence = createPresenceTracker(() => {
+  if (io) io.to('admins').emit('passengers:presence-changed');
+});
 
 function getPresentDriverIds() {
-  return [...new Set([...driverSockets.keys(), ...driverGraceTimers.keys()])];
+  return driverPresence.ids();
+}
+
+function getPresentPassengerIds() {
+  return passengerPresence.ids();
 }
 
 // Attaches Socket.IO to the existing HTTP server. Called once from
@@ -77,11 +93,16 @@ function initSocket(server) {
     socket.join(accountRoom(id));
     if (user.role === 'passenger' || user.role === 'student') {
       socket.join('passengers');
+      passengerPresence.connected(user.accountId);
+      socket.on('disconnect', () => passengerPresence.disconnected(user.accountId));
     }
     if (user.role === 'driver') {
       socket.join('drivers');
-      markDriverConnected(user.accountId);
-      socket.on('disconnect', () => markDriverDisconnected(user.accountId));
+      driverPresence.connected(user.accountId);
+      socket.on('disconnect', () => driverPresence.disconnected(user.accountId));
+    }
+    if (user.role === 'admin') {
+      socket.join('admins');
     }
   });
 
@@ -158,6 +179,7 @@ module.exports = {
   initSocket,
   getIO,
   getPresentDriverIds,
+  getPresentPassengerIds,
   emitRideUpdated,
   emitNewPendingRide,
   emitDriverLocation,
