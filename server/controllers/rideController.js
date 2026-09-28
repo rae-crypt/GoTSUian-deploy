@@ -1125,6 +1125,12 @@ exports.updateRideStatus = (req, res) => {
     if (!rows.length) return res.status(404).json({ error: 'Ride not found' });
     const ride = rows[0];
 
+    // A passenger already on board can't be cancelled on, by either side.
+    // The driver's screen no longer offers it; this covers an old page.
+    if (status === 'Cancelled' && ['Picked Up', 'In Progress'].includes(ride.status)) {
+      return res.status(409).json({ error: 'This ride can no longer be cancelled because the passenger has already been picked up.' });
+    }
+
     // 'Declined' behaves like 'Cancelled' for cascade purposes — it only
     // ever applies to a single still-Pending ride (or, for a Shared pool
     // decline, every rider's ride_id is targeted individually by the

@@ -3995,7 +3995,9 @@ function getRideStatusConfig(status) {
 function getNextRideStatusOptions(currentStatus) {
   if (currentStatus === 'Pending') return ['Accepted', 'Cancelled'];
   if (currentStatus === 'Accepted') return ['Picked Up', 'Cancelled'];
-  if (currentStatus === 'Picked Up') return ['In Progress', 'Completed', 'Cancelled'];
+  // No Cancel once the passenger is on board: the trip either goes ahead or,
+  // if something goes wrong on the road, ends as Failed from In Progress.
+  if (currentStatus === 'Picked Up') return ['In Progress', 'Completed'];
   if (currentStatus === 'In Progress') return ['Completed', 'Failed'];
   return [];
 }
