@@ -3520,10 +3520,35 @@ function setupPlaceSuggestions(side) {
 
   let debounceTimer = null;
   let requestToken = 0;
+  // The last results that actually came back. OpenStreetMap search only
+  // matches whole words, so "sm c" finds nothing even though "sm" found SM
+  // City Tarlac; narrowing these down locally keeps the list on screen
+  // while the passenger is partway through a word.
+  let lastPlaces = [];
 
   function closeList() {
     list.hidden = true;
     list.innerHTML = '';
+  }
+
+  // Every typed word has to start one of the words in the place's name, so
+  // "sm c" keeps "SM City Tarlac" and drops "SM Gerona". The name is the part
+  // before the first comma; checked alone first because nearly every address
+  // ends in "Tarlac City", which would let "sm c" keep "SM Eats" too. The
+  // full address is the fallback for someone typing the town ("sm gerona").
+  function narrowPlaces(places, query) {
+    const typedWords = query.toLowerCase().split(/\s+/).filter(Boolean);
+    const matches = (text) => {
+      const words = text.toLowerCase().split(/[\s,]+/);
+      return typedWords.every((typed) => words.some((word) => word.startsWith(typed)));
+    };
+    const byName = places.filter((place) => matches(place.label.split(',')[0]));
+    return byName.length ? byName : places.filter((place) => matches(place.label));
+  }
+
+  function showStatus(text) {
+    list.innerHTML = `<li class="place-suggest-status">${escapeHtml(text)}</li>`;
+    list.hidden = false;
   }
 
   function renderSuggestions(places) {
@@ -3550,7 +3575,17 @@ function setupPlaceSuggestions(side) {
     customLocationCoords[side] = null;
     const query = input.value.trim();
     clearTimeout(debounceTimer);
-    if (query.length < 3) return closeList();
+    if (query.length < 2) {
+      lastPlaces = [];
+      requestToken++;
+      return closeList();
+    }
+
+    // Answer straight away from what's already known, so the list reacts
+    // on every keystroke instead of only once the lookup below returns.
+    const narrowed = narrowPlaces(lastPlaces, query);
+    if (narrowed.length) renderSuggestions(narrowed);
+    else showStatus('Searching…');
 
     // Nominatim's usage policy asks for at most one request per second, and
     // a lookup per keystroke would blow past that immediately.
@@ -3560,12 +3595,18 @@ function setupPlaceSuggestions(side) {
       try {
         places = await searchPlaces(query);
       } catch (error) {
-        return closeList();
+        places = [];
       }
       // A slower earlier request must not overwrite a newer one's results.
       if (token !== requestToken) return;
-      renderSuggestions(places);
-    }, 450);
+      if (places.length) {
+        lastPlaces = places;
+        return renderSuggestions(places);
+      }
+      const fallback = narrowPlaces(lastPlaces, query);
+      if (fallback.length) renderSuggestions(fallback);
+      else showStatus('No matching places in Tarlac');
+    }, 350);
   });
 
   input.addEventListener('keydown', (event) => {

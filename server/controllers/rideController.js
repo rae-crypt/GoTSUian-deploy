@@ -169,7 +169,7 @@ async function reverseGeocodePoint(lat, lng) {
 // because a free geocoder hiccuped would be worse than no suggestions.
 exports.searchPlaces = async (req, res) => {
   const query = (req.body.q || '').trim();
-  if (query.length < 3) return res.status(200).json({ places: [] });
+  if (query.length < 2) return res.status(200).json({ places: [] });
 
   try {
     const url = `https://nominatim.openstreetmap.org/search?format=json&limit=6&viewbox=${TARLAC_VIEWBOX}&bounded=1&q=${encodeURIComponent(query + ', Tarlac, Philippines')}`;
