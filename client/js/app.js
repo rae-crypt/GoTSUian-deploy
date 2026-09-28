@@ -1422,7 +1422,7 @@ async function pollDriverLocation() {
     }
 
     if (!driverLocationMarker) {
-      const driverIcon = L.divIcon({ className: 'driver-location-icon', html: '<span class="driver-location-badge">🛺</span>', iconSize: [36, 36], iconAnchor: [18, 18] });
+      const driverIcon = L.divIcon({ className: 'driver-location-icon', html: DRIVER_MARKER_HTML, iconSize: [44, 44], iconAnchor: [22, 22] });
       driverLocationMarker = L.marker(point, { icon: driverIcon, zIndexOffset: 1000 }).addTo(passengerMapInstance).bindPopup('Your driver');
       // Legend moved here from the pin-drawing block above. It captions the
       // driver's trail, and a Pending ride has no driver yet -- shown any
@@ -1622,7 +1622,7 @@ async function renderDriverMapTrackingBody() {
   }
 
   if (!driverMapMarker) {
-    const driverIcon = L.divIcon({ className: 'driver-location-icon', html: '<span class="driver-location-badge">🛺</span>', iconSize: [36, 36], iconAnchor: [18, 18] });
+    const driverIcon = L.divIcon({ className: 'driver-location-icon', html: DRIVER_MARKER_HTML, iconSize: [44, 44], iconAnchor: [22, 22] });
     driverMapMarker = L.marker(point, { icon: driverIcon, zIndexOffset: 1000 }).addTo(driverMapInstance).bindPopup('You');
   } else {
     driverMapMarker.setLatLng(point);
@@ -1796,6 +1796,11 @@ function openDriverResetPasswordModal(driverId, targetName) {
   document.body.style.overflow = 'hidden';
   renderConfirm();
 }
+
+// The driver's map marker. An image rather than the 🛺 emoji, which every
+// phone draws in its own style (some as an auto-rickshaw or a car), so the
+// marker looked like a random vehicle depending on who was watching.
+const DRIVER_MARKER_HTML = '<span class="driver-location-badge"><img src="../images/tricycle.png" alt="Driver"></span>';
 
 function initials(...parts) {
   const chars = parts.map(p => (p || '').trim().charAt(0)).join('');
