@@ -1884,7 +1884,6 @@ async function renderAdminDriverManagement() {
   if (!drivers.length) {
     tbody.innerHTML = '<tr><td colspan="5">No drivers registered yet.</td></tr>';
     if (mobileList) mobileList.innerHTML = '<p class="admin-mcard-empty">No drivers registered yet.</p>';
-    updateAcceptAllVisibility(drivers);
     return;
   }
 
@@ -1893,8 +1892,6 @@ async function renderAdminDriverManagement() {
 
   wireDriverManagementActions(tbody);
   if (mobileList) wireDriverManagementActions(mobileList);
-
-  updateAcceptAllVisibility(drivers);
 }
 
 function wireDriverManagementActions(container) {
@@ -1934,43 +1931,6 @@ function wireDriverManagementActions(container) {
     button.addEventListener('click', function() {
       openDriverResetPasswordModal(this.getAttribute('data-driver-id'), this.getAttribute('data-target-name'));
     });
-  });
-}
-
-// "Accept All Pending" — wired once (the button lives in the static HTML,
-// not re-rendered), reading whichever driver rows are pending straight from
-// the DOM at click time so it always reflects the latest render.
-function setupAcceptAllForDriverPanel() {
-  const panel = document.querySelector('#driver-management-panel');
-  const btn = panel && panel.querySelector('.accept-all-btn');
-  if (!btn) return;
-
-  const wrap = panel.querySelector('.accept-all-wrap');
-  const confirmBox = panel.querySelector('.accept-all-confirm');
-
-  btn.addEventListener('click', () => {
-    wrap.style.display = 'none';
-    confirmBox.style.display = 'flex';
-  });
-  panel.querySelector('.accept-all-cancel').addEventListener('click', () => {
-    confirmBox.style.display = 'none';
-    wrap.style.display = '';
-  });
-  panel.querySelector('.accept-all-yes').addEventListener('click', async () => {
-    const ids = Array.from(document.querySelectorAll('#admin-drivers-tbody tr[data-pending-row]'))
-      .map(row => row.getAttribute('data-driver-id'));
-    confirmBox.style.display = 'none';
-    wrap.style.display = '';
-    if (!ids.length) return;
-
-    try {
-      await Promise.all(ids.map(id => updateDriverStatusRemote(id, 'Active')));
-      showRideFeedback('success', 'Drivers approved', `${ids.length} pending driver${ids.length === 1 ? '' : 's'} approved.`);
-    } catch (error) {
-      showRideFeedback('error', 'Could not approve all', error.message || 'Please try again.');
-    }
-    renderAdminDriverManagement();
-    renderAdminStats();
   });
 }
 
@@ -2017,16 +1977,6 @@ function setupDashboardCardCollapse() {
       btn.setAttribute('aria-label', collapsed ? 'Expand this section' : 'Collapse this section');
     });
   });
-}
-
-function updateAcceptAllVisibility(drivers) {
-  const panel = document.querySelector('#driver-management-panel');
-  if (!panel) return;
-  const zone = panel.querySelector('.accept-all-zone');
-  const countEl = panel.querySelector('.accept-all-count');
-  const pendingCount = drivers.filter(d => d.account_status === 'Pending').length;
-  if (countEl) countEl.textContent = `(${pendingCount})`;
-  if (zone) zone.style.display = pendingCount > 0 ? '' : 'none';
 }
 
 // License review modal — fetched as a blob (a plain <a href> can't carry
@@ -6420,7 +6370,6 @@ document.addEventListener('DOMContentLoaded', function() {
   setupLoginNavLink();
   setupViolationModal();
   setupLicenseModal();
-  setupAcceptAllForDriverPanel();
   setupAdminPanelCollapse();
   setupLoyaltyHistoryToggle();
   setupLoyaltyRoleTabs();

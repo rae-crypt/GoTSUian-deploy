@@ -2129,12 +2129,6 @@ a.admin-stat-card:active { transform: translateY(0); }
 }
 .loyalty-granted-tag svg { width: 13px; height: 13px; }
 
-/* ---- Accept All Pending ---- */
-.accept-all-zone { display: flex; }
-.accept-all-wrap { display: flex; }
-.accept-all-confirm { display: none; align-items: center; gap: 8px; flex-wrap: wrap; }
-.accept-all-confirm .msg { font-size: 13px; color: var(--muted); max-width: 170px; line-height: 1.4; }
-
 /* ---- tables ---- */
 .admin-table-scroll { overflow-x: auto; margin: 0 -4px; }
 table.admin-table { width: 100%; border-collapse: collapse; }
@@ -2345,13 +2339,6 @@ table.admin-table tbody tr:hover { background: var(--light); }
   .admin-panel-head-text h2 { font-size: 15.5px; }
   .admin-panel-head-text p { font-size: 12px; }
   .admin-panel-count { font-size: 11px; padding: 4px 9px; }
-
-  .accept-all-zone { width: 100%; margin-top: 4px; }
-  .accept-all-wrap { width: 100%; }
-  .accept-all-btn { width: 100%; justify-content: center; }
-  .accept-all-confirm { width: 100%; }
-  .accept-all-confirm .msg { max-width: none; flex-basis: 100%; }
-  .accept-all-confirm .admin-btn { flex: 1; text-align: center; }
 
   .admin-table-scroll { display: none; }
   .admin-mobile-list { display: flex; }
