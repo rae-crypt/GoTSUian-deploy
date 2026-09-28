@@ -2173,6 +2173,8 @@ table.admin-table tbody tr:hover { background: var(--light); }
 .admin-pill.tone-danger { background: var(--tone-danger-bg); color: var(--tone-danger); }
 .admin-pill.tone-info { background: var(--tone-info-bg); color: var(--tone-info); }
 .admin-pill.tone-neutral { background: var(--tone-neutral-bg); color: var(--tone-neutral); }
+/* A driver's Approved pill with their Online/Offline pill under it. */
+.admin-pill-stack { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; }
 .admin-pill svg { width: 7px; height: 7px; flex-shrink: 0; }
 
 .admin-actions { display: flex; gap: 8px; flex-wrap: wrap; }

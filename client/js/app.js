@@ -1808,6 +1808,20 @@ function statusPillTone(status) {
   return 'danger';
 }
 
+// An approved driver's status reads "Approved" rather than the stored
+// "Active", which sat next to the passengers' Active/Offline pills and read
+// as "online right now". The stored value itself is unchanged.
+function driverStatusLabel(status) {
+  return status === 'Active' ? 'Approved' : status;
+}
+
+// Online/Offline for an approved driver: on shift with the app open right
+// now (see listDrivers). Pending and rejected drivers can't log in at all.
+function driverPresencePill(driver) {
+  if (driver.account_status !== 'Active') return '';
+  return pillHtml(driver.is_online ? 'success' : 'neutral', driver.is_online ? 'Online' : 'Offline');
+}
+
 function pillHtml(tone, label) {
   return `<span class="admin-pill tone-${tone}"><svg viewBox="0 0 8 8"><circle cx="4" cy="4" r="4" fill="currentColor"/></svg>${escapeHtml(label)}</span>`;
 }
@@ -1832,7 +1846,7 @@ function renderDriverRow(driver) {
       <td><div class="admin-person"><span class="admin-avatar">${initials(driver.first_name, driver.last_name)}</span><div><strong>${driverName}</strong></div></div></td>
       <td>${escapeHtml(driver.contact_number || '—')}</td>
       <td>${licenseCell}</td>
-      <td>${pillHtml(statusPillTone(driver.account_status), driver.account_status)}</td>
+      <td><div class="admin-pill-stack">${pillHtml(statusPillTone(driver.account_status), driverStatusLabel(driver.account_status))}${driverPresencePill(driver)}</div></td>
       <td><div class="admin-actions">${approvalActions}<button type="button" class="admin-btn" data-action="reset-driver-password" data-driver-id="${driver.driver_id}" data-target-name="${driverName}">Reset password</button><button type="button" class="admin-btn" data-action="issue-warning" data-account-id="${driver.account_id}" data-target-name="${driverName}">Issue Warning</button></div></td>
     </tr>
   `;
@@ -1853,9 +1867,10 @@ function renderDriverCard(driver) {
     <div class="admin-mcard"${isPending ? ' data-pending-row' : ''} data-driver-id="${driver.driver_id}">
       <div class="admin-mcard-top">
         <div class="admin-person"><span class="admin-avatar">${initials(driver.first_name, driver.last_name)}</span><div><strong>${driverName}</strong></div></div>
-        ${pillHtml(statusPillTone(driver.account_status), driver.account_status)}
+        ${pillHtml(statusPillTone(driver.account_status), driverStatusLabel(driver.account_status))}
       </div>
       <div class="admin-mcard-rows">
+        ${driver.account_status === 'Active' ? `<div class="admin-mcard-row"><span>Right now</span><span>${driverPresencePill(driver)}</span></div>` : ''}
         <div class="admin-mcard-row"><span>Contact</span><span>${escapeHtml(driver.contact_number || '—')}</span></div>
         ${licenseRow}
       </div>
@@ -2084,7 +2099,7 @@ function renderPassengerRow(p) {
       <td><div class="admin-person"><span class="admin-avatar">${passengerInitials(p.name)}</span><div><strong>${passengerName}</strong></div></div></td>
       <td>${p.ride_count}</td>
       <td>${escapeHtml(lastBooking)}</td>
-      <td>${pillHtml(isOnline ? 'success' : 'neutral', isOnline ? 'Active' : 'Offline')}</td>
+      <td>${pillHtml(isOnline ? 'success' : 'neutral', isOnline ? 'Online' : 'Offline')}</td>
       <td><button type="button" class="admin-btn" data-action="issue-warning" data-account-id="${p.account_id}" data-target-name="${passengerName}">Issue Warning</button></td>
     </tr>
   `;
@@ -2098,7 +2113,7 @@ function renderPassengerCard(p) {
     <div class="admin-mcard">
       <div class="admin-mcard-top">
         <div class="admin-person"><span class="admin-avatar">${passengerInitials(p.name)}</span><div><strong>${passengerName}</strong></div></div>
-        ${pillHtml(isOnline ? 'success' : 'neutral', isOnline ? 'Active' : 'Offline')}
+        ${pillHtml(isOnline ? 'success' : 'neutral', isOnline ? 'Online' : 'Offline')}
       </div>
       <div class="admin-mcard-rows">
         <div class="admin-mcard-row"><span>Rides booked</span><span>${p.ride_count}</span></div>
@@ -6289,6 +6304,7 @@ function manageRealtimeConnection() {
 
   realtimeSocket.on('drivers:availability-changed', function() {
     renderAvailableDriversIndicator();
+    renderAdminDriverManagement();
   });
 
   // Sent to admins only, whenever a passenger opens the app or has been

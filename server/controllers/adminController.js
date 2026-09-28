@@ -3,7 +3,7 @@ const fs = require('fs');
 const crypto = require('crypto');
 const bcrypt = require('bcrypt');
 const db = require('../config/db');
-const { emitDriverAccountStatus, emitLoyaltyGranted, getPresentPassengerIds } = require('../socket');
+const { emitDriverAccountStatus, emitLoyaltyGranted, getPresentPassengerIds, getPresentDriverIds } = require('../socket');
 
 // Excludes visually-ambiguous characters (0/O, 1/l/I) since this gets read
 // aloud or copied over a phone call, not typed by the person who generated it.
@@ -19,17 +19,26 @@ function generateTempPassword(length = 8) {
 // LIST ALL DRIVERS — the admin dashboard's driver management table shows
 // every driver (not just pending ones) so the admin can also review
 // already-approved or rejected accounts, not only act on new ones.
+// is_online is whether the driver is on shift and has the app open right now,
+// the same test the passenger's "Drivers online" list uses (see
+// getPresentDriverIds in socket.js).
 exports.listDrivers = (req, res) => {
   const sql = `
     SELECT driver_id, account_id, first_name, last_name, driver_license_no,
-           contact_number, account_status,
+           contact_number, account_status, is_online,
            license_document_path IS NOT NULL AS has_license_file
     FROM tricycle_driver
     ORDER BY FIELD(account_status, 'Pending', 'Active', 'Rejected'), driver_id DESC
   `;
   db.query(sql, (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
-    res.status(200).json({ drivers: rows });
+    const presentIds = new Set(getPresentDriverIds().map(String));
+    res.status(200).json({
+      drivers: rows.map((row) => ({
+        ...row,
+        is_online: Boolean(row.is_online) && presentIds.has(String(row.account_id))
+      }))
+    });
   });
 };
 

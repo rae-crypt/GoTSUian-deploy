@@ -141,6 +141,8 @@ function emitDriverLocation(passengerAccountId) {
 function emitAvailabilityChanged() {
   if (!io) return;
   io.to('passengers').emit('drivers:availability-changed');
+  // Admin's Driver management shows each driver's Online/Offline too.
+  io.to('admins').emit('drivers:availability-changed');
 }
 
 function emitDriverAccountStatus(driverAccountId) {
