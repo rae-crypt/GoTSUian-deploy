@@ -437,6 +437,15 @@ async function syncDriverAccountStatus() {
   const profile = await fetchProfile();
   if (!profile || !profile.account_status) return;
 
+  // Unverified drivers can no longer log in (see loginDriver), but a session
+  // started before that rule, or one an admin has since rejected, is still
+  // holding a token. Send it back to the login form, which explains why.
+  if (profile.account_status === 'Pending' || profile.account_status === 'Rejected') {
+    clearStoredUser();
+    location.replace('auth.html?tab=login');
+    return;
+  }
+
   if (profile.account_status !== user.accountStatus) {
     setStoredUser({ ...user, accountStatus: profile.account_status });
   }
@@ -5006,6 +5015,16 @@ function showAuthFeedback(type, title, message) {
     if (modalContent) modalContent.classList.add('error');
     modalMessage.textContent = message || 'Something went wrong. Please try again.';
     modalRedirectText.style.display = 'none';
+  } else if (type === 'pending') {
+    // A driver account awaiting admin verification: not an error, but there
+    // is no dashboard to send them to either, so it stays until dismissed.
+    modalIcon.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></svg>';
+    modalIcon.className = 'auth-modal-icon neutral';
+    modalTitle.textContent = title;
+    modalTitle.style.color = '';
+    if (modalContent) modalContent.classList.remove('error');
+    modalMessage.textContent = message;
+    modalRedirectText.style.display = 'none';
   }
  
   // Show modal
@@ -5945,24 +5964,34 @@ function setupAuthForm() {
           return;
         }
  
-        // Registered successfully — both roles go straight to their
-        // dashboard now. A driver's account starts "Pending" (admin still
-        // has to verify the license/MTOP/TODA registration before they can
-        // accept rides), but they can already log in and see the dashboard
-        // — driver.html shows a "pending approval" banner for that state
-        // (see showDriverApprovalBanner()).
-        //
-        // The redirect fires immediately (no delay) rather than after the
-        // usual few-second feedback pause — Edge's native "Save your
-        // password?" prompt can appear during that window (this form has
-        // password fields) and blocks the page from navigating away while
-        // it's showing, which silently strands the user on this page.
-        // Navigating right away beats the prompt to it.
+        // A new driver isn't signed in: the account starts "Pending" and
+        // can't log in until an admin verifies the license and approves it.
+        // Leave them on the Login tab with their number already filled in,
+        // ready for when that happens.
         if (role === 'driver') {
-          setStoredUser({ name: fullName, role, accountId: data.accountId, accountStatus: data.accountStatus, token: data.token }, true);
-        } else {
-          setStoredUser({ name: fullName, role, email, accountId: data.accountId, token: data.token }, true);
+          const loginTab = document.querySelector('.auth-tab[data-tab="login"]');
+          if (loginTab) loginTab.click();
+          const loginRole = document.querySelector('#login-role');
+          if (loginRole) {
+            loginRole.value = 'driver';
+            loginRole.dispatchEvent(new Event('change'));
+          }
+          const loginContact = document.querySelector('#login-contact');
+          if (loginContact) loginContact.value = contactNumber;
+          registerForm.reset();
+          showAuthFeedback('pending', 'Registration submitted',
+            'Your account is now waiting for verification by the TODA admin, who will check your driver\'s license. You can log in once it has been approved.');
+          return;
         }
+
+        // A passenger goes straight to their dashboard. The redirect fires
+        // immediately (no delay) rather than after the usual few-second
+        // feedback pause — Edge's native "Save your password?" prompt can
+        // appear during that window (this form has password fields) and
+        // blocks the page from navigating away while it's showing, which
+        // silently strands the user on this page. Navigating right away
+        // beats the prompt to it.
+        setStoredUser({ name: fullName, role, email, accountId: data.accountId, token: data.token }, true);
         redirectToDashboard(role);
  
       } catch (error) {
@@ -6126,6 +6155,10 @@ function setupAuthForm() {
         const data = await response.json();
 
         if (!response.ok) {
+          if (data.accountStatus === 'Pending') {
+            showAuthFeedback('pending', 'Waiting for verification', data.error);
+            return;
+          }
           if (errorEl) errorEl.textContent = data.error || 'Invalid credentials.';
           return;
         }

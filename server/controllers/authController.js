@@ -366,22 +366,14 @@ exports.registerDriver = async (req, res) => {
                 });
               }
               connection.release();
-              // A Pending driver is already allowed to log in (see loginDriver
-              // — only 'Rejected' blocks access) and see their dashboard, they
-              // just can't accept rides yet. Issue a token here too so a
-              // newly-registered driver lands straight on their dashboard
-              // instead of being sent back to the login form.
-              const token = jwt.sign(
-                { accountId, role: 'driver', accountStatus: 'Pending' },
-                process.env.JWT_SECRET,
-                { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
-              );
+              // No token: a new driver can't log in until an admin has checked
+              // their license and approved them (see loginDriver), so the
+              // registration form tells them to wait instead of signing in.
               res.status(201).json({
                 message: 'Driver registered successfully',
                 accountId,
                 driverId: driverResult.insertId,
-                accountStatus: 'Pending',
-                token
+                accountStatus: 'Pending'
               });
             });
           });
@@ -422,12 +414,15 @@ exports.loginDriver = async (req, res) => {
       return res.status(401).json({ error: 'Invalid username or password' });
     }
 
-    // Pending drivers can still log in and see their dashboard — the admin
-    // isn't watching the system around the clock, so blocking login entirely
-    // would leave a newly-registered driver locked out for who knows how
-    // long. Approval instead gates the ability to accept rides (see
-    // acceptRide in rideController.js). A rejected application is the one
-    // case that blocks access outright.
+    // A driver gets in only after an admin has verified their license and
+    // approved the account (KYC). Until then, and after a rejection, login
+    // is refused with a reason the login form can show.
+    if (user.account_status === 'Pending') {
+      return res.status(403).json({
+        error: 'Your account is still waiting for verification by the TODA admin. You can log in once it has been approved.',
+        accountStatus: 'Pending'
+      });
+    }
     if (user.account_status === 'Rejected') {
       return res.status(403).json({ error: 'Your driver application was not approved. Please contact the TODA admin.' });
     }
