@@ -3603,9 +3603,11 @@ function setupPlaceSuggestions(side) {
         lastPlaces = places;
         return renderSuggestions(places);
       }
+      // An empty answer usually means a word is still half-typed ("rob"
+      // finds nothing, "robinsons" does), not that the place isn't there.
       const fallback = narrowPlaces(lastPlaces, query);
       if (fallback.length) renderSuggestions(fallback);
-      else showStatus('No matching places in Tarlac');
+      else showStatus('No results yet. Try typing the full name (e.g. "Robinsons", not "Rob").');
     }, 350);
   });
 
