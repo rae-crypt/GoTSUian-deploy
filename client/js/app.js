@@ -1284,6 +1284,11 @@ let driverActualTrailPoints = [];
 // path the driver ends up taking between them.
 let driverPickupPin = null;
 let driverDropoffPin = null;
+// The maroon pickup-to-drop-off road line on the passenger's map, the same
+// line the driver sees on theirs.
+let passengerRouteLine = null;
+let passengerRouteIsRoad = false;
+let passengerRouteLoading = false;
 const CAMPUS_PIN_COORDS = {
   sanIsidro: [15.502749, 120.578693],
   mainCampus: [15.485127, 120.587373]
@@ -1326,6 +1331,11 @@ function clearDriverTracking() {
     passengerMapInstance.removeLayer(driverDropoffPin);
     driverDropoffPin = null;
   }
+  if (passengerRouteLine) {
+    passengerMapInstance.removeLayer(passengerRouteLine);
+    passengerRouteLine = null;
+  }
+  passengerRouteIsRoad = false;
   driverActualTrailPoints = [];
   driverTrackedRideId = null;
   const legend = document.querySelector('#route-legend');
@@ -1347,6 +1357,29 @@ function getRouteForRide(ride) {
 
   const pickupIsSanIsidro = (ride.pickup_location || '').includes('San Isidro');
   return pickupIsSanIsidro ? ROUTE_SAN_ISIDRO_TO_MAIN : ROUTE_MAIN_TO_SAN_ISIDRO;
+}
+
+// The road from pickup to drop-off (see getRideRoute on the server), for
+// the maroon line on both maps, as { points, road }. road is false when the
+// routing server didn't answer and points is only the straight line (or
+// getRouteForRide's fallback), so callers try again on a later refresh.
+async function fetchRideRoute(ride) {
+  try {
+    const res = await fetch(`${RIDES_API_URL}/${ride.ride_id}/route`, { headers: getAuthHeaders() });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.points && data.points.length >= 2) return { points: data.points, road: Boolean(data.road) };
+    }
+  } catch (error) {
+    console.warn('Unable to load ride route', error);
+  }
+  return { points: getRouteForRide(ride), road: false };
+}
+
+// The A (pickup) and B (drop-off) pins, identical on both maps. Anchored at
+// their bottom edge so a pin sitting under the tricycle still pokes out.
+function ridePinIcon(letter, kind) {
+  return L.divIcon({ className: 'route-pin-icon', html: `<span class="route-pin-badge route-pin-${kind}">${letter}</span>`, iconSize: [26, 26], iconAnchor: [13, 26] });
 }
 
 // Finds which point in the route array the driver's current GPS is closest
@@ -1402,18 +1435,39 @@ async function pollDriverLocation() {
     driverActualTrail = L.polyline([], {
       color: '#1d4ed8', weight: 4, opacity: 0.9, dashArray: '2 10', lineCap: 'round'
     }).addTo(passengerMapInstance);
-    const pickupIcon = L.divIcon({ className: 'route-pin-icon', html: '<span class="route-pin-badge route-pin-pickup">A</span>', iconSize: [26, 26], iconAnchor: [13, 26] });
-    const dropoffIcon = L.divIcon({ className: 'route-pin-icon', html: '<span class="route-pin-badge route-pin-dropoff">B</span>', iconSize: [26, 26], iconAnchor: [13, 26] });
+    const pickupIcon = ridePinIcon('A', 'pickup');
+    const dropoffIcon = ridePinIcon('B', 'dropoff');
     const pickupPoint = getPinCoords(activeRide.pickup_location, activeRide.pickup_lat, activeRide.pickup_lng);
     const dropoffPoint = getPinCoords(activeRide.dropoff_location, activeRide.dropoff_lat, activeRide.dropoff_lng);
-    driverPickupPin = L.marker(pickupPoint, { icon: pickupIcon }).addTo(passengerMapInstance).bindPopup('Pickup: ' + activeRide.pickup_location);
-    driverDropoffPin = L.marker(dropoffPoint, { icon: dropoffIcon }).addTo(passengerMapInstance).bindPopup('Drop-off: ' + activeRide.dropoff_location);
+    driverPickupPin = L.marker(pickupPoint, { icon: pickupIcon }).addTo(passengerMapInstance).bindPopup('Pickup: ' + escapeHtml(activeRide.pickup_location));
+    driverDropoffPin = L.marker(dropoffPoint, { icon: dropoffIcon }).addTo(passengerMapInstance).bindPopup('Drop-off: ' + escapeHtml(activeRide.dropoff_location));
     // The map opens on a fixed view between the two campuses, which is the
     // wrong part of the province for a ride booked anywhere else. Framing the
     // trip's own endpoints once, as the ride starts, puts the passenger where
     // their ride actually is. Only on this first pass, so it never yanks the
     // view back while they're panning around during the trip.
     passengerMapInstance.fitBounds(L.latLngBounds([pickupPoint, dropoffPoint]).pad(0.3));
+  }
+
+  // Drawn behind the pins and the driver's trail once the route arrives, and
+  // retried on later polls until it follows the road. The ride check stops a
+  // slow answer landing on the next ride's map.
+  if (!passengerRouteIsRoad && !passengerRouteLoading) {
+    passengerRouteLoading = true;
+    const routeRideId = activeRide.ride_id;
+    fetchRideRoute(activeRide).then(({ points, road }) => {
+      passengerRouteLoading = false;
+      if (driverTrackedRideId !== routeRideId || !passengerMapInstance) return;
+      if (passengerRouteLine) {
+        passengerRouteLine.setLatLngs(points);
+      } else {
+        passengerRouteLine = L.polyline(points, {
+          color: '#7f1d1d', weight: 5, opacity: 0.6, lineCap: 'round', lineJoin: 'round'
+        }).addTo(passengerMapInstance);
+        passengerRouteLine.bringToBack();
+      }
+      passengerRouteIsRoad = road;
+    });
   }
 
   try {
@@ -1513,6 +1567,9 @@ function stopPassengerSelfLocationSharing() {
 let driverMapInstance = null;
 let driverMapMarker = null;
 let driverMapPassengerMarker = null;
+let driverMapDropoffPin = null;
+let driverMapRouteIsRoad = false;
+let driverMapRouteLoading = false;
 let driverMapRouteLine = null;
 let driverMapRouteFull = null;
 let driverMapTrackedRideId = null;
@@ -1544,11 +1601,16 @@ function clearDriverMapTracking() {
     driverMapInstance.removeLayer(driverMapPassengerMarker);
     driverMapPassengerMarker = null;
   }
+  if (driverMapDropoffPin) {
+    driverMapInstance.removeLayer(driverMapDropoffPin);
+    driverMapDropoffPin = null;
+  }
   if (driverMapRouteLine) {
     driverMapInstance.removeLayer(driverMapRouteLine);
     driverMapRouteLine = null;
   }
   driverMapRouteFull = null;
+  driverMapRouteIsRoad = false;
   driverMapTrackedRideId = null;
 }
 
@@ -1593,10 +1655,33 @@ async function renderDriverMapTrackingBody() {
 
   if (driverMapTrackedRideId !== activeRide.ride_id) {
     driverMapTrackedRideId = activeRide.ride_id;
+    // Straight line straight away, swapped for the road once it arrives:
+    // the free routing server can take several seconds to answer.
     driverMapRouteFull = getRouteForRide(activeRide);
     driverMapRouteLine = L.polyline(driverMapRouteFull, {
       color: '#7f1d1d', weight: 5, opacity: 0.75, lineCap: 'round', lineJoin: 'round'
     }).addTo(driverMapInstance);
+
+    const dropoffPoint = ridePoint(activeRide.dropoff_lat, activeRide.dropoff_lng);
+    if (dropoffPoint) {
+      driverMapDropoffPin = L.marker(dropoffPoint, { icon: ridePinIcon('B', 'dropoff') })
+        .addTo(driverMapInstance).bindPopup('Drop-off: ' + escapeHtml(activeRide.dropoff_location));
+    }
+  }
+
+  // Road line replaces the straight one when it arrives; retried on each
+  // later render until the routing server has answered.
+  if (!driverMapRouteIsRoad && !driverMapRouteLoading) {
+    driverMapRouteLoading = true;
+    const routeRideId = activeRide.ride_id;
+    fetchRideRoute(activeRide).then(({ points, road }) => {
+      driverMapRouteLoading = false;
+      if (driverMapTrackedRideId !== routeRideId || !driverMapRouteLine) return;
+      driverMapRouteFull = points;
+      driverMapRouteLine.setLatLngs(points);
+      driverMapRouteIsRoad = road;
+      placeDriverMapMarker();
+    });
   }
 
   // Best-effort: shows where the passenger actually was when they requested
@@ -1610,8 +1695,11 @@ async function renderDriverMapTrackingBody() {
       if (data.lat != null && data.lng != null) {
         const passengerPoint = [data.lat, data.lng];
         if (!driverMapPassengerMarker) {
-          const passengerIcon = L.divIcon({ className: 'driver-location-icon', html: '<span class="passenger-location-badge">🧍</span>', iconSize: [36, 36], iconAnchor: [18, 18] });
-          driverMapPassengerMarker = L.marker(passengerPoint, { icon: passengerIcon, zIndexOffset: 900 }).addTo(driverMapInstance).bindPopup('Passenger pickup spot');
+          // The "A" pin the passenger sees, drawn above the driver's own
+          // tricycle (1000): while the driver is at or near the pickup the
+          // tricycle used to sit right on top of the passenger and hide it.
+          driverMapPassengerMarker = L.marker(passengerPoint, { icon: ridePinIcon('A', 'pickup'), zIndexOffset: 1200 })
+            .addTo(driverMapInstance).bindPopup('Passenger pickup: ' + escapeHtml(activeRide.pickup_location));
         } else {
           driverMapPassengerMarker.setLatLng(passengerPoint);
         }

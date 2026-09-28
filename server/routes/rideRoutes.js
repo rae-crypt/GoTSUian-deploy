@@ -17,6 +17,7 @@ router.get('/available-drivers', authMiddleware, rideController.getAvailableDriv
 router.put('/driver/location', authMiddleware, rideController.updateDriverLocation);
 router.get('/:rideId/driver-location', authMiddleware, rideController.getDriverLocationForRide);
 router.get('/:rideId/passenger-location', authMiddleware, rideController.getPassengerLocationForRide);
+router.get('/:rideId/route', authMiddleware, rideController.getRideRoute);
 router.put('/:rideId/pickup-location', authMiddleware, rideController.updateRidePickupLocation);
 router.put('/:rideId/accept', authMiddleware, rideController.acceptRide);
 router.put('/:rideId/convert-to-solo', authMiddleware, rideController.convertRideToSolo);

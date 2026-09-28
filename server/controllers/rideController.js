@@ -743,6 +743,58 @@ exports.updateDriverLocation = (req, res) => {
   );
 };
 
+// The road a ride takes from pickup to drop-off, as [lat, lng] points for
+// the maroon line on both the passenger's and the driver's map. Same public
+// OSRM server getRoadDistanceKm uses; if it's slow or down the line falls
+// back to a straight one between the two ends, which still shows direction.
+// A road route is kept per ride, since the endpoints never change once a
+// ride exists; a failure isn't, so the next map refresh tries again. That
+// demo server is free and often takes several seconds, hence the long wait.
+const rideRouteCache = new Map();
+
+async function getRoadRoutePoints(from, to) {
+  try {
+    const url = `https://router.project-osrm.org/route/v1/driving/${from[1]},${from[0]};${to[1]},${to[0]}?overview=full&geometries=geojson`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    if (!res.ok) throw new Error('routing request failed');
+    const data = await res.json();
+    const coords = data.routes && data.routes[0] && data.routes[0].geometry && data.routes[0].geometry.coordinates;
+    if (data.code !== 'Ok' || !coords || coords.length < 2) throw new Error('no route found');
+    return coords.map(([lng, lat]) => [lat, lng]);
+  } catch (error) {
+    console.warn('OSRM route failed, drawing a straight line:', error.message);
+    return null;
+  }
+}
+
+// Passenger or assigned driver only — nobody else's trip is visible.
+exports.getRideRoute = (req, res) => {
+  const { rideId } = req.params;
+  const accountId = req.user.accountId;
+
+  db.query(
+    `SELECT pickup_lat, pickup_lng, dropoff_lat, dropoff_lng FROM rides
+     WHERE ride_id = ? AND (passenger_account_id = ? OR driver_account_id = ?)`,
+    [rideId, accountId, accountId],
+    async (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      if (!rows.length) return res.status(404).json({ error: 'Ride not found.' });
+      const from = normalizePoint({ lat: rows[0].pickup_lat, lng: rows[0].pickup_lng });
+      const to = normalizePoint({ lat: rows[0].dropoff_lat, lng: rows[0].dropoff_lng });
+      if (!from || !to) return res.status(200).json({ points: [] });
+
+      const cacheKey = `${rideId}:${from.join(',')}:${to.join(',')}`;
+      if (!rideRouteCache.has(cacheKey)) {
+        const points = await getRoadRoutePoints(from, to);
+        if (!points) return res.status(200).json({ points: [from, to], road: false });
+        if (rideRouteCache.size > 500) rideRouteCache.clear();
+        rideRouteCache.set(cacheKey, points);
+      }
+      res.status(200).json({ points: rideRouteCache.get(cacheKey), road: true });
+    }
+  );
+};
+
 // PASSENGER reads the location of the driver assigned to ONE of their own
 // rides — scoped by ride_id + passenger_account_id so a passenger can never
 // see a driver they aren't actually riding with.
