@@ -13,6 +13,42 @@ function accountRoom(accountId) {
   return `account:${accountId}`;
 }
 
+// A driver's is_online flag only goes back off when they press Logout, so a
+// driver who just closed the tab, lost signal or let their phone die stayed
+// listed as online indefinitely. Passenger-facing availability therefore
+// also requires a live socket: every open driver page holds one. Moving
+// between pages drops and reopens it, so a driver whose last socket closes
+// is kept for a grace period before being dropped from the list.
+const PRESENCE_GRACE_MS = 60 * 1000;
+const driverSockets = new Map();   // accountId -> number of open sockets
+const driverGraceTimers = new Map();
+
+function markDriverConnected(accountId) {
+  const wasPresent = isDriverPresent(accountId);
+  clearTimeout(driverGraceTimers.get(accountId));
+  driverGraceTimers.delete(accountId);
+  driverSockets.set(accountId, (driverSockets.get(accountId) || 0) + 1);
+  if (!wasPresent) emitAvailabilityChanged();
+}
+
+function markDriverDisconnected(accountId) {
+  const remaining = (driverSockets.get(accountId) || 1) - 1;
+  if (remaining > 0) return driverSockets.set(accountId, remaining);
+  driverSockets.delete(accountId);
+  driverGraceTimers.set(accountId, setTimeout(() => {
+    driverGraceTimers.delete(accountId);
+    emitAvailabilityChanged();
+  }, PRESENCE_GRACE_MS));
+}
+
+function isDriverPresent(accountId) {
+  return driverSockets.has(accountId) || driverGraceTimers.has(accountId);
+}
+
+function getPresentDriverIds() {
+  return [...new Set([...driverSockets.keys(), ...driverGraceTimers.keys()])];
+}
+
 // Attaches Socket.IO to the existing HTTP server. Called once from
 // server/app.js after the http.createServer() wrap.
 function initSocket(server) {
@@ -44,6 +80,8 @@ function initSocket(server) {
     }
     if (user.role === 'driver') {
       socket.join('drivers');
+      markDriverConnected(user.accountId);
+      socket.on('disconnect', () => markDriverDisconnected(user.accountId));
     }
   });
 
@@ -119,6 +157,7 @@ function emitLoyaltyGranted(accountId) {
 module.exports = {
   initSocket,
   getIO,
+  getPresentDriverIds,
   emitRideUpdated,
   emitNewPendingRide,
   emitDriverLocation,

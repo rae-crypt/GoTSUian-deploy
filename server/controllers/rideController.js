@@ -1,6 +1,6 @@
 const crypto = require('crypto');
 const db = require('../config/db');
-const { emitRideUpdated, emitNewPendingRide, emitDriverLocation, emitAvailabilityChanged } = require('../socket');
+const { emitRideUpdated, emitNewPendingRide, emitDriverLocation, emitAvailabilityChanged, getPresentDriverIds } = require('../socket');
 
 // Fare per rider, keyed by how many students end up in the tricycle.
 // Solo is always headcount 1. Shared settles into whichever headcount
@@ -787,7 +787,13 @@ exports.updateDriverAvailability = (req, res) => {
 // Also returns the total online count (busy or not) so the frontend can
 // tell "nobody's online at all" apart from "drivers are online but all
 // currently on a trip" — those read very differently to a waiting passenger.
+// Both lists below also require the driver to have a dashboard open right now
+// (see getPresentDriverIds in socket.js): is_online alone stays TRUE for a
+// driver who closed the app without pressing Logout.
 exports.getAvailableDriversCount = (req, res) => {
+  const presentIds = getPresentDriverIds();
+  if (!presentIds.length) return res.status(200).json({ count: 0, onlineCount: 0 });
+
   const sql = `
     SELECT
       COUNT(*) AS onlineCount,
@@ -796,9 +802,9 @@ exports.getAvailableDriversCount = (req, res) => {
         WHERE driver_account_id IS NOT NULL AND status IN ('Accepted', 'Picked Up', 'In Progress')
       ) THEN 1 ELSE 0 END) AS count
     FROM tricycle_driver
-    WHERE account_status = 'Active' AND is_online = TRUE
+    WHERE account_status = 'Active' AND is_online = TRUE AND account_id IN (?)
   `;
-  db.query(sql, (err, rows) => {
+  db.query(sql, [presentIds], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     res.status(200).json({ count: Number(rows[0].count) || 0, onlineCount: rows[0].onlineCount });
   });
@@ -811,17 +817,20 @@ exports.getAvailableDriversCount = (req, res) => {
 // assigned driver only (see getDriverLocationForRide), not exposed for
 // every driver currently online.
 exports.getAvailableDrivers = (req, res) => {
+  const presentIds = getPresentDriverIds();
+  if (!presentIds.length) return res.status(200).json({ drivers: [] });
+
   const sql = `
     SELECT CONCAT(first_name, ' ', last_name) AS name, plate_number, body_number
     FROM tricycle_driver
-    WHERE account_status = 'Active' AND is_online = TRUE
+    WHERE account_status = 'Active' AND is_online = TRUE AND account_id IN (?)
       AND account_id NOT IN (
         SELECT driver_account_id FROM rides
         WHERE driver_account_id IS NOT NULL AND status IN ('Accepted', 'Picked Up', 'In Progress')
       )
     ORDER BY first_name ASC
   `;
-  db.query(sql, (err, rows) => {
+  db.query(sql, [presentIds], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     res.status(200).json({ drivers: rows });
   });
