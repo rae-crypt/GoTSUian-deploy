@@ -1613,7 +1613,16 @@ async function renderDriverMapTrackingBody() {
     console.warn('Unable to load passenger pickup location', error);
   }
 
-  if (!lastKnownDriverPosition) return;
+  placeDriverMapMarker();
+}
+
+// The driver's own tricycle on their map during a ride, plus trimming the
+// route line to what's still ahead. Called both when the ride view renders
+// and on every GPS fix (see startDriverLocationSharing): the render usually
+// runs right after Accept, before the first fix has arrived, and nothing
+// rendered it again after that, so the driver never saw themselves.
+function placeDriverMapMarker() {
+  if (!driverMapInstance || driverMapTrackedRideId === null || !lastKnownDriverPosition) return;
   const point = lastKnownDriverPosition;
 
   if (driverMapRouteFull && driverMapRouteLine) {
@@ -3015,6 +3024,7 @@ function startDriverLocationSharing(label) {
     (position) => {
       label.textContent = '📍 Sharing your location with your passenger';
       lastKnownDriverPosition = [position.coords.latitude, position.coords.longitude];
+      placeDriverMapMarker();
       const now = Date.now();
       if (now - lastLocationSentAt < 7000) return;
       lastLocationSentAt = now;
