@@ -2067,6 +2067,13 @@ function openLicenseModal(driverId) {
         `;
     })
     .catch(error => {
+      // Replace the "Loading file…" placeholder too, or the box keeps
+      // claiming to load while the message below says it failed.
+      preview.innerHTML = `
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l5 5v13H6z"/><path d="M15 3v5h5"/><line x1="9.5" y1="12.5" x2="14.5" y2="17.5"/><line x1="14.5" y1="12.5" x2="9.5" y2="17.5"/></svg>
+        <strong>File not available</strong>
+        <small>Ask the driver to send their license again before approving.</small>
+      `;
       errorEl.textContent = error.message || 'Could not load license file';
     });
 
