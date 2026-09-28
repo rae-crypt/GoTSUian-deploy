@@ -2212,8 +2212,12 @@ table.admin-table tbody tr:hover { background: var(--light); }
 .admin-mcard-row:first-child { border-top: none; padding-top: 0; }
 .admin-mcard-row span:first-child { color: var(--muted); }
 .admin-mcard-row span:last-child { font-weight: 600; text-align: right; }
-.admin-mcard-actions { display: flex; gap: 8px; margin-top: 12px; }
-.admin-mcard-actions .admin-btn { flex: 1; text-align: center; }
+/* Two buttons per line: a driver card carries up to four (Approve, Reject,
+   Reset password, Warn), which a single row pushed past the card's edge on a
+   phone. An odd one out at the end takes the whole line. */
+.admin-mcard-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
+.admin-mcard-actions .admin-btn { min-width: 0; text-align: center; white-space: normal; }
+.admin-mcard-actions .admin-btn:last-child:nth-child(odd) { grid-column: 1 / -1; }
 .admin-mcard-empty { color: var(--muted); font-size: 14px; margin: 0; }
 
 /* ---- modals (license review, issue warning) ---- */
