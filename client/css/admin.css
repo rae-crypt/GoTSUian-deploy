@@ -2197,6 +2197,7 @@ table.admin-table tbody tr:hover { background: var(--light); }
   font-family: inherit; font-size: 14.5px; font-weight: 600;
   color: var(--primary); background: none; border: none; padding: 0;
   text-decoration: underline; text-underline-offset: 2px; cursor: pointer;
+  white-space: nowrap;
 }
 
 /* ---- mobile card lists (shown instead of tables under 641px) ---- */

@@ -1836,10 +1836,12 @@ function renderDriverRow(driver) {
   const licenseCell = driver.has_license_file
     ? `<button type="button" class="admin-link-btn" data-action="view-license" data-driver-id="${driver.driver_id}">View file</button>`
     : '<span class="tone-warning">Not uploaded</span>';
+  // No separate "View" button for an approved driver: it opened the same
+  // license modal as the "View file" link in the License column.
   const approvalActions = isPending
     ? `<button type="button" class="admin-btn tone-success" data-action="approve-driver" data-driver-id="${driver.driver_id}">Approve</button>
        <button type="button" class="admin-btn tone-danger" data-action="reject-driver" data-driver-id="${driver.driver_id}">Reject</button>`
-    : `<button type="button" class="admin-btn tone-primary" data-action="view-license" data-driver-id="${driver.driver_id}">View</button>`;
+    : '';
 
   return `
     <tr${isPending ? ' data-pending-row' : ''} data-driver-id="${driver.driver_id}">
@@ -1858,10 +1860,11 @@ function renderDriverCard(driver) {
   const licenseRow = driver.has_license_file
     ? `<div class="admin-mcard-row"><span>License</span><span><button type="button" class="admin-link-btn" data-action="view-license" data-driver-id="${driver.driver_id}">View file</button></span></div>`
     : `<div class="admin-mcard-row"><span>License</span><span class="tone-warning">Not uploaded</span></div>`;
+  // Same as the table row: "View file" above already opens the license.
   const actions = isPending
     ? `<button class="admin-btn tone-success" data-action="approve-driver" data-driver-id="${driver.driver_id}">Approve</button>
        <button class="admin-btn tone-danger" data-action="reject-driver" data-driver-id="${driver.driver_id}">Reject</button>`
-    : `<button class="admin-btn tone-primary" data-action="view-license" data-driver-id="${driver.driver_id}">View</button>`;
+    : '';
 
   return `
     <div class="admin-mcard"${isPending ? ' data-pending-row' : ''} data-driver-id="${driver.driver_id}">
