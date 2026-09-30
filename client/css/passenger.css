@@ -3328,6 +3328,37 @@ body[data-page="passenger"] .ride-type-btn small { display: block; font-weight: 
 body[data-page="passenger"] .ride-type-btn.is-selected { background: var(--primary); border-color: var(--primary); color: #fff8f6; }
 body[data-page="passenger"] .ride-type-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 body[data-page="passenger"] .field-note { display: block; font-size: 11.5px; color: var(--gt-muted); line-height: 1.5; margin: 4px 0 16px; }
+/* ---- "Your trip": one card per ride type (only Solo for now) ---- */
+/* Overrides the old toggle-button look above, including the :only-child
+   rule that shrank a lone button to its label. */
+body[data-page="passenger"] .ride-type-toggle.ride-card-list { flex-direction: column; }
+body[data-page="passenger"] .ride-type-toggle .ride-type-btn.ride-card,
+body[data-page="passenger"] .ride-type-toggle .ride-type-btn.ride-card:only-child {
+  display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; align-items: center; gap: 12px;
+  width: 100%; align-self: stretch; flex: none;
+  padding: 11px 12px; border-radius: 14px; text-align: left; cursor: default;
+  border: 2px solid var(--primary); background: #fff7f6; color: var(--text);
+  font-family: inherit;
+}
+body[data-page="passenger"] .ride-card-icon { width: 44px; height: 44px; border-radius: 50%; display: block; }
+body[data-page="passenger"] .ride-card-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+body[data-page="passenger"] .ride-card-name { font-size: 14.5px; font-weight: 800; color: var(--text); }
+body[data-page="passenger"] .ride-card-sub { font-size: 12px; font-weight: 500; color: #8a6b6b; }
+body[data-page="passenger"] .ride-card-price { display: flex; flex-direction: column; align-items: flex-end; text-align: right; font-variant-numeric: tabular-nums; }
+body[data-page="passenger"] .ride-card-price b { font-size: 19px; font-weight: 800; color: var(--primary); line-height: 1.15; }
+body[data-page="passenger"] .ride-card-price small { display: block; margin-top: 1px; font-size: 11.5px; font-weight: 500; color: #8a6b6b; }
+body[data-page="passenger"] .ride-card-price small:empty { display: none; }
+/* Status text wraps in a narrow column, so it never squeezes the card's
+   "Whole tricycle · leaves now" line onto two lines. */
+body[data-page="passenger"] .ride-card-price.is-pending b,
+body[data-page="passenger"] .ride-card-price.is-loading b { font-size: 12px; font-weight: 700; color: #8a6b6b; max-width: 78px; line-height: 1.3; }
+body[data-page="passenger"] .ride-card-price.is-loading b { font-style: italic; }
+body[data-page="passenger"] .ride-card-price.is-error b { font-size: 16px; color: #8a6b6b; }
+body[data-page="passenger"] .ride-card-foot {
+  display: flex; justify-content: space-between; flex-wrap: wrap; gap: 2px 10px;
+  margin-top: 7px; padding: 0 2px; font-size: 11px; color: #8a6b6b;
+}
+
 body[data-page="passenger"] #ride-request-form .btn-primary {
   width: 100%; font-family: inherit; font-size: 15px; font-weight: 700; padding: 14px; border-radius: 12px;
   border: none; background: var(--primary); color: #fff8f6; cursor: pointer;

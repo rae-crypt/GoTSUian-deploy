@@ -11,7 +11,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <link rel="stylesheet" href="../css/passenger.css?v=20260930b">
+  <link rel="stylesheet" href="../css/passenger.css?v=20260930c">
   <link rel="stylesheet" href="../css/theme.css?v=20260924">
 </head>
 <body data-page="passenger" class="is-passenger-home">
@@ -104,19 +104,37 @@
               <input type="text" id="dropoff-other-text" name="dropoff" placeholder="Search for your destination" autocomplete="off" required>
               <small class="error-msg" id="dropoff-other-error"></small>
               <small class="error-msg" id="route-error"></small>
-              <!-- Filled in once a drop-off is chosen: the ordinance fare for
-                   the road distance, the same figure the driver will see. -->
-              <p class="fare-estimate" id="fare-estimate" aria-live="polite"></p>
             </div>
             <div class="form-field">
-              <label>Ride type</label>
-              <div class="ride-type-toggle" role="group" aria-label="Ride type">
-                <button type="button" class="ride-type-btn is-selected" data-ride-type="Solo">Solo<small id="solo-fare">By distance</small></button>
+              <label>Your trip</label>
+              <!-- One card per ride type, only Solo for now. Each card is still a
+                   .ride-type-btn with data-ride-type, which is what the booking
+                   code reads, so a second card is all a new ride type needs.
+                   The fare fills in by itself once a drop-off is chosen: the
+                   ordinance fare for the road distance, the same figure the
+                   driver sees. -->
+              <div class="ride-type-toggle ride-card-list" role="group" aria-label="Your trip">
+                <button type="button" class="ride-type-btn ride-card is-selected" data-ride-type="Solo">
+                  <img class="ride-card-icon" src="../images/tricycle.png" alt="">
+                  <span class="ride-card-text">
+                    <span class="ride-card-name">Solo ride</span>
+                    <span class="ride-card-sub">Whole tricycle · leaves now</span>
+                  </span>
+                  <span class="ride-card-price is-pending" id="solo-fare-box" aria-live="polite">
+                    <b id="solo-fare">Choose a drop-off</b>
+                    <small id="solo-km"></small>
+                  </span>
+                </button>
                 <!-- Shared hidden: pooling groups riders by an identical pickup
                      and drop-off, which only ever holds for the two fixed campus
                      points. With every booking now starting from a passenger's
                      own GPS position, no two riders would ever match. -->
               </div>
+              <div class="ride-card-foot">
+                <span id="ride-card-foot-label">Priced by road distance</span>
+                <span id="ride-card-basis">City Ordinance IX-4-001-2024</span>
+              </div>
+              <p class="fare-estimate" id="fare-estimate" aria-live="polite"></p>
               <select id="ride-type" name="rideType" class="ride-type-select-hidden" aria-hidden="true" tabindex="-1">
                 <option value="Solo">Solo</option>
                 <option value="Shared">Shared — ₱20-35</option>
@@ -141,7 +159,6 @@
               </select>
             </div>
             -->
-            <small class="field-note">Your ride leaves right away.</small>
 
             <button type="submit" class="btn-primary">Request ride</button>
           </form>
@@ -274,6 +291,6 @@
   </footer>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="../js/app.js?v=20260930b"></script>
+  <script src="../js/app.js?v=20260930c"></script>
 </body>
 </html>

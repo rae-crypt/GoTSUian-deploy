@@ -3150,26 +3150,36 @@ function formatFareWithDistance(fare, distanceKm) {
 let fareEstimateToken = 0;
 let lastFareEstimateKey = null;
 
-function setFareEstimate(state, html, soloLabel) {
-  const el = document.querySelector('#fare-estimate');
-  const solo = document.querySelector('#solo-fare');
-  if (el) {
-    el.className = `fare-estimate${state ? ` is-${state}` : ''}`;
-    el.innerHTML = html;
+// The fare sits in the right side of the Solo card in "Your trip": a short
+// status while there's nothing to show yet, then the peso figure with the
+// distance under it. Only an error gets the line under the card, since it
+// needs a full sentence.
+function setFareEstimate(state, { main, sub = '', message = '' }) {
+  const box = document.querySelector('#solo-fare-box');
+  const mainEl = document.querySelector('#solo-fare');
+  const subEl = document.querySelector('#solo-km');
+  const footLabel = document.querySelector('#ride-card-foot-label');
+  const note = document.querySelector('#fare-estimate');
+  if (box) box.className = `ride-card-price is-${state}`;
+  if (mainEl) mainEl.textContent = main;
+  if (subEl) subEl.textContent = sub;
+  if (footLabel) footLabel.textContent = state === 'ready' ? 'Estimated fare' : 'Priced by road distance';
+  if (note) {
+    note.className = `fare-estimate${message ? ' is-error' : ''}`;
+    note.textContent = message;
   }
-  if (solo) solo.textContent = soloLabel;
 }
 
 function resetFareEstimate() {
   fareEstimateToken++;
   lastFareEstimateKey = null;
-  setFareEstimate('', '', 'By distance');
+  setFareEstimate('pending', { main: 'Choose a drop-off' });
 }
 
 async function refreshFareEstimate() {
   const pickupInput = document.querySelector('#pickup-other-text');
   const dropoffInput = document.querySelector('#dropoff-other-text');
-  if (!pickupInput || !dropoffInput || !document.querySelector('#fare-estimate')) return;
+  if (!pickupInput || !dropoffInput || !document.querySelector('#solo-fare-box')) return;
 
   const dropoffText = dropoffInput.value.trim();
   if (!dropoffText) return resetFareEstimate();
@@ -3177,7 +3187,7 @@ async function refreshFareEstimate() {
   const pickupCoords = customLocationCoords.pickup;
   if (!pickupCoords || pickupInput.dataset.detecting === 'true') {
     lastFareEstimateKey = null;
-    return setFareEstimate('waiting', 'Your fare will show once we have your location.', 'By distance');
+    return setFareEstimate('pending', { main: 'Finding your location…' });
   }
 
   const dropoffCoords = customLocationCoords.dropoff;
@@ -3187,7 +3197,7 @@ async function refreshFareEstimate() {
   lastFareEstimateKey = key;
 
   const token = ++fareEstimateToken;
-  setFareEstimate('loading', 'Calculating fare…', 'Calculating…');
+  setFareEstimate('loading', { main: 'Calculating…' });
   try {
     const quote = await quoteOthersDropoff(pickupInput.value.trim(), dropoffText, {
       pickupIsCustom: true,
@@ -3195,17 +3205,29 @@ async function refreshFareEstimate() {
       dropoffCoords
     });
     if (token !== fareEstimateToken) return;
-    setFareEstimate('ready', `Estimated fare: <strong>${escapeHtml(formatFareWithDistance(quote.fare, quote.distanceKm))}</strong>`, `₱${Number(quote.fare).toFixed(0)}`);
+    setFareEstimate('ready', {
+      main: `₱${Number(quote.fare).toFixed(0)}`,
+      sub: quote.distanceKm != null ? `${Number(quote.distanceKm).toFixed(1)} km` : ''
+    });
   } catch (error) {
     if (token !== fareEstimateToken) return;
     lastFareEstimateKey = null;
-    setFareEstimate('error', escapeHtml(error.message || 'Could not work out the fare for that place.'), 'By distance');
+    setFareEstimate('error', { main: '—', message: error.message || 'Could not work out the fare for that place.' });
   }
 }
 
 function setupFareEstimate() {
   const dropoffInput = document.querySelector('#dropoff-other-text');
-  if (!dropoffInput || !document.querySelector('#fare-estimate')) return;
+  if (!dropoffInput || !document.querySelector('#solo-fare-box')) return;
+  // The card's footer names what the fare is based on; show whatever the
+  // admin has set rather than the default written into the page.
+  fetch(`${RIDES_API_URL}/fare-settings`)
+    .then(res => res.ok ? res.json() : null)
+    .then(settings => {
+      const basisEl = document.querySelector('#ride-card-basis');
+      if (settings && settings.basis && basisEl) basisEl.textContent = settings.basis;
+    })
+    .catch(() => {});
   // Typing makes the shown figure stale; it's priced again once a place is
   // picked from the suggestions or the passenger leaves the box.
   dropoffInput.addEventListener('input', resetFareEstimate);
@@ -4054,14 +4076,13 @@ function setupPassengerRideRequestForm() {
 
     // One more explicit "are you sure" before actually creating the ride —
     // easy to fat-finger the wrong campus or ride type otherwise.
-    // Fare text comes from the same visible button used to read rideType
-    // above, not a separately-maintained figure — one source of truth.
-    // (A custom drop-off has no such button — it uses the real quote.)
+    // A custom drop-off uses the real quote. Otherwise the fare comes from
+    // the same selected card used to read rideType above (its price figure),
+    // not a separately-maintained number — one source of truth.
+    const cardFare = selectedRideTypeBtn && selectedRideTypeBtn.querySelector('.ride-card-price b');
     const fareText = othersQuote
       ? formatFareWithDistance(othersQuote.fare, othersQuote.distanceKm)
-      : (selectedRideTypeBtn && selectedRideTypeBtn.querySelector('small')
-        ? selectedRideTypeBtn.querySelector('small').textContent
-        : '');
+      : (cardFare ? cardFare.textContent : '');
     const whenLabel = scheduleSelect && scheduleSelect.selectedOptions[0]
       ? scheduleSelect.selectedOptions[0].textContent
       : 'Leave now';
