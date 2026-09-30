@@ -2103,6 +2103,22 @@ function setupAdminPanelCollapse() {
       btn.setAttribute('aria-label', collapsed ? 'Expand this section' : 'Collapse this section');
     });
   });
+
+  // Every panel starts closed, so a stat card at the top ("Registered
+  // drivers", "Pending requests"...) opens the panel it jumps to instead of
+  // landing on a closed one.
+  document.querySelectorAll('a.admin-stat-card[href^="#"]').forEach(card => {
+    card.addEventListener('click', () => {
+      const panel = document.querySelector(card.getAttribute('href'));
+      if (!panel || !panel.classList.contains('is-collapsed')) return;
+      panel.classList.remove('is-collapsed');
+      const toggle = panel.querySelector('.admin-panel-toggle');
+      if (toggle) {
+        toggle.setAttribute('aria-expanded', 'true');
+        toggle.setAttribute('aria-label', 'Collapse this section');
+      }
+    });
+  });
 }
 
 // Same collapsible-section treatment as the admin panels, applied to
