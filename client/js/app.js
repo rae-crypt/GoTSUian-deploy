@@ -2960,7 +2960,7 @@ function showActionPopup({ tone = 'info', icon, title, message, primaryLabel, on
       <p id="action-popup-message">${escapeHtml(message)}</p>
       <div class="action-popup-buttons">
         ${primaryLabel ? `<button type="button" class="action-popup-primary">${escapeHtml(primaryLabel)}</button>` : ''}
-        <button type="button" class="action-popup-secondary">${escapeHtml(secondaryLabel)}</button>
+        ${secondaryLabel ? `<button type="button" class="action-popup-secondary">${escapeHtml(secondaryLabel)}</button>` : ''}
       </div>
     </div>
   `;
@@ -2970,10 +2970,13 @@ function showActionPopup({ tone = 'info', icon, title, message, primaryLabel, on
   overlay.addEventListener('click', (event) => {
     if (event.target === overlay) close();
   });
-  overlay.querySelector('.action-popup-secondary').addEventListener('click', () => {
-    close();
-    if (onSecondary) onSecondary();
-  });
+  const secondary = overlay.querySelector('.action-popup-secondary');
+  if (secondary) {
+    secondary.addEventListener('click', () => {
+      close();
+      if (onSecondary) onSecondary();
+    });
+  }
   const primary = overlay.querySelector('.action-popup-primary');
   if (primary) {
     primary.addEventListener('click', () => {
@@ -2981,7 +2984,8 @@ function showActionPopup({ tone = 'info', icon, title, message, primaryLabel, on
       if (onPrimary) onPrimary();
     });
   }
-  (primary || overlay.querySelector('.action-popup-secondary')).focus();
+  const firstButton = primary || secondary;
+  if (firstButton) firstButton.focus();
 }
 
 const CERTIFICATE_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="9" r="6"/><path d="M8.6 13.9L7 22l5-3 5 3-1.6-8.1"/><path d="M9.8 9l1.5 1.5L14.5 7.5"/></svg>';
@@ -3047,6 +3051,38 @@ function openLoyaltyCard(attempt = 0) {
     toggle.setAttribute('aria-label', 'Collapse this section');
   }
   card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// A driver can't log in until the admin approves them, and nothing tells
+// them when that happens. The first time an approved driver opens their
+// dashboard, welcome them once. Only for drivers with no trips at all, so
+// drivers approved long before this existed aren't told it now.
+async function checkDriverApprovalWelcome() {
+  const user = getStoredUser();
+  if (!document.querySelector('#driver-ride-requests')) return;
+  if (!isAuthenticated() || user.role !== 'driver' || user.accountStatus !== 'Active' || !user.accountId) return;
+
+  const seenKey = `approvalWelcomed:${user.accountId}`;
+  try {
+    if (localStorage.getItem(seenKey)) return;
+  } catch (error) {
+    return;
+  }
+  const rides = await fetchDriverRides();
+  try {
+    localStorage.setItem(seenKey, '1');
+  } catch (error) {
+    // Nothing to do; the check above already returned if storage was missing.
+  }
+  if (rides.length) return;
+
+  showActionPopup({
+    tone: 'success',
+    title: 'Welcome to GoTSUian!',
+    message: 'The TODA admin has approved your driver account. Switch to Online to start receiving ride requests.',
+    primaryLabel: 'Got it',
+    secondaryLabel: null
+  });
 }
 
 // New-ride alert for drivers: a popup with the trip and its fare, a short
@@ -7037,6 +7073,7 @@ document.addEventListener('DOMContentLoaded', function() {
   setupFareEstimate();
   setupRideAlerts();
   checkNewLoyaltyCertificate();
+  checkDriverApprovalWelcome();
   if (window.location.hash === '#loyalty-card') openLoyaltyCard();
   setupProfileForm();
   setupChangePasswordForm();
