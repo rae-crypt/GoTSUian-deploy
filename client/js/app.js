@@ -2943,6 +2943,188 @@ function showRideFeedback(type, title, message) {
 
   dismissTimer = window.setTimeout(dismiss, 2600);
 }
+
+// In-app notification popup: same shell as showRideFeedback() above, but it
+// stays until the person taps a button, since it carries something to act
+// on (a certificate to view, a ride to accept) rather than a confirmation.
+function showActionPopup({ tone = 'info', icon, title, message, primaryLabel, onPrimary, secondaryLabel = 'Close' }) {
+  document.querySelectorAll('[data-action-popup]').forEach(el => el.remove());
+
+  const overlay = document.createElement('div');
+  overlay.setAttribute('data-action-popup', '');
+  overlay.className = 'ride-feedback-overlay';
+  overlay.innerHTML = `
+    <div class="ride-feedback-modal action-popup" role="alertdialog" aria-labelledby="action-popup-title" aria-describedby="action-popup-message">
+      <div class="ride-feedback-icon ${tone}">${icon || RIDE_FEEDBACK_ICONS[tone] || RIDE_FEEDBACK_ICONS.info}</div>
+      <h3 id="action-popup-title">${escapeHtml(title)}</h3>
+      <p id="action-popup-message">${escapeHtml(message)}</p>
+      <div class="action-popup-buttons">
+        ${primaryLabel ? `<button type="button" class="action-popup-primary">${escapeHtml(primaryLabel)}</button>` : ''}
+        <button type="button" class="action-popup-secondary">${escapeHtml(secondaryLabel)}</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  const close = () => overlay.remove();
+  overlay.addEventListener('click', (event) => {
+    if (event.target === overlay) close();
+  });
+  overlay.querySelector('.action-popup-secondary').addEventListener('click', close);
+  const primary = overlay.querySelector('.action-popup-primary');
+  if (primary) {
+    primary.addEventListener('click', () => {
+      close();
+      if (onPrimary) onPrimary();
+    });
+  }
+  (primary || overlay.querySelector('.action-popup-secondary')).focus();
+}
+
+const CERTIFICATE_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="9" r="6"/><path d="M8.6 13.9L7 22l5-3 5 3-1.6-8.1"/><path d="M9.8 9l1.5 1.5L14.5 7.5"/></svg>';
+
+// "You got a certificate" for passengers and drivers. Compares the newest
+// certificate the server has for them with the newest one this device has
+// already announced, so it pops up live when the admin grants it, or the
+// next time they open the app if they weren't online then, and only once.
+async function checkNewLoyaltyCertificate() {
+  const user = getStoredUser();
+  if (!isAuthenticated() || (user.role !== 'passenger' && user.role !== 'driver') || !user.accountId) return;
+
+  const status = await fetchLoyaltyStatus();
+  const latest = status && status.latestCertificate;
+  if (!latest) return;
+
+  const seenKey = `certificateSeen:${user.accountId}`;
+  let seen = 0;
+  try {
+    seen = Number(localStorage.getItem(seenKey)) || 0;
+  } catch (error) {
+    // Storage unavailable: the popup may show again next visit, which is harmless.
+  }
+  if (Number(latest.milestoneRides) <= seen) return;
+  try {
+    localStorage.setItem(seenKey, String(latest.milestoneRides));
+  } catch (error) {
+    // See above.
+  }
+
+  const profilePage = user.role === 'driver' ? 'driver-profile.html' : 'passenger-profile.html';
+  const onProfilePage = window.location.pathname.endsWith(profilePage);
+  showActionPopup({
+    tone: 'success',
+    icon: CERTIFICATE_ICON,
+    title: 'You earned a loyalty certificate!',
+    message: user.role === 'driver'
+      ? `The TODA admin granted your certificate for completing ${latest.milestoneRides} trips. Thank you for driving with GoTSUian!`
+      : `The TODA admin granted your certificate for completing ${latest.milestoneRides} rides. Thank you for riding with GoTSUian!`,
+    primaryLabel: 'View certificate',
+    onPrimary: () => {
+      if (onProfilePage) openLoyaltyCard();
+      else window.location.href = `${profilePage}#loyalty-card`;
+    }
+  });
+}
+
+// The profile page's loyalty card starts collapsed. "View certificate"
+// (directly, or by arriving at profile#loyalty-card) opens it and scrolls to
+// it. It's revealed only once renderLoyaltyStatus confirms a grant, hence
+// the short wait for it to become visible.
+function openLoyaltyCard(attempt = 0) {
+  const card = document.querySelector('#loyalty-card');
+  if (!card) return;
+  if (card.style.display === 'none' && attempt < 20) {
+    setTimeout(() => openLoyaltyCard(attempt + 1), 150);
+    return;
+  }
+  card.classList.remove('is-collapsed');
+  const toggle = card.querySelector('.profile-panel-toggle');
+  if (toggle) {
+    toggle.setAttribute('aria-expanded', 'true');
+    toggle.setAttribute('aria-label', 'Collapse this section');
+  }
+  card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// New-ride alert for drivers: a popup with the trip and its fare, a short
+// chime and, on Android, a vibration. Browsers only allow sound after the
+// page has been tapped once, so the chime is armed on the driver's first tap.
+let rideAlertAudio = null;
+let lastAlertedRideId = null;
+
+function unlockRideAlertAudio() {
+  try {
+    if (!rideAlertAudio) rideAlertAudio = new (window.AudioContext || window.webkitAudioContext)();
+    if (rideAlertAudio.state === 'suspended') rideAlertAudio.resume();
+  } catch (error) {
+    rideAlertAudio = null;
+  }
+}
+
+function playRideAlertSound() {
+  const ctx = rideAlertAudio;
+  if (!ctx || ctx.state !== 'running') return;
+  // Two rising notes, so it reads as "something arrived" rather than an error.
+  [[0, 880], [0.18, 1175]].forEach(([offset, frequency]) => {
+    const start = ctx.currentTime + offset;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = frequency;
+    gain.gain.setValueAtTime(0.0001, start);
+    gain.gain.exponentialRampToValueAtTime(0.3, start + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.16);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(start);
+    osc.stop(start + 0.17);
+  });
+}
+
+function setupRideAlerts() {
+  const user = getStoredUser();
+  if (!document.querySelector('#driver-ride-requests') || !isAuthenticated() || user.role !== 'driver') return;
+  document.addEventListener('pointerdown', unlockRideAlertAudio, { once: true });
+  document.addEventListener('keydown', unlockRideAlertAudio, { once: true });
+}
+
+async function alertDriverOfNewRides(newGroups) {
+  // Only a driver who has switched themselves Online is looking for work.
+  try {
+    const res = await fetch(`${RIDES_API_URL}/driver/availability`, { headers: getAuthHeaders() });
+    if (res.ok) {
+      const data = await res.json();
+      if (!data.is_online) return;
+    }
+  } catch (error) {
+    // Couldn't check; alert anyway rather than risk a missed ride.
+  }
+
+  const group = newGroups[newGroups.length - 1];
+  const ride = group.type === 'solo' ? group.ride : group.riders[0];
+  if (!ride || ride.ride_id === lastAlertedRideId) return;
+  lastAlertedRideId = ride.ride_id;
+
+  playRideAlertSound();
+  if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+
+  const more = newGroups.length > 1 ? ` (and ${newGroups.length - 1} more)` : '';
+  showActionPopup({
+    tone: 'info',
+    icon: '<img src="../images/tricycle.png" alt="" style="width:100%;height:100%;border-radius:50%">',
+    title: 'New ride request',
+    message: `${ride.pickup_location} → ${ride.dropoff_location}. Estimated fare ${formatFareWithDistance(ride.fare || 0, ride.distance_km)}${more}.`,
+    primaryLabel: 'Accept',
+    secondaryLabel: 'Later',
+    onPrimary: () => {
+      const acceptBtn = document.querySelector(`#driver-ride-requests [data-action="accept-ride"][data-ride-id="${ride.ride_id}"]`);
+      if (acceptBtn) {
+        acceptBtn.click();
+      } else {
+        showRideFeedback('info', 'Request no longer open', 'Another driver may have accepted it already.');
+      }
+    }
+  });
+}
  
 function getRideLifecycleSteps(status) {
   const steps = ['Pending', 'Accepted', 'Picked Up', 'In Progress', 'Completed'];
@@ -5002,6 +5184,10 @@ function renderActiveRideCard(group) {
   `;
 }
 
+// Ride IDs in the driver's pending list at its last load (null before the
+// first), for spotting new bookings — see renderDriverRideRequests.
+let knownPendingRideIds = null;
+
 async function renderDriverRideRequests() {
   const container = document.querySelector('#driver-ride-requests');
   if (!container) return;
@@ -5014,6 +5200,16 @@ async function renderDriverRideRequests() {
 
   const [pendingGroups, myRides] = await Promise.all([fetchPendingRides(), fetchDriverRides()]);
   const activeGroups = groupRidesByPool(myRides.filter(r => ['Accepted', 'Picked Up', 'In Progress'].includes(r.status)));
+
+  // Anything pending now that wasn't in the last load is a new booking. The
+  // first load only records what's there, so opening the page doesn't alert
+  // for requests the driver can already see; a driver mid-trip isn't alerted.
+  const groupRideIds = (group) => (group.type === 'solo' ? [group.ride.ride_id] : group.riders.map(r => r.ride_id));
+  const newGroups = knownPendingRideIds === null
+    ? []
+    : pendingGroups.filter(group => groupRideIds(group).some(id => !knownPendingRideIds.has(id)));
+  knownPendingRideIds = new Set(pendingGroups.flatMap(groupRideIds));
+  if (newGroups.length && !activeGroups.length) alertDriverOfNewRides(newGroups);
 
   if (!pendingGroups.length && !activeGroups.length) {
     container.innerHTML = '<article class="dashboard-card"><p>No active ride requests right now.</p></article>';
@@ -6714,6 +6910,7 @@ function manageRealtimeConnection() {
 
   realtimeSocket.on('loyalty:granted', function() {
     renderLoyaltyStatus();
+    checkNewLoyaltyCertificate();
   });
 }
 
@@ -6800,6 +6997,9 @@ document.addEventListener('DOMContentLoaded', function() {
   setupOthersDropoff();
   setupPlaceSuggestions('dropoff');
   setupFareEstimate();
+  setupRideAlerts();
+  checkNewLoyaltyCertificate();
+  if (window.location.hash === '#loyalty-card') openLoyaltyCard();
   setupProfileForm();
   setupChangePasswordForm();
   setupAvailabilityToggle();
