@@ -3119,9 +3119,13 @@ function playRideAlertSound() {
   });
 }
 
+// Drivers on their dashboard hear new requests; passengers hear their ride
+// being accepted (see checkRideMilestones).
 function setupRideAlerts() {
   const user = getStoredUser();
-  if (!document.querySelector('#driver-ride-requests') || !isAuthenticated() || user.role !== 'driver') return;
+  if (!isAuthenticated()) return;
+  const driverDashboard = user.role === 'driver' && document.querySelector('#driver-ride-requests');
+  if (!driverDashboard && user.role !== 'passenger') return;
   document.addEventListener('pointerdown', unlockRideAlertAudio, { once: true });
   document.addEventListener('keydown', unlockRideAlertAudio, { once: true });
 }
@@ -4645,7 +4649,7 @@ const RIDE_MILESTONES = {
   Accepted: {
     icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21c-4-4.5-7-8-7-11a7 7 0 0 1 14 0c0 3-3 6.5-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>',
     title: 'Your driver is on the way!',
-    message: 'Be sure to be at your pickup point — this helps your driver find you.'
+    message: 'Be at your pickup point. This helps your driver find you.'
   },
   'Picked Up': {
     icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.2"/><path d="M5 20c1-3.5 4-5.5 7-5.5s6 2 7 5.5"/></svg>',
@@ -4695,6 +4699,12 @@ async function checkRideMilestones() {
   if (localStorage.getItem(seenKey)) return;
   localStorage.setItem(seenKey, 'shown');
 
+  // A driver taking the ride is the moment the passenger has been waiting
+  // for, so it also chimes and vibrates. The other milestones stay silent.
+  if (latest.status === 'Accepted') {
+    playRideAlertSound();
+    if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+  }
   showRideMilestoneModal(milestone, latest);
 }
 
@@ -4708,6 +4718,10 @@ function showRideMilestoneModal(milestone, ride) {
     <div class="ride-milestone-modal">
       <div class="ride-milestone-icon">${milestone.icon}</div>
       <h2 class="ride-milestone-title">${escapeHtml(milestone.title)}</h2>
+      ${ride.status === 'Accepted' && ride.driver_name ? `
+        <p class="ride-milestone-driver">
+          <strong>${escapeHtml(ride.driver_name)}</strong>${ride.driver_plate ? ` · Plate ${escapeHtml(ride.driver_plate)}` : ''}
+        </p>` : ''}
       <p class="ride-milestone-message">${escapeHtml(milestone.message)}</p>
       <button type="button" class="btn-primary ride-milestone-ok">OK!</button>
       ${showReviewLink ? `

@@ -2380,6 +2380,17 @@ select {
   margin: 0 0 10px;
 }
 
+/* Who is coming, on the "Your driver is on the way!" popup, so the
+   passenger can match the tricycle's plate before getting on. */
+.ride-milestone-driver {
+  margin: 0 0 10px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: var(--light);
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
 .ride-milestone-message {
   color: var(--muted);
   font-size: 0.95rem;
