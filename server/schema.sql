@@ -307,3 +307,17 @@ VALUES (1, 20.00, 5.00, 'City Ordinance IX-4-001-2024 (student rate, 1 passenger
 -- Road distance the ride was priced on, shown with the fare to both the
 -- passenger and the driver.
 ALTER TABLE rides ADD COLUMN distance_km DECIMAL(6,2) NULL AFTER extra_km;
+
+-- Per-driver declines (2026-09-30). A driver's Decline used to set the whole
+-- ride to 'Declined', taking it from every other driver. Now it only records
+-- "this driver passed": the ride stays Pending for everyone else and leaves
+-- only that driver's list. server/rideDeclines.js creates this on startup if
+-- it's missing, so running this by hand is only needed on a fresh database.
+CREATE TABLE IF NOT EXISTS ride_declines (
+  ride_id INT NOT NULL,
+  driver_account_id INT NOT NULL,
+  declined_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (ride_id, driver_account_id),
+  FOREIGN KEY (ride_id) REFERENCES rides(ride_id) ON DELETE CASCADE,
+  FOREIGN KEY (driver_account_id) REFERENCES user_account(account_id) ON DELETE CASCADE
+);

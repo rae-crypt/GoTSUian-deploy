@@ -13,6 +13,7 @@ const db = require('./config/db');
 const { initSocket } = require('./socket');
 const rideController = require('./controllers/rideController');
 const { ensureFareSchema } = require('./fareSettings');
+const { ensureRideDeclinesTable } = require('./rideDeclines');
 const authRoutes = require('./routes/authRoutes');
 const rideRoutes = require('./routes/rideRoutes');
 const adminRoutes = require('./routes/adminRoutes');
@@ -117,4 +118,6 @@ server.listen(PORT, () => {
   // Adds the fare_settings table and rides.distance_km if they aren't
   // there yet (see fareSettings.js). Additions only; never alters data.
   ensureFareSchema();
+  // Per-driver declines (see rideDeclines.js). Additions only.
+  ensureRideDeclinesTable();
 });

@@ -2947,7 +2947,7 @@ function showRideFeedback(type, title, message) {
 // In-app notification popup: same shell as showRideFeedback() above, but it
 // stays until the person taps a button, since it carries something to act
 // on (a certificate to view, a ride to accept) rather than a confirmation.
-function showActionPopup({ tone = 'info', icon, title, message, primaryLabel, onPrimary, secondaryLabel = 'Close' }) {
+function showActionPopup({ tone = 'info', icon, title, message, primaryLabel, onPrimary, secondaryLabel = 'Close', onSecondary }) {
   document.querySelectorAll('[data-action-popup]').forEach(el => el.remove());
 
   const overlay = document.createElement('div');
@@ -2970,7 +2970,10 @@ function showActionPopup({ tone = 'info', icon, title, message, primaryLabel, on
   overlay.addEventListener('click', (event) => {
     if (event.target === overlay) close();
   });
-  overlay.querySelector('.action-popup-secondary').addEventListener('click', close);
+  overlay.querySelector('.action-popup-secondary').addEventListener('click', () => {
+    close();
+    if (onSecondary) onSecondary();
+  });
   const primary = overlay.querySelector('.action-popup-primary');
   if (primary) {
     primary.addEventListener('click', () => {
@@ -3709,6 +3712,18 @@ async function acceptRideRemote(rideId) {
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Unable to accept this ride');
+  return data;
+}
+
+// "Not me": the request leaves this driver's list and stays open for the
+// other drivers (see declineRide on the server).
+async function declineRideRemote(rideId) {
+  const res = await fetch(`${RIDES_API_URL}/${rideId}/decline`, {
+    method: 'PUT',
+    headers: getAuthHeaders()
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Unable to decline this ride');
   return data;
 }
 
@@ -5247,8 +5262,8 @@ async function renderDriverRideRequests() {
     button.addEventListener('click', async function() {
       const rideId = this.getAttribute('data-ride-id');
       try {
-        await updateRideStatusRemote(rideId, 'Declined');
-        showRideFeedback('info', 'Ride declined', 'The request was declined and removed from your queue.');
+        await declineRideRemote(rideId);
+        showRideFeedback('info', 'Ride declined', 'Removed from your list. Other drivers can still accept it.');
         renderDriverRideRequests();
         renderDriverDashboardStats();
       } catch (error) {
@@ -5264,8 +5279,8 @@ async function renderDriverRideRequests() {
     button.addEventListener('click', async function() {
       const rideIds = this.getAttribute('data-ride-ids').split(',').filter(Boolean);
       try {
-        await Promise.all(rideIds.map(id => updateRideStatusRemote(id, 'Declined')));
-        showRideFeedback('info', 'Ride declined', 'The request was declined and removed from your queue.');
+        await Promise.all(rideIds.map(id => declineRideRemote(id)));
+        showRideFeedback('info', 'Ride declined', 'Removed from your list. Other drivers can still accept it.');
         renderDriverRideRequests();
         renderDriverDashboardStats();
       } catch (error) {
@@ -6906,6 +6921,29 @@ function manageRealtimeConnection() {
   realtimeSocket.on('violation:issued', function() {
     renderMyViolations();
     renderAccountStanding();
+  });
+
+  // Every driver who could take the passenger's ride has declined it. The
+  // ride is still open; they choose whether to keep waiting or cancel.
+  realtimeSocket.on('ride:no-drivers', function(payload) {
+    const rideId = payload && payload.rideId;
+    if (!rideId || getStoredUser().role !== 'passenger') return;
+    showActionPopup({
+      tone: 'info',
+      title: 'No driver has taken your ride yet',
+      message: 'All available drivers have passed on this request. You can keep waiting for another driver to come online, or cancel it.',
+      primaryLabel: 'Keep waiting',
+      secondaryLabel: 'Cancel request',
+      onSecondary: async () => {
+        try {
+          await updateRideStatusRemote(rideId, 'Cancelled');
+          showRideFeedback('info', 'Ride cancelled', 'Your ride request has been cancelled.');
+        } catch (error) {
+          showRideFeedback('error', 'Could not cancel', error.message || 'Please try again.');
+        }
+        renderPassengerRideStatus();
+      }
+    });
   });
 
   realtimeSocket.on('loyalty:granted', function() {

@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const db = require('../config/db');
-const { emitRideUpdated, emitNewPendingRide, emitDriverLocation, emitAvailabilityChanged, getPresentDriverIds } = require('../socket');
+const { emitRideUpdated, emitNewPendingRide, emitDriverLocation, emitAvailabilityChanged, getPresentDriverIds, emitNoDriversLeft } = require('../socket');
+const { hasDeclinesTable } = require('../rideDeclines');
 const { getFareSettings, computeFare, hasDistanceColumn } = require('../fareSettings');
 
 // Fare per rider, keyed by how many students end up in the tricycle.
@@ -660,6 +661,8 @@ exports.createRide = async (req, res) => {
 // LIST PENDING RIDES — for the driver dashboard. Shared rides are grouped
 // by pool so a driver sees one card per tricycle trip, not one per rider.
 exports.listPendingRides = (req, res) => {
+  // Hides requests this driver has already declined (see declineRide).
+  const withDeclines = hasDeclinesTable();
   const sql = `
     SELECT r.ride_id, r.passenger_account_id, r.pickup_location, r.dropoff_location,
            r.ride_type, r.pool_id, r.fare,${hasDistanceColumn() ? ' r.distance_km,' : ''} r.status, r.scheduled_at, r.notes, r.created_at,
@@ -670,10 +673,13 @@ exports.listPendingRides = (req, res) => {
     LEFT JOIN ride_pools rp ON rp.pool_id = r.pool_id
     WHERE r.status = 'Pending'
       AND (r.scheduled_at IS NULL OR r.scheduled_at <= DATE_ADD(NOW(), INTERVAL ? MINUTE))
+      ${withDeclines ? 'AND r.ride_id NOT IN (SELECT ride_id FROM ride_declines WHERE driver_account_id = ?)' : ''}
     ORDER BY r.created_at ASC
   `;
+  const params = [SCHEDULE_LEAD_TIME_MINUTES];
+  if (withDeclines) params.push(req.user.accountId);
 
-  db.query(sql, [SCHEDULE_LEAD_TIME_MINUTES], (err, rows) => {
+  db.query(sql, params, (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
 
     const pools = {};
@@ -839,6 +845,54 @@ exports.getRideRoute = (req, res) => {
     }
   );
 };
+
+// DRIVER declines a request: it leaves this driver's list only and stays
+// open for everyone else (see rideDeclines.js). The passenger hears nothing
+// unless no driver who could take it is left, when they get the choice to
+// keep waiting or cancel.
+exports.declineRide = (req, res) => {
+  const { rideId } = req.params;
+  const driverAccountId = req.user.accountId;
+  if (req.user.role !== 'driver') return res.status(403).json({ error: 'Only drivers can decline a ride request.' });
+  if (!hasDeclinesTable()) return res.status(503).json({ error: 'Declining is still starting up. Please try again in a moment.' });
+
+  db.query(`SELECT passenger_account_id, status FROM rides WHERE ride_id = ?`, [rideId], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!rows.length) return res.status(404).json({ error: 'Ride not found' });
+    if (rows[0].status !== 'Pending') return res.status(409).json({ error: 'This request is no longer open.' });
+    const passengerAccountId = rows[0].passenger_account_id;
+
+    db.query(
+      `INSERT IGNORE INTO ride_declines (ride_id, driver_account_id) VALUES (?, ?)`,
+      [rideId, driverAccountId],
+      (insertErr) => {
+        if (insertErr) return res.status(500).json({ error: insertErr.message });
+        res.status(200).json({ message: 'Declined. The request stays open for other drivers.' });
+        notifyIfNoDriversLeft(rideId, passengerAccountId);
+      }
+    );
+  });
+};
+
+// Drivers who could still take the ride: approved, switched Online, with the
+// app open (see getPresentDriverIds), not mid-trip, and not already declined.
+function notifyIfNoDriversLeft(rideId, passengerAccountId) {
+  const presentIds = getPresentDriverIds();
+  if (!presentIds.length) return emitNoDriversLeft(passengerAccountId, Number(rideId));
+  db.query(
+    `SELECT COUNT(*) AS c FROM tricycle_driver td
+     WHERE td.account_status = 'Active' AND td.is_online = TRUE AND td.account_id IN (?)
+       AND td.account_id NOT IN (
+         SELECT driver_account_id FROM rides
+         WHERE driver_account_id IS NOT NULL AND status IN ('Accepted', 'Picked Up', 'In Progress'))
+       AND td.account_id NOT IN (SELECT driver_account_id FROM ride_declines WHERE ride_id = ?)`,
+    [presentIds, rideId],
+    (err, rows) => {
+      if (err) return console.warn('Could not count remaining drivers:', err.message);
+      if (Number(rows[0].c) === 0) emitNoDriversLeft(passengerAccountId, Number(rideId));
+    }
+  );
+}
 
 // PASSENGER reads the location of the driver assigned to ONE of their own
 // rides — scoped by ride_id + passenger_account_id so a passenger can never

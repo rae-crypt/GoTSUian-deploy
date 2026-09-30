@@ -177,6 +177,13 @@ function emitLoyaltyGranted(accountId) {
   io.to(accountRoom(accountId)).emit('loyalty:granted');
 }
 
+// Every driver who could take this ride right now has declined it. The ride
+// stays open, so the passenger decides: keep waiting for someone new, or cancel.
+function emitNoDriversLeft(passengerAccountId, rideId) {
+  if (!io || !passengerAccountId) return;
+  io.to(accountRoom(passengerAccountId)).emit('ride:no-drivers', { rideId });
+}
+
 module.exports = {
   initSocket,
   getIO,
@@ -190,5 +197,6 @@ module.exports = {
   emitChatMessage,
   emitComplaintUpdated,
   emitViolationIssued,
-  emitLoyaltyGranted
+  emitLoyaltyGranted,
+  emitNoDriversLeft
 };
