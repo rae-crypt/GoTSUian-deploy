@@ -3527,11 +3527,11 @@ function fillWithCurrentLocation(side) {
   if (error) error.textContent = '';
 
   if (!navigator.geolocation) {
-    if (error) error.textContent = 'This device cannot share its location. Please search for your pickup point instead.';
+    if (error) error.textContent = 'This device cannot share its location, which booking needs for your pickup.';
     return;
   }
 
-  input.value = 'Finding your exact location...';
+  input.value = 'Using your current location...';
   input.disabled = true;
   input.dataset.detecting = 'true';
 
@@ -3556,7 +3556,7 @@ function fillWithCurrentLocation(side) {
       // get a real GPS fix; say so instead of passing a rough guess off as exact.
       const accuracy = Math.round(position.coords.accuracy);
       if (error && accuracy > 150) {
-        error.textContent = `Your location may be off by about ${accuracy} m. If this address is wrong, search for your pickup point instead.`;
+        error.textContent = `Your location may be off by about ${accuracy} m. Move outdoors or near a window, then tap the pickup box to update it.`;
       }
     },
     () => {
@@ -3564,7 +3564,7 @@ function fillWithCurrentLocation(side) {
       input.disabled = false;
       delete input.dataset.detecting;
       input.value = '';
-      if (error) error.textContent = 'Could not get your location — allow location access in your browser, or search for your pickup point instead.';
+      if (error) error.textContent = 'Could not get your location. Turn on location access in your browser, then tap the pickup box to try again.';
     }
   );
 }
@@ -3601,18 +3601,17 @@ function setupCustomLocationField(side) {
   }
 }
 
-// Pickup has no dropdown to choose from any more: the box fills itself from
-// GPS as soon as the booking form loads, and the button beside it re-runs
-// that lookup if the passenger has since typed over it or moved.
+// Pickup is always where the passenger is: the box fills itself from GPS as
+// soon as the booking form loads and is read-only, so there's no searching
+// for a pickup elsewhere. Tapping the box looks the location up again, for
+// when they've moved or location access was off the first time.
 function setupPickupField() {
   const input = document.querySelector('#pickup-other-text');
-  const button = document.querySelector('#pickup-use-location');
   if (!input) return;
 
-  input.addEventListener('input', () => {
-    customLocationCoords.pickup = null;
+  input.addEventListener('click', () => {
+    if (input.dataset.detecting !== 'true') fillWithCurrentLocation('pickup');
   });
-  if (button) button.addEventListener('click', () => fillWithCurrentLocation('pickup'));
 
   fillWithCurrentLocation('pickup');
 }
@@ -3817,7 +3816,7 @@ function setupPassengerRideRequestForm() {
     if (pickupOtherError) pickupOtherError.textContent = '';
 
     if (!pickupLocation) {
-      if (isCustomPickup && pickupOtherError) pickupOtherError.textContent = 'Please tell us where you want to be picked up.';
+      if (isCustomPickup && pickupOtherError) pickupOtherError.textContent = "We don't have your location yet. Turn on location access, then tap the pickup box.";
       else if (routeError) routeError.textContent = 'Please select a pickup point.';
       return;
     }
@@ -6569,7 +6568,6 @@ document.addEventListener('DOMContentLoaded', function() {
   setupPassengerRideRequestForm();
   setupRideTypeToggle();
   setupOthersDropoff();
-  setupPlaceSuggestions('pickup');
   setupPlaceSuggestions('dropoff');
   setupProfileForm();
   setupChangePasswordForm();

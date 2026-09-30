@@ -3249,13 +3249,18 @@ body[data-page="passenger"] .form-field input[type="text"]:focus {
 body[data-page="passenger"] .form-field input[type="text"]::placeholder { color: #b08a8a; }
 body[data-page="passenger"] .form-field input[type="text"]:disabled { opacity: 0.7; }
 
-/* ---- "Use my current location" under the pickup box ---- */
-body[data-page="passenger"] .use-location-btn {
-  display: inline-flex; align-items: center; gap: 6px; margin-top: 7px;
-  padding: 4px 2px; border: none; background: none; cursor: pointer;
-  font-family: inherit; font-size: 13px; font-weight: 600; color: var(--primary);
+/* ---- pickup: always the passenger's current location ---- */
+/* Read-only, and tapping it refreshes the location, so it reads as a button:
+   pointer cursor and a location icon on the left. */
+body[data-page="passenger"] #pickup-other-text {
+  cursor: pointer;
+  padding-left: 38px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%237f1d1d' d='M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm8.94 3A9 9 0 0 0 13 3.06V1h-2v2.06A9 9 0 0 0 3.06 11H1v2h2.06A9 9 0 0 0 11 20.94V23h2v-2.06A9 9 0 0 0 20.94 13H23v-2h-2.06zM12 19a7 7 0 1 1 0-14 7 7 0 0 1 0 14z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: 13px center;
+  background-size: 16px 16px;
 }
-body[data-page="passenger"] .use-location-btn:hover { color: var(--primary-soft); text-decoration: underline; }
+body[data-page="passenger"] #pickup-other-text::placeholder { color: var(--primary); font-weight: 600; }
 
 /* ---- pickup / drop-off type-ahead ---- */
 body[data-page="passenger"] .place-suggest-wrap { position: relative; }
