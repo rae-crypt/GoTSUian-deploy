@@ -80,6 +80,34 @@ function setupBackToTop() {
 
 // HOW IT WORKS page — the Student/Driver step toggle and FAQ accordion.
 // Safe no-op everywhere else (only how-it-works.html has these elements).
+// How It Works shows the fare rates the admin has set, not just the
+// defaults written into the page, so the page stays right after a change.
+// Uses the same "started kilometre counts" rule as the server.
+function setupHowItWorksFares() {
+  const firstEl = document.querySelector('#how-fare-first');
+  if (!firstEl) return;
+  fetch(`${RIDES_API_URL}/fare-settings`)
+    .then(res => res.ok ? res.json() : null)
+    .then(settings => {
+      if (!settings) return;
+      const first = Number(settings.first_km_fare);
+      const rate = Number(settings.per_km_fare);
+      const fareFor = (km) => Math.round(first + rate * Math.max(0, Math.ceil(km - 1)));
+      firstEl.textContent = `₱${first}`;
+      const perEl = document.querySelector('#how-fare-per');
+      if (perEl) perEl.textContent = `+₱${rate}`;
+      const basisEl = document.querySelector('#how-fare-basis');
+      if (basisEl && settings.basis) basisEl.textContent = settings.basis;
+      const examplesEl = document.querySelector('#how-fare-examples');
+      if (examplesEl) {
+        examplesEl.innerHTML = [2, 3.2, 5]
+          .map((km, i) => `<div class="how-fare-chip${i === 1 ? ' is-active' : ''}">${km} km · ₱${fareFor(km)}</div>`)
+          .join('');
+      }
+    })
+    .catch(() => {});
+}
+
 function setupHowItWorksPage() {
   const roleButtons = document.querySelectorAll('.how-role-btn');
   if (roleButtons.length) {
@@ -2923,6 +2951,81 @@ const ROUTE_MAIN_TO_SAN_ISIDRO = [[15.485127, 120.587373], [15.485175, 120.58709
 
 const RIDES_API_URL = '/api/rides';
 const ADMIN_API_URL = '/api/admin';
+
+// Admin's "Fare settings" card: the two ordinance figures every GPS-pickup
+// ride is priced with (see server/fareSettings.js), with a worked example
+// that updates as they're typed so the admin can see what a change means.
+const FARE_EXAMPLE_KM = 3.2;
+
+function setupAdminFareSettings() {
+  const form = document.querySelector('#fare-settings-form');
+  if (!form || !isAuthenticated() || getStoredUser().role !== 'admin') return;
+  const firstKm = form.querySelector('#fare-first-km');
+  const perKm = form.querySelector('#fare-per-km');
+  const basis = form.querySelector('#fare-basis');
+  const example = form.querySelector('#fare-example');
+  const status = form.querySelector('#fare-save-status');
+  const saveBtn = form.querySelector('#fare-save-btn');
+
+  const setStatus = (text, tone) => {
+    status.textContent = text;
+    status.className = `fare-save-status${tone ? ` is-${tone}` : ''}`;
+  };
+
+  // Same rule as the server: a started kilometre counts as a whole one.
+  const renderExample = () => {
+    const first = Number(firstKm.value);
+    const rate = Number(perKm.value);
+    if (!Number.isFinite(first) || !Number.isFinite(rate) || firstKm.value === '' || perKm.value === '') {
+      example.textContent = 'Enter both amounts to see an example.';
+      return;
+    }
+    const extra = Math.ceil(FARE_EXAMPLE_KM - 1);
+    const fare = Math.round(first + rate * extra);
+    example.innerHTML = `A <strong>${FARE_EXAMPLE_KM} km</strong> trip costs <strong>₱${fare}</strong> `
+      + `(₱${first} for the first km + ${extra} × ₱${rate}). A started kilometre counts as a whole one.`;
+  };
+
+  const fill = (settings) => {
+    firstKm.value = settings.first_km_fare;
+    perKm.value = settings.per_km_fare;
+    basis.value = settings.basis || '';
+    renderExample();
+  };
+
+  fetch(`${ADMIN_API_URL}/fare-settings`, { headers: getAuthHeaders() })
+    .then(res => res.ok ? res.json() : Promise.reject(new Error('Could not load fare settings')))
+    .then(fill)
+    .catch(error => {
+      example.textContent = '';
+      setStatus(error.message, 'error');
+    });
+
+  firstKm.addEventListener('input', () => { renderExample(); setStatus(''); });
+  perKm.addEventListener('input', () => { renderExample(); setStatus(''); });
+  basis.addEventListener('input', () => setStatus(''));
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    saveBtn.disabled = true;
+    setStatus('Saving...');
+    try {
+      const res = await fetch(`${ADMIN_API_URL}/fare-settings`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ first_km_fare: firstKm.value, per_km_fare: perKm.value, basis: basis.value })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Could not save fare settings.');
+      fill(data);
+      setStatus('Saved. New bookings use these rates.', 'success');
+    } catch (error) {
+      setStatus(error.message, 'error');
+    } finally {
+      saveBtn.disabled = false;
+    }
+  });
+}
 const PROFILE_API_URL = '/api/profile';
 const REVIEWS_API_URL = '/api/reviews';
 const COMPLAINTS_API_URL = '/api/complaints';
@@ -3013,7 +3116,7 @@ async function createRideRequest(payload) {
 // placeholder. Throws with a passenger-facing message on failure (location
 // not found, or outside the service area).
 async function quoteOthersDropoff(pickupLocation, dropoffText, options) {
-  const { pickupIsCustom, dropoffCoords } = options || {};
+  const { pickupIsCustom, pickupCoords, dropoffCoords } = options || {};
   const res = await fetch(`${RIDES_API_URL}/others-quote`, {
     method: 'POST',
     headers: getAuthHeaders(),
@@ -3021,6 +3124,8 @@ async function quoteOthersDropoff(pickupLocation, dropoffText, options) {
       pickup_location: pickupLocation,
       dropoff_text: dropoffText,
       pickup_is_custom: !!pickupIsCustom,
+      pickup_lat: pickupCoords ? pickupCoords.lat : null,
+      pickup_lng: pickupCoords ? pickupCoords.lng : null,
       dropoff_lat: dropoffCoords ? dropoffCoords.lat : null,
       dropoff_lng: dropoffCoords ? dropoffCoords.lng : null
     })
@@ -3028,6 +3133,83 @@ async function quoteOthersDropoff(pickupLocation, dropoffText, options) {
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Could not calculate a fare for that location.');
   return data;
+}
+
+// "₱35 · 3.2 km" for a distance-priced ride, just "₱35" for anything priced
+// the old way (campus routes, rides booked before distance was recorded).
+function formatFareWithDistance(fare, distanceKm) {
+  const peso = `₱${Number(fare).toFixed(0)}`;
+  return distanceKm != null && distanceKm !== '' ? `${peso} · ${Number(distanceKm).toFixed(1)} km` : peso;
+}
+
+// The estimated fare under the drop-off box, and in the Solo button, as soon
+// as there's both a GPS pickup and a chosen drop-off (the IT expert's "compute
+// the fare automatically"). Asks the server, which prices the road distance
+// with the ordinance rates and keeps the quote, so booking charges exactly
+// this figure. Shows no number rather than a wrong one when it can't price.
+let fareEstimateToken = 0;
+let lastFareEstimateKey = null;
+
+function setFareEstimate(state, html, soloLabel) {
+  const el = document.querySelector('#fare-estimate');
+  const solo = document.querySelector('#solo-fare');
+  if (el) {
+    el.className = `fare-estimate${state ? ` is-${state}` : ''}`;
+    el.innerHTML = html;
+  }
+  if (solo) solo.textContent = soloLabel;
+}
+
+function resetFareEstimate() {
+  fareEstimateToken++;
+  lastFareEstimateKey = null;
+  setFareEstimate('', '', 'By distance');
+}
+
+async function refreshFareEstimate() {
+  const pickupInput = document.querySelector('#pickup-other-text');
+  const dropoffInput = document.querySelector('#dropoff-other-text');
+  if (!pickupInput || !dropoffInput || !document.querySelector('#fare-estimate')) return;
+
+  const dropoffText = dropoffInput.value.trim();
+  if (!dropoffText) return resetFareEstimate();
+
+  const pickupCoords = customLocationCoords.pickup;
+  if (!pickupCoords || pickupInput.dataset.detecting === 'true') {
+    lastFareEstimateKey = null;
+    return setFareEstimate('waiting', 'Your fare will show once we have your location.', 'By distance');
+  }
+
+  const dropoffCoords = customLocationCoords.dropoff;
+  // Leaving the box or re-picking the same place mustn't ask again.
+  const key = JSON.stringify([pickupCoords, dropoffCoords || dropoffText]);
+  if (key === lastFareEstimateKey) return;
+  lastFareEstimateKey = key;
+
+  const token = ++fareEstimateToken;
+  setFareEstimate('loading', 'Calculating fare…', 'Calculating…');
+  try {
+    const quote = await quoteOthersDropoff(pickupInput.value.trim(), dropoffText, {
+      pickupIsCustom: true,
+      pickupCoords,
+      dropoffCoords
+    });
+    if (token !== fareEstimateToken) return;
+    setFareEstimate('ready', `Estimated fare: <strong>${escapeHtml(formatFareWithDistance(quote.fare, quote.distanceKm))}</strong>`, `₱${Number(quote.fare).toFixed(0)}`);
+  } catch (error) {
+    if (token !== fareEstimateToken) return;
+    lastFareEstimateKey = null;
+    setFareEstimate('error', escapeHtml(error.message || 'Could not work out the fare for that place.'), 'By distance');
+  }
+}
+
+function setupFareEstimate() {
+  const dropoffInput = document.querySelector('#dropoff-other-text');
+  if (!dropoffInput || !document.querySelector('#fare-estimate')) return;
+  // Typing makes the shown figure stale; it's priced again once a place is
+  // picked from the suggestions or the passenger leaves the box.
+  dropoffInput.addEventListener('input', resetFareEstimate);
+  dropoffInput.addEventListener('change', refreshFareEstimate);
 }
 
 // Fire-and-forget — attaches a GPS snapshot to an already-created ride once
@@ -3552,6 +3734,7 @@ function fillWithCurrentLocation(side) {
       input.disabled = false;
       delete input.dataset.detecting;
       input.value = label;
+      refreshFareEstimate();
       // Indoors, or with location set to battery saving, the phone may never
       // get a real GPS fix; say so instead of passing a rough guess off as exact.
       const accuracy = Math.round(position.coords.accuracy);
@@ -3696,6 +3879,8 @@ function setupPlaceSuggestions(side) {
         input.value = place.label;
         customLocationCoords[side] = { lat: place.lat, lng: place.lng };
         closeList();
+        // Lets listeners such as the fare estimate react to the pick.
+        input.dispatchEvent(new Event('change'));
       });
     });
   }
@@ -3856,6 +4041,7 @@ function setupPassengerRideRequestForm() {
       try {
         othersQuote = await quoteOthersDropoff(pickupLocation, dropoffLocation, {
           pickupIsCustom: isCustomPickup,
+          pickupCoords: customLocationCoords.pickup,
           dropoffCoords: customLocationCoords.dropoff
         });
       } catch (error) {
@@ -3872,7 +4058,7 @@ function setupPassengerRideRequestForm() {
     // above, not a separately-maintained figure — one source of truth.
     // (A custom drop-off has no such button — it uses the real quote.)
     const fareText = othersQuote
-      ? `₱${othersQuote.fare}`
+      ? formatFareWithDistance(othersQuote.fare, othersQuote.distanceKm)
       : (selectedRideTypeBtn && selectedRideTypeBtn.querySelector('small')
         ? selectedRideTypeBtn.querySelector('small').textContent
         : '');
@@ -3949,6 +4135,7 @@ function setupPassengerRideRequestForm() {
       });
       // form.reset() emptied the pickup box too; refill it from GPS so the
       // next booking starts where the passenger is, same as on page load.
+      resetFareEstimate();
       fillWithCurrentLocation('pickup');
       syncRideTypeAvailability();
       renderPassengerRideStatus();
@@ -4079,7 +4266,9 @@ async function renderPassengerRideStatus() {
   const fareIsCalculating = activeRide.fare == null;
   const fareText = fareIsCalculating
     ? 'Calculating — waiting for more students to join'
-    : `₱${Number(activeRide.fare).toFixed(0)}${poolStillOpen ? ' so far' : ''}`;
+    : activeRide.ride_type === 'Shared'
+      ? `₱${Number(activeRide.fare).toFixed(0)}${poolStillOpen ? ' so far' : ''}`
+      : formatFareWithDistance(activeRide.fare, activeRide.distance_km);
   const fareTierRow = poolStillOpen ? `
     <div class="fare-tier-row">
       <span class="fare-tier-chip${riderCountSoFar >= 2 ? ' is-active' : ''}">2 · ₱35</span>
@@ -4453,7 +4642,7 @@ async function renderBookingsList() {
   list.style.display = 'flex';
   list.innerHTML = rides.map(ride => {
     const statusConfig = getRideStatusConfig(ride.status);
-    const fareText = ride.fare != null ? `₱${Number(ride.fare).toFixed(0)}` : 'Calculating';
+    const fareText = ride.fare != null ? formatFareWithDistance(ride.fare, ride.distance_km) : 'Calculating';
     const otherPartyLabel = isDriver ? 'Passenger' : 'Driver';
     const otherPartyName = (isDriver ? ride.passenger_name : ride.driver_name) || 'Not yet assigned';
     const requestedAt = new Date(ride.created_at).toLocaleString();
@@ -4651,7 +4840,7 @@ function renderPendingRideCard(group) {
           <span class="ride-badge tone-${statusConfig.tone}">Solo</span>
         </div>
         <div class="driver-card-meta">
-          <span>Fare: ₱${Number(ride.fare || 60).toFixed(0)}</span>
+          <span>Estimated fare: ${escapeHtml(formatFareWithDistance(ride.fare || 0, ride.distance_km))}</span>
           <span>${new Date(ride.created_at).toLocaleString()}</span>
           ${scheduledBadgeHtml(ride.scheduled_at)}
         </div>
@@ -4761,7 +4950,9 @@ function renderActiveRideCard(group) {
       </div>
       <div class="driver-card-meta">
         <span>${group.riders.length > 1 ? names : escapeHtml(anchor.ride_type)}</span>
-        <span>Fare: ₱${Number(anchor.fare || 0).toFixed(0)}/student</span>
+        <span>${anchor.ride_type === 'Shared'
+          ? `Fare: ₱${Number(anchor.fare || 0).toFixed(0)}/student`
+          : `Estimated fare: ${escapeHtml(formatFareWithDistance(anchor.fare || 0, anchor.distance_km))}`}</span>
       </div>
       ${fareTierRow}
       ${waitingNote}
@@ -6547,6 +6738,7 @@ document.addEventListener('DOMContentLoaded', function() {
   setupLoginNavLink();
   setupViolationModal();
   setupLicenseModal();
+  setupAdminFareSettings();
   setupAdminPanelCollapse();
   setupLoyaltyHistoryToggle();
   setupLoyaltyRoleTabs();
@@ -6556,6 +6748,7 @@ document.addEventListener('DOMContentLoaded', function() {
   setupNavDrawerAccordion();
   setupBackToTop();
   setupHowItWorksPage();
+  setupHowItWorksFares();
   setupGettingStartedPage();
   highlightActiveNav();
   setupScrollReveal();
@@ -6569,6 +6762,7 @@ document.addEventListener('DOMContentLoaded', function() {
   setupRideTypeToggle();
   setupOthersDropoff();
   setupPlaceSuggestions('dropoff');
+  setupFareEstimate();
   setupProfileForm();
   setupChangePasswordForm();
   setupAvailabilityToggle();

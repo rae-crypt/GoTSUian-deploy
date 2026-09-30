@@ -12,6 +12,7 @@ const cors = require('cors');
 const db = require('./config/db');
 const { initSocket } = require('./socket');
 const rideController = require('./controllers/rideController');
+const { ensureFareSchema } = require('./fareSettings');
 const authRoutes = require('./routes/authRoutes');
 const rideRoutes = require('./routes/rideRoutes');
 const adminRoutes = require('./routes/adminRoutes');
@@ -113,4 +114,7 @@ server.listen(PORT, () => {
   // from before this restart -- otherwise it would sit hidden from
   // drivers with nothing left to ever notify them once its time arrives.
   rideController.rearmScheduledRideTimers();
+  // Adds the fare_settings table and rides.distance_km if they aren't
+  // there yet (see fareSettings.js). Additions only; never alters data.
+  ensureFareSchema();
 });

@@ -3262,6 +3262,18 @@ body[data-page="passenger"] #pickup-other-text {
 }
 body[data-page="passenger"] #pickup-other-text::placeholder { color: var(--primary); font-weight: 600; }
 
+/* ---- estimated fare under the drop-off box ---- */
+body[data-page="passenger"] .fare-estimate { margin: 8px 0 0; font-size: 13.5px; line-height: 1.4; }
+body[data-page="passenger"] .fare-estimate:empty { display: none; }
+body[data-page="passenger"] .fare-estimate.is-ready {
+  padding: 9px 12px; border-radius: 10px;
+  background: #ecfdf3; border: 1px solid #bbe5cc; color: #14532d;
+}
+body[data-page="passenger"] .fare-estimate.is-ready strong { font-size: 15px; }
+body[data-page="passenger"] .fare-estimate.is-loading,
+body[data-page="passenger"] .fare-estimate.is-waiting { color: #8a6b6b; font-style: italic; }
+body[data-page="passenger"] .fare-estimate.is-error { color: #b91c1c; }
+
 /* ---- pickup / drop-off type-ahead ---- */
 body[data-page="passenger"] .place-suggest-wrap { position: relative; }
 body[data-page="passenger"] .place-suggest-list {

@@ -287,3 +287,23 @@ CREATE TABLE IF NOT EXISTS loyalty_certificates (
   FOREIGN KEY (account_id) REFERENCES user_account(account_id),
   FOREIGN KEY (granted_by_admin_id) REFERENCES administrator(admin_id)
 );
+
+-- Distance-based fare (2026-09-30). The rates every GPS-pickup ride is
+-- priced with, from Tarlac City Ordinance IX-4-001-2024 (student rate,
+-- 1 passenger: ₱20 first km + ₱5 per additional km), editable by the admin.
+-- One row only (id = 1). server/fareSettings.js creates this table and the
+-- column below on startup if they're missing, so running this by hand is
+-- only needed on a fresh database.
+CREATE TABLE IF NOT EXISTS fare_settings (
+  id TINYINT PRIMARY KEY,
+  first_km_fare DECIMAL(8,2) NOT NULL,
+  per_km_fare DECIMAL(8,2) NOT NULL,
+  basis VARCHAR(255) NULL,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+INSERT IGNORE INTO fare_settings (id, first_km_fare, per_km_fare, basis)
+VALUES (1, 20.00, 5.00, 'City Ordinance IX-4-001-2024 (student rate, 1 passenger)');
+
+-- Road distance the ride was priced on, shown with the fare to both the
+-- passenger and the driver.
+ALTER TABLE rides ADD COLUMN distance_km DECIMAL(6,2) NULL AFTER extra_km;

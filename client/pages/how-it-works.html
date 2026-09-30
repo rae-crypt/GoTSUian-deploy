@@ -62,7 +62,7 @@
           </div>
           <div class="how-step-card">
             <div class="how-step-num-col"><div class="how-step-num">2</div><div class="how-step-line"></div></div>
-            <div class="how-step-body"><h3>Choose route &amp; ride type</h3><p>Pick your pickup and drop-off, then go Solo or Shared.</p></div>
+            <div class="how-step-body"><h3>Set your drop-off</h3><p>Your pickup is your current location. Search for where you're going and see the fare right away.</p></div>
           </div>
           <div class="how-step-card">
             <div class="how-step-num-col"><div class="how-step-num">3</div><div class="how-step-line"></div></div>
@@ -98,29 +98,31 @@
 
     <section class="how-section">
       <div class="how-section-intro">
-        <span class="how-eyebrow">Solo or Shared</span>
-        <h2>Pick the ride that fits your budget.</h2>
+        <span class="how-eyebrow">Fares</span>
+        <h2>Priced by distance, following the city fare ordinance.</h2>
       </div>
+      <!-- Figures below are the defaults; how-it-works loads the rates the
+           admin has actually set (GET /api/rides/fare-settings) over them. -->
       <div class="how-compare-grid">
         <div class="how-compare-card">
-          <div class="how-compare-head"><h3>Solo</h3><span class="how-compare-price">₱60</span></div>
+          <div class="how-compare-head"><h3>First kilometre</h3><span class="how-compare-price" id="how-fare-first">₱20</span></div>
           <ul>
-            <li><svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="5 11 9 15 15 6"/></svg> Leave immediately, no waiting</li>
+            <li><svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="5 11 9 15 15 6"/></svg> Every trip starts here</li>
             <li><svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="5 11 9 15 15 6"/></svg> The whole tricycle to yourself</li>
-            <li><svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="5 11 9 15 15 6"/></svg> Fixed fare, every time</li>
+            <li><svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="5 11 9 15 15 6"/></svg> <span id="how-fare-basis">Tarlac City Ordinance IX-4-001-2024 (student rate)</span></li>
           </ul>
         </div>
         <div class="how-compare-card is-featured">
-          <div class="how-compare-head"><h3>Shared</h3><span class="how-compare-price">₱20–35</span></div>
+          <div class="how-compare-head"><h3>Each additional km</h3><span class="how-compare-price" id="how-fare-per">+₱5</span></div>
           <ul>
-            <li><svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="5 11 9 15 15 6"/></svg> Pool with other students on the same route</li>
-            <li><svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="5 11 9 15 15 6"/></svg> Fare drops as more students join</li>
-            <li><svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="5 11 9 15 15 6"/></svg> Still trackable, still driver-verified</li>
+            <li><svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="5 11 9 15 15 6"/></svg> Measured along the road, pickup to drop-off</li>
+            <li><svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="5 11 9 15 15 6"/></svg> A started kilometre counts as a whole one</li>
+            <li><svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="5 11 9 15 15 6"/></svg> You and your driver see the same estimate before the trip</li>
           </ul>
-          <div class="how-fare-tiers">
-            <div class="how-fare-chip">2 · ₱35</div>
-            <div class="how-fare-chip is-active">3 · ₱25</div>
-            <div class="how-fare-chip">4 · ₱20</div>
+          <div class="how-fare-tiers" id="how-fare-examples">
+            <div class="how-fare-chip">2 km · ₱25</div>
+            <div class="how-fare-chip is-active">3.2 km · ₱35</div>
+            <div class="how-fare-chip">5 km · ₱40</div>
           </div>
         </div>
       </div>
@@ -180,6 +182,6 @@
   </footer>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="../js/app.js?v=20260930a"></script>
+  <script src="../js/app.js?v=20260930b"></script>
 </body>
 </html>

@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const db = require('../config/db');
 const { emitRideUpdated, emitNewPendingRide, emitDriverLocation, emitAvailabilityChanged, getPresentDriverIds } = require('../socket');
+const { getFareSettings, computeFare, hasDistanceColumn } = require('../fareSettings');
 
 // Fare per rider, keyed by how many students end up in the tricycle.
 // Solo is always headcount 1. Shared settles into whichever headcount
@@ -304,39 +305,82 @@ async function computeOthersFare(pickupLocation, dropoffText, dropoffCoords) {
   return { fare, extraKm: Math.round(extraKm * 100) / 100, lat: point[0], lng: point[1] };
 }
 
-// A pickup away from the two campuses has no "normal endpoint" to measure a
-// deviation from — the surcharge model above only means anything for a trip
-// that starts at a campus and runs past the usual drop-off. Anchoring it to
-// an arbitrary campus instead would bill a number with no basis, so a
-// custom-pickup ride is charged the plain Solo fare and its drop-off is
-// resolved only so the map and the driver's card can show a real point.
-// Deliberately interim: replacing this with a distance-based fare for every
-// ride needs figures grounded in the city ordinance, not invented here.
-async function resolveCustomPickupDropoff(dropoffText, dropoffCoords) {
+// ─── DISTANCE-BASED FARE (every ride from a GPS pickup) ────────────────
+// Road distance from the passenger's pickup to the drop-off, priced with the
+// ordinance rates in fareSettings.js. The same trip gets the same number
+// twice in a row: a quote is kept for QUOTE_TTL_MS, so the fare saved with
+// the ride is the one the passenger was shown before booking, even if the
+// routing server answers differently (or not at all) the second time.
+const QUOTE_TTL_MS = 10 * 60 * 1000;
+const fareQuoteCache = new Map();
+
+function quoteKey(pickupPoint, dropoffPoint) {
+  return [...pickupPoint, ...dropoffPoint].map(n => n.toFixed(5)).join(',');
+}
+
+async function quoteDistanceFare(pickupPoint, dropoffPoint) {
+  const key = quoteKey(pickupPoint, dropoffPoint);
+  const cached = fareQuoteCache.get(key);
+  if (cached && cached.expires > Date.now()) return cached.quote;
+
+  const distanceKm = Math.round((await getRoadDistanceKm(pickupPoint, dropoffPoint)) * 100) / 100;
+  const quote = { fare: computeFare(distanceKm), distanceKm };
+  if (fareQuoteCache.size > 1000) fareQuoteCache.clear();
+  fareQuoteCache.set(key, { quote, expires: Date.now() + QUOTE_TTL_MS });
+  return quote;
+}
+
+// A pickup away from the two campuses (every pickup, now that it's always
+// the passenger's GPS) is priced by distance. The drop-off is resolved to a
+// point first: the coordinates of the suggestion the passenger picked, or
+// failing that the typed text geocoded.
+async function resolveCustomPickupDropoff(pickupPoint, dropoffText, dropoffCoords) {
+  if (!pickupPoint) {
+    throw new Error("We couldn't get your pickup location. Tap the pickup box to try again.");
+  }
   let point = normalizePoint(dropoffCoords);
   if (!point) {
     try {
       point = await geocodeAddress(dropoffText);
     } catch (error) {
-      throw new Error('Could not find that drop-off location. Please try a more specific address.');
+      throw new Error('Could not find that drop-off location. Please pick it from the suggestions.');
     }
   }
-  return { fare: FARE_BY_HEADCOUNT[1], extraKm: null, lat: point[0], lng: point[1] };
+  const { fare, distanceKm } = await quoteDistanceFare(pickupPoint, point);
+  return { fare, distanceKm, extraKm: null, lat: point[0], lng: point[1] };
 }
+
+// The pickup point for a quote or booking: the GPS coordinates sent along,
+// or failing that the pickup text geocoded. Null if neither works.
+async function resolvePickupPoint(pickupLocation, pickupLat, pickupLng) {
+  const point = normalizePoint({ lat: pickupLat, lng: pickupLng });
+  if (point) return point;
+  try {
+    return await geocodeAddress(pickupLocation);
+  } catch (error) {
+    console.warn('Could not geocode custom pickup:', error.message);
+    return null;
+  }
+}
+
+// PUBLIC — the current fare rates, for How It Works and the booking form.
+exports.getFareSettings = (req, res) => {
+  res.status(200).json(getFareSettings());
+};
 
 // QUOTE — lets the client show the real fare before the passenger
 // commits, without creating a ride yet. createRide recomputes the same
 // thing at actual booking time, so nothing from this response is trusted
 // later — this is purely a preview.
 exports.quoteOthersDropoff = async (req, res) => {
-  const { pickup_location, dropoff_text, dropoff_lat, dropoff_lng, pickup_is_custom } = req.body;
+  const { pickup_location, dropoff_text, dropoff_lat, dropoff_lng, pickup_lat, pickup_lng, pickup_is_custom } = req.body;
   if (!pickup_location || !dropoff_text) {
     return res.status(400).json({ error: 'Pickup location and drop-off text are required' });
   }
   const dropoffCoords = { lat: dropoff_lat, lng: dropoff_lng };
   try {
     const quote = pickup_is_custom
-      ? await resolveCustomPickupDropoff(dropoff_text, dropoffCoords)
+      ? await resolveCustomPickupDropoff(await resolvePickupPoint(pickup_location, pickup_lat, pickup_lng), dropoff_text, dropoffCoords)
       : await computeOthersFare(pickup_location, dropoff_text, dropoffCoords);
     res.status(200).json(quote);
   } catch (error) {
@@ -385,10 +429,20 @@ exports.createRide = async (req, res) => {
   // fresh here, never trusting whatever number the client's earlier
   // /others-quote preview showed (that endpoint exists purely for UX, not
   // as a source of truth).
+  // A pickup typed by hand has no coordinates of its own, so the map would
+  // have nothing to draw and the driver would get only a line of text.
+  // Geocoding it gives both a real point, and the start of the fare distance.
+  let resolvedPickup = normalizePoint({ lat: pickup_lat, lng: pickup_lng });
+  if (pickup_is_custom && !resolvedPickup) {
+    resolvedPickup = await resolvePickupPoint(pickup_location);
+  }
+  const pickupLatValue = resolvedPickup ? resolvedPickup[0] : null;
+  const pickupLngValue = resolvedPickup ? resolvedPickup[1] : null;
+
   let othersQuote = null;
   if (pickup_is_custom && dropoff_is_custom) {
     try {
-      othersQuote = await resolveCustomPickupDropoff(dropoff_location, { lat: dropoff_lat, lng: dropoff_lng });
+      othersQuote = await resolveCustomPickupDropoff(resolvedPickup, dropoff_location, { lat: dropoff_lat, lng: dropoff_lng });
     } catch (error) {
       return res.status(400).json({ error: error.message });
     }
@@ -399,21 +453,6 @@ exports.createRide = async (req, res) => {
       return res.status(400).json({ error: error.message });
     }
   }
-
-  // A pickup typed by hand has no coordinates of its own, so the map would
-  // have nothing to draw and the driver would get only a line of text.
-  // Geocoding it here gives both a real point. Non-fatal — the ride is still
-  // bookable on the address alone if the lookup fails.
-  let resolvedPickup = normalizePoint({ lat: pickup_lat, lng: pickup_lng });
-  if (pickup_is_custom && !resolvedPickup) {
-    try {
-      resolvedPickup = await geocodeAddress(pickup_location);
-    } catch (error) {
-      console.warn('Could not geocode custom pickup:', error.message);
-    }
-  }
-  const pickupLatValue = resolvedPickup ? resolvedPickup[0] : null;
-  const pickupLngValue = resolvedPickup ? resolvedPickup[1] : null;
 
   // A passenger can only have one active (not yet finished) ride at a
   // time — stops accidental double-booking from tapping "Request ride"
@@ -432,16 +471,22 @@ exports.createRide = async (req, res) => {
         const dropoffLat = othersQuote ? othersQuote.lat : null;
         const dropoffLng = othersQuote ? othersQuote.lng : null;
         const extraKm = othersQuote ? othersQuote.extraKm : null;
+        const distanceKm = othersQuote && othersQuote.distanceKm != null ? othersQuote.distanceKm : null;
+        // distance_km only once fareSettings has confirmed the column exists.
+        const withDistance = hasDistanceColumn();
         const sql = `
-          INSERT INTO rides (passenger_account_id, pickup_location, dropoff_location, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, extra_km, ride_type, fare, status, scheduled_at, notes)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Solo', ?, 'Pending', ?, ?)
+          INSERT INTO rides (passenger_account_id, pickup_location, dropoff_location, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, extra_km,${withDistance ? ' distance_km,' : ''} ride_type, fare, status, scheduled_at, notes)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?,${withDistance ? ' ?,' : ''} 'Solo', ?, 'Pending', ?, ?)
         `;
+        const values = [passenger_account_id, pickup_location, dropoff_location, pickupLatValue, pickupLngValue, dropoffLat, dropoffLng, extraKm];
+        if (withDistance) values.push(distanceKm);
+        values.push(soloFare, scheduled_at || null, notes || null);
         db.query(
           sql,
-          [passenger_account_id, pickup_location, dropoff_location, pickupLatValue, pickupLngValue, dropoffLat, dropoffLng, extraKm, soloFare, scheduled_at || null, notes || null],
+          values,
           (err, result) => {
             if (err) return res.status(500).json({ error: err.message });
-            res.status(201).json({ message: 'Ride requested', rideId: result.insertId, fare: soloFare });
+            res.status(201).json({ message: 'Ride requested', rideId: result.insertId, fare: soloFare, distanceKm });
             emitPendingOrSchedule(scheduled_at);
           }
         );
@@ -617,7 +662,7 @@ exports.createRide = async (req, res) => {
 exports.listPendingRides = (req, res) => {
   const sql = `
     SELECT r.ride_id, r.passenger_account_id, r.pickup_location, r.dropoff_location,
-           r.ride_type, r.pool_id, r.fare, r.status, r.scheduled_at, r.notes, r.created_at,
+           r.ride_type, r.pool_id, r.fare,${hasDistanceColumn() ? ' r.distance_km,' : ''} r.status, r.scheduled_at, r.notes, r.created_at,
            CONCAT(s.first_name, ' ', s.last_name) AS passenger_name,
            rp.status AS pool_status
     FROM rides r

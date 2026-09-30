@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const bcrypt = require('bcrypt');
 const db = require('../config/db');
 const { emitDriverAccountStatus, emitLoyaltyGranted, getPresentPassengerIds, getPresentDriverIds } = require('../socket');
+const { getFareSettings, saveFareSettings } = require('../fareSettings');
 
 // Excludes visually-ambiguous characters (0/O, 1/l/I) since this gets read
 // aloud or copied over a phone call, not typed by the person who generated it.
@@ -15,6 +16,29 @@ function generateTempPassword(length = 8) {
   }
   return out;
 }
+
+// FARE SETTINGS — the two ordinance figures every GPS-pickup ride is priced
+// with (see fareSettings.js). A change applies to rides booked afterwards;
+// rides already booked keep the fare they were booked at.
+exports.getFareSettings = (req, res) => {
+  res.status(200).json(getFareSettings());
+};
+
+exports.updateFareSettings = (req, res) => {
+  const firstKmFare = Number(req.body.first_km_fare);
+  const perKmFare = Number(req.body.per_km_fare);
+  const basis = String(req.body.basis || '').trim().slice(0, 255) || null;
+
+  const valid = (n) => Number.isFinite(n) && n >= 0 && n <= 1000;
+  if (!valid(firstKmFare) || !valid(perKmFare) || firstKmFare === 0) {
+    return res.status(400).json({ error: 'Enter a first-kilometre fare above ₱0 and a per-kilometre fare from ₱0 to ₱1000.' });
+  }
+
+  saveFareSettings({ first_km_fare: firstKmFare, per_km_fare: perKmFare, basis }, (err, settings) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.status(200).json(settings);
+  });
+};
 
 // LIST ALL DRIVERS — the admin dashboard's driver management table shows
 // every driver (not just pending ones) so the admin can also review

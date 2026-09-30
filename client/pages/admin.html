@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link href="https://api.fontshare.com/v2/css?f[]=clash-display@500,600,700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="../css/admin.css?v=20260928j">
+  <link rel="stylesheet" href="../css/admin.css?v=20260930b">
   <link rel="stylesheet" href="../css/theme.css?v=20260924">
 </head>
 <body data-page="admin" class="admin-portal">
@@ -102,6 +102,45 @@
           <div class="lbl">Pending requests</div>
           <span class="admin-stat-goto">View bookings <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 5l5 5-5 5"/></svg></span>
         </a>
+      </div>
+
+      <div class="admin-panel" id="fare-settings-panel">
+        <div class="admin-panel-head">
+          <div class="admin-panel-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 20V4h6a4 4 0 0 1 0 8H7"/><path d="M4 8h14M4 11h14"/></svg>
+          </div>
+          <div class="admin-panel-head-text">
+            <h2>Fare settings</h2>
+            <p>Every ride is priced by road distance with these rates. Changes apply to new bookings only.</p>
+          </div>
+          <button type="button" class="admin-panel-toggle" aria-expanded="true" aria-label="Collapse this section">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7.5L10 12.5L15 7.5"/></svg>
+          </button>
+        </div>
+
+        <div class="admin-panel-body">
+          <form id="fare-settings-form" class="fare-settings-form" novalidate>
+            <div class="fare-settings-grid">
+              <label class="fare-field">
+                <span>First kilometre</span>
+                <span class="fare-input"><span>₱</span><input type="number" id="fare-first-km" min="1" max="1000" step="0.5" required></span>
+              </label>
+              <label class="fare-field">
+                <span>Each additional kilometre</span>
+                <span class="fare-input"><span>₱</span><input type="number" id="fare-per-km" min="0" max="1000" step="0.5" required></span>
+              </label>
+            </div>
+            <label class="fare-field">
+              <span>Based on</span>
+              <input type="text" id="fare-basis" maxlength="255" placeholder="e.g. City Ordinance IX-4-001-2024 (student rate, 1 passenger)">
+            </label>
+            <p class="fare-example" id="fare-example">Loading fare settings...</p>
+            <div class="fare-settings-actions">
+              <button type="submit" class="admin-btn tone-success" id="fare-save-btn">Save fare settings</button>
+              <small class="fare-save-status" id="fare-save-status" aria-live="polite"></small>
+            </div>
+          </form>
+        </div>
       </div>
 
       <div class="admin-panel" id="driver-management-panel">
@@ -317,6 +356,6 @@
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="../js/app.js?v=20260930a"></script>
+  <script src="../js/app.js?v=20260930b"></script>
 </body>
 </html>

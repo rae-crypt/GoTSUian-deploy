@@ -13,6 +13,8 @@ function requireAdmin(req, res, next) {
 }
 
 router.get('/stats', authMiddleware, requireAdmin, adminController.getStats);
+router.get('/fare-settings', authMiddleware, requireAdmin, adminController.getFareSettings);
+router.put('/fare-settings', authMiddleware, requireAdmin, adminController.updateFareSettings);
 router.get('/drivers', authMiddleware, requireAdmin, adminController.listDrivers);
 router.get('/passengers', authMiddleware, requireAdmin, adminController.listPassengers);
 router.get('/bookings', authMiddleware, requireAdmin, adminController.listBookings);
