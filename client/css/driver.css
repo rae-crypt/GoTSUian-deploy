@@ -3693,28 +3693,59 @@ body[data-page="driver"] .rewards-teaser-link {
 }
 
 /* BOOK FOR SOMEONE ELSE (2026-10-03) — who to pick up on a ride the
-   passenger booked for another person. Spans only, no <p> (the
-   ".dashboard-card p" rule would blow them up to 2rem bold). */
+   passenger booked for another person. Same shape as the passenger's
+   confirm-popup box: initial badge, name, a call button, one short note.
+   Spans only, no <p> (".dashboard-card p" would make them 2rem bold). */
 .booked-for-card {
-  display: grid;
-  gap: 6px;
-  margin: 10px 0 0;
-  padding: 12px 14px;
-  border: 1.5px solid var(--accent-gold);
-  border-radius: 14px;
-  background: #fffaf0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  margin: 12px 0 14px;
+  padding: 14px 16px;
+  border: 1px solid rgba(201, 150, 46, 0.35);
+  border-radius: 16px;
+  background: rgba(247, 183, 51, 0.1);
+  min-width: 0;
+}
+.booked-for-avatar {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #c9962e;
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 5px rgba(20, 10, 10, 0.2);
+}
+/* Badge and name share the top row; the call button and note run the
+   full width underneath, so nothing gets squeezed on a narrow phone. */
+.booked-for-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.booked-for-who {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
   min-width: 0;
   overflow-wrap: anywhere;
 }
 .booked-for-kicker {
-  font-size: 11px;
+  font-size: 0.66rem;
   font-weight: 800;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
   color: #8a5a10;
 }
 .booked-for-name {
-  font-size: 15px;
+  font-size: 0.98rem;
   font-weight: 800;
   color: var(--text);
 }
@@ -3723,24 +3754,30 @@ body[data-page="driver"] .rewards-teaser-link {
   align-items: center;
   gap: 6px;
   width: fit-content;
-  padding: 7px 12px;
-  border-radius: 10px;
-  background: var(--primary);
-  color: #fff8f6;
-  font-size: 14px;
+  margin-top: 2px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1.5px solid var(--primary);
+  background: #fff;
+  color: var(--primary);
+  font-size: 0.82rem;
   font-weight: 800;
   text-decoration: none;
   font-variant-numeric: tabular-nums;
+  max-width: 100%;
 }
-.booked-for-call:hover { filter: brightness(1.1); }
+.booked-for-num { white-space: nowrap; }
+.booked-for-call svg { width: 14px; height: 14px; flex: none; }
+.booked-for-call:hover { background: var(--primary); color: #fff8f6; }
 .booked-for-note {
-  font-size: 12.5px;
+  margin-top: 2px;
+  font-size: 0.76rem;
   line-height: 1.45;
-  color: #7a5410;
+  color: #7a5c50;
 }
 @media (max-width: 360px) {
-  .booked-for-card { padding: 10px 12px; }
-  .booked-for-name { font-size: 14px; }
+  .booked-for-card { padding: 12px; }
+  .booked-for-avatar { width: 26px; height: 26px; }
 }
 
 /* Loyalty card text (2026-10-03): the grey stats line is two short lines,

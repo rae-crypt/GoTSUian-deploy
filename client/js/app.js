@@ -4552,12 +4552,18 @@ function readBookedForFields() {
 function bookedForDriverHtml(ride) {
   if (!ride || !ride.booked_for_name) return '';
   const contact = ride.booked_for_contact || '';
+  // Same look as the "Booked for" box in the passenger's confirm popup.
   return `
     <div class="booked-for-card">
-      <span class="booked-for-kicker">Booked for someone else</span>
-      <strong class="booked-for-name">Pick up: ${escapeHtml(ride.booked_for_name)}</strong>
-      ${contact ? `<a class="booked-for-call" href="tel:${escapeHtml(contact)}">📞 ${escapeHtml(formatPhMobile(contact))}</a>` : ''}
-      <span class="booked-for-note">Booked by ${escapeHtml(ride.passenger_name || 'the passenger')} (account owner). The pickup was set by them, not their own location, so call the passenger to confirm before you go.</span>
+      <span class="booked-for-head">
+        <span class="booked-for-avatar" aria-hidden="true">${escapeHtml(ride.booked_for_name.charAt(0).toUpperCase())}</span>
+        <span class="booked-for-who">
+          <span class="booked-for-kicker">Pick up this passenger</span>
+          <strong class="booked-for-name">${escapeHtml(ride.booked_for_name)}</strong>
+        </span>
+      </span>
+      ${contact ? `<a class="booked-for-call" href="tel:${escapeHtml(contact)}"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 3.5h-2a1 1 0 0 0-1 1C3.5 11 9 16.5 15.5 16.5a1 1 0 0 0 1-1v-2l-3-1.2-1.5 1.5a8 8 0 0 1-4.3-4.3L9.2 8 8 5Z"/></svg><span>Call <span class="booked-for-num">${escapeHtml(formatPhMobile(contact))}</span></span></a>` : ''}
+      <span class="booked-for-note">Booked by ${escapeHtml(ride.passenger_name || 'the passenger')} for someone else. Call to confirm the pickup before you go.</span>
     </div>
   `;
 }
