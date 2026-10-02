@@ -142,6 +142,17 @@ function normalizePhMobile(raw) {
   return /^09\d{9}$/.test(digits) ? digits : null;
 }
 
+// A GPS pickup (the passenger's own location) is limited to the same area.
+// The drop-off search was already Tarlac-only, but nothing stopped someone in
+// Manila from booking a ~120 km, ~₱600 ride a Tarlac driver would never take.
+// Only a known point counts as outside; no coordinates is handled elsewhere.
+const GPS_OUTSIDE_AREA_MESSAGE = 'GoTSUian only serves Tarlac, and your current location is outside the service area. To book for someone in Tarlac, tap "Change pickup".';
+
+function isOutsideServiceArea(lat, lng) {
+  const point = normalizePoint({ lat, lng });
+  return !!point && !isInsideTarlac(point);
+}
+
 // Checks a "someone else" pickup. Returns { error } or the cleaned values.
 function checkBookedFor({ pickupPoint, name, contact }) {
   if (!pickupPoint) {
@@ -422,6 +433,9 @@ exports.quoteOthersDropoff = async (req, res) => {
   if (pickup_from_search && !isInsideTarlac(normalizePoint({ lat: pickup_lat, lng: pickup_lng }))) {
     return res.status(400).json({ error: 'Pickups must be within Tarlac.' });
   }
+  if (pickup_is_custom && !pickup_from_search && isOutsideServiceArea(pickup_lat, pickup_lng)) {
+    return res.status(400).json({ error: GPS_OUTSIDE_AREA_MESSAGE });
+  }
   const dropoffCoords = { lat: dropoff_lat, lng: dropoff_lng };
   try {
     const quote = pickup_is_custom
@@ -488,6 +502,8 @@ exports.createRide = async (req, res) => {
     });
     if (checked.error) return res.status(400).json({ error: checked.error });
     bookedFor = checked;
+  } else if (pickup_is_custom && isOutsideServiceArea(pickup_lat, pickup_lng)) {
+    return res.status(400).json({ error: GPS_OUTSIDE_AREA_MESSAGE });
   }
 
   // A custom drop-off's fare isn't a lookup — it's geocoded and measured

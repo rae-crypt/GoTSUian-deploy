@@ -1328,6 +1328,38 @@ let driverLocationMarker = null;
 // passenger's own GPS position and drop-off became any address.
 const TARLAC_BOUNDS = [[15.15, 120.15], [15.89, 120.80]];
 
+// GoTSUian's service area is the same box: a GPS pickup outside it can't be
+// booked (the server refuses it too, see isOutsideServiceArea).
+function isInsideServiceArea(lat, lng) {
+  return lat >= TARLAC_BOUNDS[0][0] && lat <= TARLAC_BOUNDS[1][0]
+    && lng >= TARLAC_BOUNDS[0][1] && lng <= TARLAC_BOUNDS[1][1];
+}
+const OUTSIDE_AREA_MESSAGE = 'GoTSUian only serves Tarlac, and your current location is outside the service area. To book for someone in Tarlac, tap "Change pickup".';
+
+// "Your pickup" pin on the passenger map before a ride exists, so the map
+// moves to where they are instead of staying on its default view. Removed as
+// soon as a ride starts, which draws its own A/B pins.
+let pickupPreviewMarker = null;
+
+function showPickupPreview(lat, lng) {
+  if (!passengerMapInstance || driverTrackedRideId !== null) return;
+  if (!isInsideServiceArea(lat, lng)) return clearPickupPreview();
+  const point = [lat, lng];
+  if (!pickupPreviewMarker) {
+    pickupPreviewMarker = L.marker(point, { icon: ridePinIcon('A', 'pickup'), zIndexOffset: 1000 })
+      .addTo(passengerMapInstance)
+      .bindPopup('Your pickup');
+  } else {
+    pickupPreviewMarker.setLatLng(point);
+  }
+  passengerMapInstance.setView(point, 16);
+}
+
+function clearPickupPreview() {
+  if (pickupPreviewMarker && passengerMapInstance) passengerMapInstance.removeLayer(pickupPreviewMarker);
+  pickupPreviewMarker = null;
+}
+
 function setupPassengerMap() {
   const mapEl = document.querySelector('#map');
   if (!mapEl || typeof L === 'undefined') return;
@@ -1617,6 +1649,7 @@ async function pollDriverLocation() {
   refreshRideEta(activeRide);
 
   if (driverTrackedRideId !== activeRide.ride_id) {
+    clearPickupPreview();
     driverTrackedRideId = activeRide.ride_id;
     driverActualTrailPoints = [];
     driverActualTrail = L.polyline([], {
@@ -3636,6 +3669,10 @@ async function refreshFareEstimate() {
   if (!dropoffText) return resetFareEstimate();
 
   const pickupCoords = customLocationCoords.pickup;
+  if (pickupCoords && pickupMode === 'gps' && !isInsideServiceArea(pickupCoords.lat, pickupCoords.lng)) {
+    lastFareEstimateKey = null;
+    return setFareEstimate('error', { main: '—', message: 'Outside the GoTSUian service area (Tarlac).' });
+  }
   if (!pickupCoords || pickupInput.dataset.detecting === 'true') {
     lastFareEstimateKey = null;
     return setFareEstimate('pending', { main: pickupMode === 'search' ? 'Choose a pickup' : 'Finding your location…' });
@@ -4288,8 +4325,22 @@ function getPreciseLocation() {
   });
 }
 
+// Facebook, Messenger, Instagram and similar apps open links in their own
+// built-in browser, which often refuses location outright. Links to
+// GoTSUian are usually shared through Messenger, so say how to get out.
+function isInAppBrowser() {
+  return /FBAN|FBAV|FB_IAB|FBIOS|Messenger|Instagram|Line\/|MicroMessenger|TikTok/i.test(navigator.userAgent || '');
+}
+
 // What to tell the passenger for each way getPreciseLocation can fail.
 function locationErrorMessage(reason) {
+  const base = baseLocationErrorMessage(reason);
+  return isInAppBrowser()
+    ? `${base} You're using the Facebook/Messenger browser, which often blocks location: tap ⋯ (or the share icon) → Open in Chrome or Safari.`
+    : base;
+}
+
+function baseLocationErrorMessage(reason) {
   if (reason === 'DENIED') {
     return 'Location is blocked for this site. Tap the lock icon next to the web address → Permissions → Location → Allow, then tap the pickup box.';
   }
@@ -4341,6 +4392,15 @@ function fillWithCurrentLocation(side) {
       input.disabled = false;
       delete input.dataset.detecting;
       input.value = label;
+      if (side === 'pickup') {
+        if (!isInsideServiceArea(lat, lng)) {
+          clearPickupPreview();
+          if (error) error.textContent = OUTSIDE_AREA_MESSAGE;
+          refreshFareEstimate();
+          return;
+        }
+        showPickupPreview(lat, lng);
+      }
       refreshFareEstimate();
       // Indoors, or with location set to battery saving, the phone may never
       // get a real GPS fix; say so instead of passing a rough guess off as exact.
@@ -4464,6 +4524,7 @@ function setPickupMode(mode) {
   pickupMode = mode;
   pickupFillToken++;
   customLocationCoords.pickup = null;
+  clearPickupPreview();
   input.disabled = false;
   delete input.dataset.detecting;
   input.value = '';
@@ -4517,7 +4578,10 @@ function setupPickupModeSwitch() {
     if (pickupMode === 'search') resetFareEstimate();
   });
   input.addEventListener('change', () => {
-    if (pickupMode === 'search') refreshFareEstimate();
+    if (pickupMode !== 'search') return;
+    const coords = customLocationCoords.pickup;
+    if (coords) showPickupPreview(coords.lat, coords.lng);
+    refreshFareEstimate();
   });
 }
 
@@ -4776,6 +4840,13 @@ function setupPassengerRideRequestForm() {
       if (pickupMode === 'search' && pickupOtherError) pickupOtherError.textContent = 'Search for the pickup place and pick it from the list.';
       else if (isCustomPickup && pickupOtherError) pickupOtherError.textContent = "We don't have your location yet. Turn on location access, then tap the pickup box.";
       else if (routeError) routeError.textContent = 'Please select a pickup point.';
+      return;
+    }
+
+    // GPS pickup outside Tarlac: nothing to book (the server refuses it too).
+    const gpsPickup = customLocationCoords.pickup;
+    if (pickupMode === 'gps' && gpsPickup && !isInsideServiceArea(gpsPickup.lat, gpsPickup.lng)) {
+      if (pickupOtherError) pickupOtherError.textContent = OUTSIDE_AREA_MESSAGE;
       return;
     }
 
