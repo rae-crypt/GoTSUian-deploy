@@ -11,7 +11,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <link rel="stylesheet" href="../css/passenger.css?v=20261002b">
+  <link rel="stylesheet" href="../css/passenger.css?v=20261003b">
   <link rel="stylesheet" href="../css/theme.css?v=20261002b">
 </head>
 <body data-page="passenger" class="is-passenger-home">
@@ -98,12 +98,34 @@
               </select>
               <input type="text" id="pickup-other-text" name="pickupOther" placeholder="Use my current location" autocomplete="off" readonly title="Tap to update your location">
               <small class="error-msg" id="pickup-other-error"></small>
+              <!-- Book for someone else: turns the pickup into a place search
+                   and shows "Who will ride?" below (see setPickupMode). -->
+              <div class="pickup-mode-row">
+                <a href="#" role="button" class="pickup-mode-link" id="pickup-change-link">Booking for someone else? Change pickup</a>
+                <a href="#" role="button" class="pickup-mode-link" id="pickup-gps-link" hidden>Use my current location instead</a>
+              </div>
             </div>
             <div class="form-field">
               <label for="dropoff-other-text">Drop-off location</label>
               <input type="text" id="dropoff-other-text" name="dropoff" placeholder="Search for your destination" autocomplete="off" required>
               <small class="error-msg" id="dropoff-other-error"></small>
               <small class="error-msg" id="route-error"></small>
+            </div>
+            <div class="booked-for" id="booked-for-field" hidden>
+              <div class="booked-for-head">
+                <span class="booked-for-title">Who will ride?</span>
+                <small class="booked-for-hint">The person the driver will pick up. The driver will call this number to confirm.</small>
+              </div>
+              <div class="form-field">
+                <label for="booked-for-name">Passenger's name</label>
+                <input type="text" id="booked-for-name" name="bookedForName" maxlength="100" autocomplete="off" placeholder="e.g. Juan Dela Cruz">
+                <small class="error-msg" id="booked-for-name-error"></small>
+              </div>
+              <div class="form-field">
+                <label for="booked-for-contact">Passenger's phone number</label>
+                <input type="tel" id="booked-for-contact" name="bookedForContact" maxlength="16" inputmode="tel" autocomplete="off" placeholder="09XX XXX XXXX">
+                <small class="error-msg" id="booked-for-contact-error"></small>
+              </div>
             </div>
             <div class="form-field">
               <label>Your trip</label>
@@ -298,6 +320,6 @@
   </footer>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="../js/app.js?v=20261002k"></script>
+  <script src="../js/app.js?v=20261003a"></script>
 </body>
 </html>

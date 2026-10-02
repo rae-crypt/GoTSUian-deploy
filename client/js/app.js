@@ -3321,7 +3321,7 @@ async function alertDriverOfNewRides(newGroups) {
     tone: 'info',
     icon: '<img src="../images/tricycle.png" alt="" style="width:100%;height:100%;border-radius:50%">',
     title: 'New ride request',
-    message: `${ride.pickup_location} → ${ride.dropoff_location}. Estimated fare ${formatFareWithDistance(ride.fare || 0, ride.distance_km)}${more}.`,
+    message: `${ride.pickup_location} → ${ride.dropoff_location}. Estimated fare ${formatFareWithDistance(ride.fare || 0, ride.distance_km)}${ride.booked_for_name ? `. Booked for ${ride.booked_for_name} (${formatPhMobile(ride.booked_for_contact)})` : ''}${more}.`,
     primaryLabel: 'Accept',
     secondaryLabel: 'Later',
     onPrimary: () => {
@@ -3524,6 +3524,7 @@ async function createRideRequest(payload) {
 // not found, or outside the service area).
 async function quoteOthersDropoff(pickupLocation, dropoffText, options) {
   const { pickupIsCustom, pickupCoords, dropoffCoords } = options || {};
+  const pickupFromSearch = pickupMode === 'search';
   // While the server restarts (every deploy) or is briefly overloaded,
   // Railway answers for it with a reply that has no "error" field, and the
   // passenger used to get a bare "Could not calculate a fare", as if the
@@ -3546,7 +3547,8 @@ async function quoteOthersDropoff(pickupLocation, dropoffText, options) {
         pickup_lat: pickupCoords ? pickupCoords.lat : null,
         pickup_lng: pickupCoords ? pickupCoords.lng : null,
         dropoff_lat: dropoffCoords ? dropoffCoords.lat : null,
-        dropoff_lng: dropoffCoords ? dropoffCoords.lng : null
+        dropoff_lng: dropoffCoords ? dropoffCoords.lng : null,
+        pickup_from_search: pickupFromSearch
       })
     });
   } catch (networkError) {
@@ -3623,7 +3625,7 @@ async function refreshFareEstimate() {
   const pickupCoords = customLocationCoords.pickup;
   if (!pickupCoords || pickupInput.dataset.detecting === 'true') {
     lastFareEstimateKey = null;
-    return setFareEstimate('pending', { main: 'Finding your location…' });
+    return setFareEstimate('pending', { main: pickupMode === 'search' ? 'Choose a pickup' : 'Finding your location…' });
   }
 
   const dropoffCoords = customLocationCoords.dropoff;
@@ -4017,7 +4019,13 @@ function shortCampusName(locationText) {
 // rather than a static block in the page HTML. This is the one place that
 // needs a second confirmation before an irreversible action (creating the
 // ride), so it's a dedicated layout rather than a generic message dialog.
-function showRideConfirmModal({ pickupLocation, dropoffLocation, rideType, fareText, whenLabel }) {
+function showRideConfirmModal({ pickupLocation, dropoffLocation, rideType, fareText, whenLabel, bookedFor }) {
+  const bookedForBlock = bookedFor && !bookedFor.error ? `
+        <div class="ride-confirm-for">
+          <span class="ride-confirm-kicker">Booked for</span>
+          <strong>${escapeHtml(bookedFor.name)} · ${escapeHtml(formatPhMobile(bookedFor.contact))}</strong>
+          <small>The driver will call this number. You're responsible for this ride and its fare.</small>
+        </div>` : '';
   return new Promise((resolve) => {
     const overlay = document.createElement('div');
     overlay.className = 'chat-overlay';
@@ -4051,6 +4059,8 @@ function showRideConfirmModal({ pickupLocation, dropoffLocation, rideType, fareT
             </span>
           </div>
         </div>
+
+        ${bookedForBlock}
 
         <div class="ride-confirm-chips">
           <span class="ride-confirm-chip">
@@ -4274,7 +4284,12 @@ function fillWithCurrentLocation(side) {
   const input = document.querySelector(`#${side}-other-text`);
   const error = document.querySelector(`#${side}-other-error`);
   if (!input) return;
+  // The pickup box is a place search while booking for someone else; GPS
+  // must not write into it then (see setPickupMode).
+  if (side === 'pickup' && pickupMode !== 'gps') return;
   if (error) error.textContent = '';
+  const fillToken = side === 'pickup' ? ++pickupFillToken : 0;
+  const switchedAway = () => side === 'pickup' && fillToken !== pickupFillToken;
 
   if (!navigator.geolocation) {
     if (error) error.textContent = 'This device cannot share its location, which booking needs for your pickup.';
@@ -4287,6 +4302,7 @@ function fillWithCurrentLocation(side) {
 
   getPreciseLocation().then(
     async (position) => {
+      if (switchedAway()) return;
       const lat = position.coords.latitude;
       const lng = position.coords.longitude;
       customLocationCoords[side] = { lat, lng };
@@ -4299,6 +4315,7 @@ function fillWithCurrentLocation(side) {
       } catch (lookupError) {
         console.warn('Could not name that location, using coordinates', lookupError);
       }
+      if (switchedAway()) return;
       input.disabled = false;
       delete input.dataset.detecting;
       input.value = label;
@@ -4311,6 +4328,7 @@ function fillWithCurrentLocation(side) {
       }
     },
     (failure) => {
+      if (switchedAway()) return;
       customLocationCoords[side] = null;
       input.disabled = false;
       delete input.dataset.detecting;
@@ -4361,17 +4379,18 @@ function setupPickupField() {
   if (!input) return;
 
   input.addEventListener('click', () => {
-    if (input.dataset.detecting !== 'true') fillWithCurrentLocation('pickup');
+    if (pickupMode === 'gps' && input.dataset.detecting !== 'true') fillWithCurrentLocation('pickup');
   });
 
   fillWithCurrentLocation('pickup');
+  setupPickupModeSwitch();
 
   // Fill the box by itself once location becomes available after a failed
   // try: when the passenger allows it (late on the prompt, or in the
   // browser's site settings), or comes back to the page after turning on
   // their phone's location.
   const retryIfStillEmpty = () => {
-    if (input.dataset.detecting === 'true' || customLocationCoords.pickup) return;
+    if (pickupMode !== 'gps' || input.dataset.detecting === 'true' || customLocationCoords.pickup) return;
     fillWithCurrentLocation('pickup');
   };
   getLocationPermissionStatus().then((status) => {
@@ -4384,6 +4403,144 @@ function setupPickupField() {
     const error = document.querySelector('#pickup-other-error');
     if (document.visibilityState === 'visible' && error && error.textContent) retryIfStillEmpty();
   });
+}
+
+// BOOK FOR SOMEONE ELSE. The pickup is normally the passenger's own GPS
+// ('gps'). "Change pickup" turns the same box into a place search
+// ('search') for booking someone else's ride, for example a child at
+// school, and shows "Who will ride?" for that person's name and number,
+// which the driver sees and can call. "Use my current location instead"
+// switches back. The server repeats every check (see checkBookedFor).
+let pickupMode = 'gps';
+// Bumped on every GPS lookup and every mode switch, so a lookup still in
+// flight can tell it has been superseded and must not fill the box.
+let pickupFillToken = 0;
+const PICKUP_GPS_PLACEHOLDER = 'Use my current location';
+
+function formatPhMobile(digits) {
+  const d = String(digits || '').replace(/\D/g, '');
+  return d.length === 11 ? `${d.slice(0, 4)} ${d.slice(4, 7)} ${d.slice(7)}` : String(digits || '');
+}
+
+// Same rule as normalizePhMobile on the server: 09XXXXXXXXX, with spaces,
+// dashes or a +63 prefix allowed. Null if it isn't a PH mobile number.
+function normalizePhMobileClient(raw) {
+  let digits = String(raw || '').replace(/\D/g, '');
+  if (digits.startsWith('63')) digits = '0' + digits.slice(2);
+  return /^09\d{9}$/.test(digits) ? digits : null;
+}
+
+function setPickupMode(mode) {
+  const input = document.querySelector('#pickup-other-text');
+  const error = document.querySelector('#pickup-other-error');
+  const changeLink = document.querySelector('#pickup-change-link');
+  const gpsLink = document.querySelector('#pickup-gps-link');
+  const bookedFor = document.querySelector('#booked-for-field');
+  const label = document.querySelector('label[for="pickup-other-text"]');
+  if (!input) return;
+
+  pickupMode = mode;
+  pickupFillToken++;
+  customLocationCoords.pickup = null;
+  input.disabled = false;
+  delete input.dataset.detecting;
+  input.value = '';
+  if (error) error.textContent = '';
+  ['#booked-for-name-error', '#booked-for-contact-error'].forEach((sel) => {
+    const el = document.querySelector(sel);
+    if (el) el.textContent = '';
+  });
+
+  const searching = mode === 'search';
+  input.readOnly = !searching;
+  input.placeholder = searching ? 'Search for the pickup place' : PICKUP_GPS_PLACEHOLDER;
+  input.title = searching ? '' : 'Tap to update your location';
+  input.classList.toggle('is-pickup-search', searching);
+  if (label) label.textContent = searching ? 'Pickup location (for someone else)' : 'Pickup location';
+  if (changeLink) changeLink.hidden = searching;
+  if (gpsLink) gpsLink.hidden = !searching;
+  if (bookedFor) bookedFor.hidden = !searching;
+  if (!searching) {
+    ['#booked-for-name', '#booked-for-contact'].forEach((sel) => {
+      const el = document.querySelector(sel);
+      if (el) el.value = '';
+    });
+  }
+
+  resetFareEstimate();
+  if (searching) {
+    input.focus();
+  } else {
+    fillWithCurrentLocation('pickup');
+  }
+}
+
+function setupPickupModeSwitch() {
+  const input = document.querySelector('#pickup-other-text');
+  const changeLink = document.querySelector('#pickup-change-link');
+  const gpsLink = document.querySelector('#pickup-gps-link');
+  if (!input || !changeLink || !gpsLink) return;
+
+  changeLink.addEventListener('click', (event) => {
+    event.preventDefault();
+    setPickupMode('search');
+  });
+  gpsLink.addEventListener('click', (event) => {
+    event.preventDefault();
+    setPickupMode('gps');
+  });
+  // While searching, typing makes the shown fare stale and picking a
+  // suggestion (which fires 'change') prices the trip from that place.
+  input.addEventListener('input', () => {
+    if (pickupMode === 'search') resetFareEstimate();
+  });
+  input.addEventListener('change', () => {
+    if (pickupMode === 'search') refreshFareEstimate();
+  });
+}
+
+// The person being picked up, read from "Who will ride?". Returns null when
+// booking for oneself, { error } when something is missing, else the values.
+function readBookedForFields() {
+  if (pickupMode !== 'search') return null;
+  const nameInput = document.querySelector('#booked-for-name');
+  const contactInput = document.querySelector('#booked-for-contact');
+  const nameError = document.querySelector('#booked-for-name-error');
+  const contactError = document.querySelector('#booked-for-contact-error');
+  if (nameError) nameError.textContent = '';
+  if (contactError) contactError.textContent = '';
+
+  const name = (nameInput ? nameInput.value : '').trim().replace(/\s+/g, ' ');
+  const contact = normalizePhMobileClient(contactInput ? contactInput.value : '');
+  let error = null;
+  if (name.length < 2) {
+    if (nameError) nameError.textContent = "Enter the name of the passenger you're booking for.";
+    error = error || nameInput;
+  }
+  if (!contact) {
+    if (contactError) contactError.textContent = 'Enter their mobile number (11 digits, starting with 09).';
+    error = error || contactInput;
+  }
+  if (error) {
+    if (error.focus) error.focus();
+    return { error: true };
+  }
+  return { name, contact };
+}
+
+// "Booked for" block on a driver's ride card, for a ride booked for
+// someone else. Empty for an ordinary booking.
+function bookedForDriverHtml(ride) {
+  if (!ride || !ride.booked_for_name) return '';
+  const contact = ride.booked_for_contact || '';
+  return `
+    <div class="booked-for-card">
+      <span class="booked-for-kicker">Booked for someone else</span>
+      <strong class="booked-for-name">Pick up: ${escapeHtml(ride.booked_for_name)}</strong>
+      ${contact ? `<a class="booked-for-call" href="tel:${escapeHtml(contact)}">📞 ${escapeHtml(formatPhMobile(contact))}</a>` : ''}
+      <span class="booked-for-note">Booked by ${escapeHtml(ride.passenger_name || 'the passenger')} (account owner). The pickup was set by them, not their own location, so call the passenger to confirm before you go.</span>
+    </div>
+  `;
 }
 
 function setupOthersDropoff() {
@@ -4588,10 +4745,20 @@ function setupPassengerRideRequestForm() {
     if (pickupOtherError) pickupOtherError.textContent = '';
 
     if (!pickupLocation) {
-      if (isCustomPickup && pickupOtherError) pickupOtherError.textContent = "We don't have your location yet. Turn on location access, then tap the pickup box.";
+      if (pickupMode === 'search' && pickupOtherError) pickupOtherError.textContent = 'Search for the pickup place and pick it from the list.';
+      else if (isCustomPickup && pickupOtherError) pickupOtherError.textContent = "We don't have your location yet. Turn on location access, then tap the pickup box.";
       else if (routeError) routeError.textContent = 'Please select a pickup point.';
       return;
     }
+
+    // Booking for someone else: the pickup must be a picked suggestion (so
+    // it has an exact point) and "Who will ride?" must be filled in.
+    if (pickupMode === 'search' && !customLocationCoords.pickup) {
+      if (pickupOtherError) pickupOtherError.textContent = 'Pick the pickup place from the list so the driver gets the exact spot.';
+      return;
+    }
+    const bookedFor = readBookedForFields();
+    if (bookedFor && bookedFor.error) return;
 
     if (!dropoffLocation) {
       if (isCustomDropoff && dropoffOtherError) dropoffOtherError.textContent = 'Please tell us where you want to be dropped off.';
@@ -4656,7 +4823,8 @@ function setupPassengerRideRequestForm() {
       dropoffLocation,
       rideType,
       fareText,
-      whenLabel
+      whenLabel,
+      bookedFor
     });
     if (!confirmed) return;
 
@@ -4696,7 +4864,10 @@ function setupPassengerRideRequestForm() {
         ride_type: rideType,
         scheduled_at: scheduledAt,
         dropoff_is_custom: isCustomDropoff,
-        pickup_is_custom: isCustomPickup
+        pickup_is_custom: isCustomPickup,
+        pickup_from_search: pickupMode === 'search',
+        booked_for_name: bookedFor ? bookedFor.name : null,
+        booked_for_contact: bookedFor ? bookedFor.contact : null
       });
 
       form.reset();
@@ -4720,9 +4891,10 @@ function setupPassengerRideRequestForm() {
         customLocationCoords[side] = null;
       });
       // form.reset() emptied the pickup box too; refill it from GPS so the
-      // next booking starts where the passenger is, same as on page load.
+      // next booking starts where the passenger is, same as on page load
+      // (this also ends "book for someone else" mode).
       resetFareEstimate();
-      fillWithCurrentLocation('pickup');
+      setPickupMode('gps');
       syncRideTypeAvailability();
       renderPassengerRideStatus();
       renderDriverRideRequests();
@@ -4901,6 +5073,7 @@ async function renderPassengerRideStatus() {
       <span class="fare${fareIsCalculating ? ' is-calculating' : ''}">${escapeHtml(fareText)}</span>
     </div>
     ${fareTierRow}
+    ${activeRide.booked_for_name ? `<div class="ride-booked-for">Booked for <strong>${escapeHtml(activeRide.booked_for_name)}</strong> · ${escapeHtml(formatPhMobile(activeRide.booked_for_contact))}</div>` : ''}
     ${rideEtaRowHtml(activeRide, 'passenger')}
 
     <div class="ride-actions">
@@ -5441,6 +5614,7 @@ function renderPendingRideCard(group) {
           <span>${new Date(ride.created_at).toLocaleString()}</span>
           ${scheduledBadgeHtml(ride.scheduled_at)}
         </div>
+        ${bookedForDriverHtml(ride)}
         <div class="driver-card-actions">
           <button type="button" class="btn-primary" data-action="accept-ride" data-ride-id="${ride.ride_id}">Accept</button>
           <button type="button" class="btn-secondary-outline" data-action="decline-ride" data-ride-id="${ride.ride_id}">Decline</button>
@@ -5553,6 +5727,7 @@ function renderActiveRideCard(group) {
       </div>
       ${fareTierRow}
       ${waitingNote}
+      ${group.riders.length === 1 ? bookedForDriverHtml(anchor) : ''}
       ${rideEtaRowHtml(anchor, 'driver')}
       <p class="driver-card-description">${escapeHtml(statusConfig.description)}</p>
       <div class="driver-card-actions">
@@ -7400,6 +7575,7 @@ document.addEventListener('DOMContentLoaded', function() {
   setupRideTypeToggle();
   setupOthersDropoff();
   setupPlaceSuggestions('dropoff');
+  setupPlaceSuggestions('pickup');
   setupFareEstimate();
   setupRideAlerts();
   checkNewLoyaltyCertificate();

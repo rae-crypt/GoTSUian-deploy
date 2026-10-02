@@ -3691,3 +3691,54 @@ body[data-page="driver"] .rewards-teaser-link {
   .ride-eta,
   .dashboard-card p.ride-eta { font-size: 12.5px; padding: 8px 10px; gap: 6px; }
 }
+
+/* BOOK FOR SOMEONE ELSE (2026-10-03) — who to pick up on a ride the
+   passenger booked for another person. Spans only, no <p> (the
+   ".dashboard-card p" rule would blow them up to 2rem bold). */
+.booked-for-card {
+  display: grid;
+  gap: 6px;
+  margin: 10px 0 0;
+  padding: 12px 14px;
+  border: 1.5px solid var(--accent-gold);
+  border-radius: 14px;
+  background: #fffaf0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.booked-for-kicker {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #8a5a10;
+}
+.booked-for-name {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text);
+}
+.booked-for-call {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  padding: 7px 12px;
+  border-radius: 10px;
+  background: var(--primary);
+  color: #fff8f6;
+  font-size: 14px;
+  font-weight: 800;
+  text-decoration: none;
+  font-variant-numeric: tabular-nums;
+}
+.booked-for-call:hover { filter: brightness(1.1); }
+.booked-for-note {
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: #7a5410;
+}
+@media (max-width: 360px) {
+  .booked-for-card { padding: 10px 12px; }
+  .booked-for-name { font-size: 14px; }
+}

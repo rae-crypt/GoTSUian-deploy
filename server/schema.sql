@@ -327,3 +327,11 @@ CREATE TABLE IF NOT EXISTS ride_declines (
 -- some browsers wipe on close. server/certificateSeen.js adds it on startup
 -- if missing.
 ALTER TABLE loyalty_certificates ADD COLUMN seen_at TIMESTAMP NULL DEFAULT NULL AFTER granted_at;
+
+-- Book for someone else (2026-10-03). Name and mobile number of the person
+-- being picked up when the passenger set the pickup from the place search
+-- instead of their own location; NULL for an ordinary booking.
+-- server/bookedFor.js adds them on startup if missing.
+ALTER TABLE rides
+  ADD COLUMN booked_for_name VARCHAR(100) NULL DEFAULT NULL,
+  ADD COLUMN booked_for_contact VARCHAR(15) NULL DEFAULT NULL;

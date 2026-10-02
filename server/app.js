@@ -15,6 +15,7 @@ const rideController = require('./controllers/rideController');
 const { ensureFareSchema } = require('./fareSettings');
 const { ensureRideDeclinesTable } = require('./rideDeclines');
 const { ensureCertificateSeenColumn } = require('./certificateSeen');
+const { ensureBookedForColumns } = require('./bookedFor');
 const authRoutes = require('./routes/authRoutes');
 const rideRoutes = require('./routes/rideRoutes');
 const adminRoutes = require('./routes/adminRoutes');
@@ -123,4 +124,6 @@ server.listen(PORT, () => {
   ensureRideDeclinesTable();
   // loyalty_certificates.seen_at (see certificateSeen.js). Additions only.
   ensureCertificateSeenColumn();
+  // rides.booked_for_name / booked_for_contact (see bookedFor.js). Additions only.
+  ensureBookedForColumns();
 });

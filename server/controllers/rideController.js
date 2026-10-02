@@ -3,6 +3,7 @@ const db = require('../config/db');
 const { emitRideUpdated, emitNewPendingRide, emitDriverLocation, emitAvailabilityChanged, getPresentDriverIds, emitNoDriversLeft } = require('../socket');
 const { hasDeclinesTable } = require('../rideDeclines');
 const { hasCertificateSeenColumn } = require('../certificateSeen');
+const { hasBookedForColumns } = require('../bookedFor');
 const { getFareSettings, computeFare, hasDistanceColumn } = require('../fareSettings');
 
 // Fare per rider, keyed by how many students end up in the tricycle.
@@ -120,6 +121,45 @@ function haversineKm([lat1, lng1], [lat2, lng2]) {
 // "Concepcion" didn't report "outside our area", it silently returned six
 // roads on Concepcion's northern fringe that looked like valid answers.
 const TARLAC_VIEWBOX = '120.15,15.89,120.80,15.15';
+
+// "Book for someone else" (see bookedFor.js). A pickup the passenger picked
+// from the search, rather than their own GPS, must be inside the same Tarlac
+// box the search uses, and must say who is being picked up and how to reach
+// them, so a driver is never sent to an unexplained address.
+const [TARLAC_MIN_LNG, TARLAC_MAX_LAT, TARLAC_MAX_LNG, TARLAC_MIN_LAT] = TARLAC_VIEWBOX.split(',').map(Number);
+
+function isInsideTarlac(point) {
+  return !!point
+    && point[0] >= TARLAC_MIN_LAT && point[0] <= TARLAC_MAX_LAT
+    && point[1] >= TARLAC_MIN_LNG && point[1] <= TARLAC_MAX_LNG;
+}
+
+// Philippine mobile number in the 09XXXXXXXXX form, accepting spaces,
+// dashes and a +63 / 63 prefix. Null if it isn't one.
+function normalizePhMobile(raw) {
+  let digits = String(raw || '').replace(/\D/g, '');
+  if (digits.startsWith('63')) digits = '0' + digits.slice(2);
+  return /^09\d{9}$/.test(digits) ? digits : null;
+}
+
+// Checks a "someone else" pickup. Returns { error } or the cleaned values.
+function checkBookedFor({ pickupPoint, name, contact }) {
+  if (!pickupPoint) {
+    return { error: 'Pick the pickup place from the suggestions so the driver gets the exact spot.' };
+  }
+  if (!isInsideTarlac(pickupPoint)) {
+    return { error: 'Pickups must be within Tarlac.' };
+  }
+  const cleanName = String(name || '').trim().replace(/\s+/g, ' ');
+  if (cleanName.length < 2 || cleanName.length > 100) {
+    return { error: "Enter the name of the passenger you're booking for." };
+  }
+  const cleanContact = normalizePhMobile(contact);
+  if (!cleanContact) {
+    return { error: "Enter the passenger's mobile number (11 digits, starting with 09)." };
+  }
+  return { name: cleanName, contact: cleanContact };
+}
 
 // Nominatim (OpenStreetMap's free geocoder, no API key) — turns the
 // passenger's typed "Others" text into coordinates.
@@ -375,9 +415,12 @@ exports.getFareSettings = (req, res) => {
 // thing at actual booking time, so nothing from this response is trusted
 // later — this is purely a preview.
 exports.quoteOthersDropoff = async (req, res) => {
-  const { pickup_location, dropoff_text, dropoff_lat, dropoff_lng, pickup_lat, pickup_lng, pickup_is_custom } = req.body;
+  const { pickup_location, dropoff_text, dropoff_lat, dropoff_lng, pickup_lat, pickup_lng, pickup_is_custom, pickup_from_search } = req.body;
   if (!pickup_location || !dropoff_text) {
     return res.status(400).json({ error: 'Pickup location and drop-off text are required' });
+  }
+  if (pickup_from_search && !isInsideTarlac(normalizePoint({ lat: pickup_lat, lng: pickup_lng }))) {
+    return res.status(400).json({ error: 'Pickups must be within Tarlac.' });
   }
   const dropoffCoords = { lat: dropoff_lat, lng: dropoff_lng };
   try {
@@ -404,7 +447,10 @@ exports.createRide = async (req, res) => {
     scheduled_at,
     notes,
     dropoff_is_custom,
-    pickup_is_custom
+    pickup_is_custom,
+    pickup_from_search,
+    booked_for_name,
+    booked_for_contact
   } = req.body;
 
   if (!passenger_account_id || !pickup_location || !dropoff_location || !ride_type) {
@@ -425,6 +471,23 @@ exports.createRide = async (req, res) => {
   // rider's, so it can't be pooled.
   if (pickup_is_custom && ride_type !== 'Solo') {
     return res.status(400).json({ error: 'A custom pickup location is only available for Solo rides.' });
+  }
+
+  // Booking for someone else: a pickup chosen from the search instead of
+  // the passenger's own GPS. Only Solo, inside Tarlac, and with the name and
+  // number of the person being picked up.
+  let bookedFor = null;
+  if (pickup_from_search) {
+    if (ride_type !== 'Solo') {
+      return res.status(400).json({ error: 'Booking for someone else is only available for Solo rides.' });
+    }
+    const checked = checkBookedFor({
+      pickupPoint: normalizePoint({ lat: pickup_lat, lng: pickup_lng }),
+      name: booked_for_name,
+      contact: booked_for_contact
+    });
+    if (checked.error) return res.status(400).json({ error: checked.error });
+    bookedFor = checked;
   }
 
   // A custom drop-off's fare isn't a lookup — it's geocoded and measured
@@ -476,12 +539,20 @@ exports.createRide = async (req, res) => {
         const distanceKm = othersQuote && othersQuote.distanceKm != null ? othersQuote.distanceKm : null;
         // distance_km only once fareSettings has confirmed the column exists.
         const withDistance = hasDistanceColumn();
+        // booked_for_* only once bookedFor.js has confirmed the columns. If
+        // they're missing, a "someone else" booking is refused rather than
+        // saved without the details the driver needs.
+        const withBookedFor = hasBookedForColumns();
+        if (bookedFor && !withBookedFor) {
+          return res.status(503).json({ error: 'Booking for someone else is not available right now. Please try again in a minute.' });
+        }
         const sql = `
-          INSERT INTO rides (passenger_account_id, pickup_location, dropoff_location, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, extra_km,${withDistance ? ' distance_km,' : ''} ride_type, fare, status, scheduled_at, notes)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?,${withDistance ? ' ?,' : ''} 'Solo', ?, 'Pending', ?, ?)
+          INSERT INTO rides (passenger_account_id, pickup_location, dropoff_location, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, extra_km,${withDistance ? ' distance_km,' : ''}${withBookedFor ? ' booked_for_name, booked_for_contact,' : ''} ride_type, fare, status, scheduled_at, notes)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?,${withDistance ? ' ?,' : ''}${withBookedFor ? ' ?, ?,' : ''} 'Solo', ?, 'Pending', ?, ?)
         `;
         const values = [passenger_account_id, pickup_location, dropoff_location, pickupLatValue, pickupLngValue, dropoffLat, dropoffLng, extraKm];
         if (withDistance) values.push(distanceKm);
+        if (withBookedFor) values.push(bookedFor ? bookedFor.name : null, bookedFor ? bookedFor.contact : null);
         values.push(soloFare, scheduled_at || null, notes || null);
         db.query(
           sql,
@@ -666,7 +737,7 @@ exports.listPendingRides = (req, res) => {
   const withDeclines = hasDeclinesTable();
   const sql = `
     SELECT r.ride_id, r.passenger_account_id, r.pickup_location, r.dropoff_location,
-           r.ride_type, r.pool_id, r.fare,${hasDistanceColumn() ? ' r.distance_km,' : ''} r.status, r.scheduled_at, r.notes, r.created_at,
+           r.ride_type, r.pool_id, r.fare,${hasDistanceColumn() ? ' r.distance_km,' : ''}${hasBookedForColumns() ? ' r.booked_for_name, r.booked_for_contact,' : ''} r.status, r.scheduled_at, r.notes, r.created_at,
            CONCAT(s.first_name, ' ', s.last_name) AS passenger_name,
            rp.status AS pool_status
     FROM rides r

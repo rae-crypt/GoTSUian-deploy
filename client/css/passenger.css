@@ -4570,3 +4570,89 @@ body.is-passenger-home * {
   .ride-eta,
   .dashboard-card p.ride-eta { font-size: 12.5px; padding: 8px 10px; gap: 6px; }
 }
+
+/* BOOK FOR SOMEONE ELSE (2026-10-03) — "Change pickup" link, the
+   "Who will ride?" box and the confirm/active-card notes. Spans and divs
+   only (no <p>), because ".dashboard-card p" forces 2rem bold text. */
+.pickup-mode-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin-top: 6px;
+}
+.pickup-mode-link {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  width: fit-content;
+}
+.pickup-mode-link:hover { color: var(--accent-gold); }
+.pickup-mode-link[hidden] { display: none; }
+#pickup-other-text.is-pickup-search {
+  background: #fff;
+  border-color: var(--primary);
+  cursor: text;
+}
+.booked-for {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1.5px dashed var(--accent-gold);
+  border-radius: 16px;
+  background: #fffaf0;
+  min-width: 0;
+}
+.booked-for[hidden] { display: none; }
+.booked-for .form-field { margin: 0; }
+.booked-for-head { display: grid; gap: 3px; }
+.booked-for-title {
+  font-weight: 800;
+  font-size: 15px;
+  color: var(--text);
+}
+.booked-for-hint {
+  font-size: 12.5px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+.ride-confirm-for {
+  display: grid;
+  gap: 3px;
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border: 1px solid #f3dcae;
+  border-radius: 14px;
+  background: #fffaf0;
+  overflow-wrap: anywhere;
+}
+.ride-confirm-for strong { font-size: 14px; color: var(--text); }
+.ride-confirm-for small { font-size: 12px; color: var(--muted); line-height: 1.4; }
+.ride-booked-for {
+  margin: 0 0 12px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  background: #fffaf0;
+  border: 1px solid #f3dcae;
+  font-size: 13px;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+@media (max-width: 360px) {
+  .pickup-mode-link { font-size: 12.5px; }
+  .booked-for { padding: 12px; }
+}
+
+/* The phone box in "Who will ride?" is type="tel", which the text-input
+   rules above don't cover; same look as every other booking box. */
+body[data-page="passenger"] .form-field input[type="tel"] {
+  width: 100%; box-sizing: border-box; font-family: inherit; font-size: 14.5px;
+  padding: 11px 14px; border-radius: 11px;
+  border: 1.5px solid #f1d9d9; background: var(--light); color: var(--text);
+}
+body[data-page="passenger"] .form-field input[type="tel"]:focus { outline: none; border-color: var(--primary); }
+body[data-page="passenger"] .form-field input[type="tel"]::placeholder { color: #b08a8a; }
+body[data-page="passenger"] .booked-for { gap: 6px; margin-bottom: 16px; }
+body[data-page="passenger"] .booked-for-head { margin-bottom: 4px; }
+body[data-page="passenger"] .booked-for .form-field { margin-bottom: 0; }
