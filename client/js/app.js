@@ -3467,22 +3467,44 @@ async function createRideRequest(payload) {
 // not found, or outside the service area).
 async function quoteOthersDropoff(pickupLocation, dropoffText, options) {
   const { pickupIsCustom, pickupCoords, dropoffCoords } = options || {};
-  const res = await fetch(`${RIDES_API_URL}/others-quote`, {
-    method: 'POST',
-    headers: getAuthHeaders(),
-    body: JSON.stringify({
-      pickup_location: pickupLocation,
-      dropoff_text: dropoffText,
-      pickup_is_custom: !!pickupIsCustom,
-      pickup_lat: pickupCoords ? pickupCoords.lat : null,
-      pickup_lng: pickupCoords ? pickupCoords.lng : null,
-      dropoff_lat: dropoffCoords ? dropoffCoords.lat : null,
-      dropoff_lng: dropoffCoords ? dropoffCoords.lng : null
-    })
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Could not calculate a fare for that location.');
-  return data;
+  // While the server restarts (every deploy) or is briefly overloaded,
+  // Railway answers for it with a reply that has no "error" field, and the
+  // passenger used to get a bare "Could not calculate a fare", as if the
+  // place were the problem. Those failures are flagged .retryable so the
+  // booking form can try again by itself.
+  const unreachable = () => {
+    const err = new Error("Couldn't reach the GoTSUian server. Please try again in a moment.");
+    err.retryable = true;
+    return err;
+  };
+  let res;
+  try {
+    res = await fetch(`${RIDES_API_URL}/others-quote`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        pickup_location: pickupLocation,
+        dropoff_text: dropoffText,
+        pickup_is_custom: !!pickupIsCustom,
+        pickup_lat: pickupCoords ? pickupCoords.lat : null,
+        pickup_lng: pickupCoords ? pickupCoords.lng : null,
+        dropoff_lat: dropoffCoords ? dropoffCoords.lat : null,
+        dropoff_lng: dropoffCoords ? dropoffCoords.lng : null
+      })
+    });
+  } catch (networkError) {
+    throw unreachable();
+  }
+  let data = {};
+  try {
+    data = await res.json();
+  } catch (parseError) {
+    // Not JSON: a proxy or error page rather than our server's answer.
+  }
+  if (res.ok) return data;
+  if (res.status === 401) throw new Error('Your session has expired. Please log out and log in again.');
+  if (res.status >= 500 || !data.error) throw unreachable();
+  throw new Error(data.error);
 }
 
 // "₱35 · 3.2 km" for a distance-priced ride, just "₱35" for anything priced
@@ -3526,6 +3548,13 @@ function resetFareEstimate() {
   setFareEstimate('pending', { main: 'Choose a drop-off' });
 }
 
+// A few automatic retries, further apart each time, when the server
+// couldn't be reached (see quoteOthersDropoff); a real "place not found"
+// style answer is shown at once. Any new drop-off or pickup bumps
+// fareEstimateToken, which cancels a pending retry.
+const FARE_RETRY_DELAYS_MS = [3000, 6000, 12000];
+let fareEstimateRetries = 0;
+
 async function refreshFareEstimate() {
   const pickupInput = document.querySelector('#pickup-other-text');
   const dropoffInput = document.querySelector('#dropoff-other-text');
@@ -3548,6 +3577,11 @@ async function refreshFareEstimate() {
 
   const token = ++fareEstimateToken;
   setFareEstimate('loading', { main: 'Calculating…' });
+  fareEstimateRetries = 0;
+  runFareEstimate(token, pickupInput, dropoffText, pickupCoords, dropoffCoords);
+}
+
+async function runFareEstimate(token, pickupInput, dropoffText, pickupCoords, dropoffCoords) {
   try {
     const quote = await quoteOthersDropoff(pickupInput.value.trim(), dropoffText, {
       pickupIsCustom: true,
@@ -3561,6 +3595,14 @@ async function refreshFareEstimate() {
     });
   } catch (error) {
     if (token !== fareEstimateToken) return;
+    if (error.retryable && fareEstimateRetries < FARE_RETRY_DELAYS_MS.length) {
+      const delay = FARE_RETRY_DELAYS_MS[fareEstimateRetries++];
+      setFareEstimate('loading', { main: 'Calculating…', message: 'The server is busy. Trying again…' });
+      setTimeout(() => {
+        if (token === fareEstimateToken) runFareEstimate(token, pickupInput, dropoffText, pickupCoords, dropoffCoords);
+      }, delay);
+      return;
+    }
     lastFareEstimateKey = null;
     setFareEstimate('error', { main: '—', message: error.message || 'Could not work out the fare for that place.' });
   }
@@ -3582,6 +3624,14 @@ function setupFareEstimate() {
   // picked from the suggestions or the passenger leaves the box.
   dropoffInput.addEventListener('input', resetFareEstimate);
   dropoffInput.addEventListener('change', refreshFareEstimate);
+  // After a failed estimate, tapping the trip card tries again.
+  const card = document.querySelector('.ride-type-btn.ride-card');
+  if (card) {
+    card.addEventListener('click', () => {
+      const box = document.querySelector('#solo-fare-box');
+      if (box && box.classList.contains('is-error')) refreshFareEstimate();
+    });
+  }
 }
 
 // Fire-and-forget — attaches a GPS snapshot to an already-created ride once
