@@ -119,6 +119,20 @@ function setupHowItWorksFares() {
     .catch(() => {});
 }
 
+// Footer "Report a problem": complaints are filed per ride from booking
+// history, so it goes there for a signed-in passenger or driver, to the
+// dashboard for the admin, and to the login page for everyone else.
+function setupFooterReportLink() {
+  const links = document.querySelectorAll('[data-report-link]');
+  if (!links.length || !isAuthenticated()) return;
+  const role = (getStoredUser() || {}).role;
+  const target = role === 'passenger' ? 'passenger-bookings.html'
+    : role === 'driver' ? 'driver-bookings.html'
+    : role === 'admin' ? 'admin.html'
+    : null;
+  if (target) links.forEach((a) => a.setAttribute('href', target));
+}
+
 function setupHowItWorksPage() {
   const roleButtons = document.querySelectorAll('.how-role-btn');
   if (roleButtons.length) {
@@ -7339,6 +7353,7 @@ document.addEventListener('DOMContentLoaded', function() {
   setupBackToTop();
   setupHowItWorksPage();
   setupHowItWorksFares();
+  setupFooterReportLink();
   setupGettingStartedPage();
   highlightActiveNav();
   setupScrollReveal();
