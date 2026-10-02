@@ -3742,3 +3742,12 @@ body[data-page="driver"] .rewards-teaser-link {
   .booked-for-card { padding: 10px 12px; }
   .booked-for-name { font-size: 14px; }
 }
+
+/* Loyalty card text (2026-10-03): the grey stats line is two short lines,
+   and the message under the progress dots is centred like everything
+   above it instead of hanging left. */
+.rewards-stats-sub .rewards-stats-line { display: block; }
+body .loyalty-message {
+  text-align: center;
+  text-wrap: balance;
+}

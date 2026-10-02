@@ -760,10 +760,16 @@ async function renderLoyaltyStatus() {
   const role = getStoredUser().role;
   const title = role === 'driver' ? 'Loyal Driver' : 'Loyal Passenger';
 
-  // Capped at the target: rides beyond it while the certificate waits for
-  // the admin read as "14/10", which looks like a counting error.
-  document.querySelector('#loyalty-current').textContent = Math.min(completedRides, nextThreshold);
-  document.querySelector('#loyalty-threshold').textContent = nextThreshold;
+  // The ring shows the real ride count, so it always matches the
+  // "N completed rides" line under it. While counting up it reads "7/10";
+  // once the target is reached (the certificate is waiting for the admin)
+  // the ring is full and shows just the count, e.g. "11", because "11/10"
+  // looks like a counting error and a capped "10/10" contradicted the "11".
+  const counterEl = document.querySelector('#loyalty-current').parentNode;
+  const reachedTarget = awaitingGrant || completedRides >= nextThreshold;
+  counterEl.innerHTML = reachedTarget
+    ? `<span id="loyalty-current">${completedRides}</span>`
+    : `<span id="loyalty-current">${completedRides}</span>/<span id="loyalty-threshold">${nextThreshold}</span>`;
 
   const ringFill = document.querySelector('#loyalty-ring-fill');
   if (ringFill) {
@@ -785,14 +791,18 @@ async function renderLoyaltyStatus() {
   // The grey line under the ring says where they stand; the message below
   // it says what happens next. They used to repeat each other.
   const statsSubEl = document.querySelector('#loyalty-stats-sub');
+  // Two short lines instead of one long one, which wrapped with a lone
+  // "earned" on a narrow card.
   if (statsSubEl) {
-    statsSubEl.textContent = `${completedRides} completed ride${completedRides === 1 ? '' : 's'} so far · ${latestCertificate.milestoneRides}-ride certificate earned`;
+    statsSubEl.innerHTML = `
+      <span class="rewards-stats-line">${completedRides} completed ride${completedRides === 1 ? '' : 's'}</span>
+      <span class="rewards-stats-line">${latestCertificate.milestoneRides}-ride certificate earned</span>`;
   }
 
   const messageEl = document.querySelector('#loyalty-message');
   messageEl.classList.remove('eligible', 'in-progress');
   if (awaitingGrant) {
-    messageEl.textContent = `🎉 You've reached ${nextThreshold} rides! Your ${nextThreshold}-ride certificate is waiting for the TODA admin's approval.`;
+    messageEl.textContent = `🎉 ${nextThreshold} rides reached! Your ${nextThreshold}-ride certificate is waiting for the TODA admin's approval.`;
     messageEl.classList.add('eligible');
   } else {
     const remaining = nextThreshold - completedRides;

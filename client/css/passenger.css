@@ -4656,3 +4656,12 @@ body[data-page="passenger"] .form-field input[type="tel"]::placeholder { color: 
 body[data-page="passenger"] .booked-for { gap: 6px; margin-bottom: 16px; }
 body[data-page="passenger"] .booked-for-head { margin-bottom: 4px; }
 body[data-page="passenger"] .booked-for .form-field { margin-bottom: 0; }
+
+/* Loyalty card text (2026-10-03): the grey stats line is two short lines,
+   and the message under the progress dots is centred like everything
+   above it instead of hanging left. */
+.rewards-stats-sub .rewards-stats-line { display: block; }
+body .loyalty-message {
+  text-align: center;
+  text-wrap: balance;
+}
