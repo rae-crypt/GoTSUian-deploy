@@ -14,6 +14,7 @@ const { initSocket } = require('./socket');
 const rideController = require('./controllers/rideController');
 const { ensureFareSchema } = require('./fareSettings');
 const { ensureRideDeclinesTable } = require('./rideDeclines');
+const { ensureCertificateSeenColumn } = require('./certificateSeen');
 const authRoutes = require('./routes/authRoutes');
 const rideRoutes = require('./routes/rideRoutes');
 const adminRoutes = require('./routes/adminRoutes');
@@ -120,4 +121,6 @@ server.listen(PORT, () => {
   ensureFareSchema();
   // Per-driver declines (see rideDeclines.js). Additions only.
   ensureRideDeclinesTable();
+  // loyalty_certificates.seen_at (see certificateSeen.js). Additions only.
+  ensureCertificateSeenColumn();
 });

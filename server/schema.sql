@@ -321,3 +321,9 @@ CREATE TABLE IF NOT EXISTS ride_declines (
   FOREIGN KEY (ride_id) REFERENCES rides(ride_id) ON DELETE CASCADE,
   FOREIGN KEY (driver_account_id) REFERENCES user_account(account_id) ON DELETE CASCADE
 );
+
+-- When the owner saw the "You earned a loyalty certificate!" popup
+-- (2026-10-02). NULL until then. Kept here rather than in the browser, which
+-- some browsers wipe on close. server/certificateSeen.js adds it on startup
+-- if missing.
+ALTER TABLE loyalty_certificates ADD COLUMN seen_at TIMESTAMP NULL DEFAULT NULL AFTER granted_at;

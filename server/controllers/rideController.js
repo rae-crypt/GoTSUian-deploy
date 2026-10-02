@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const db = require('../config/db');
 const { emitRideUpdated, emitNewPendingRide, emitDriverLocation, emitAvailabilityChanged, getPresentDriverIds, emitNoDriversLeft } = require('../socket');
 const { hasDeclinesTable } = require('../rideDeclines');
+const { hasCertificateSeenColumn } = require('../certificateSeen');
 const { getFareSettings, computeFare, hasDistanceColumn } = require('../fareSettings');
 
 // Fare per rider, keyed by how many students end up in the tricycle.
@@ -1453,9 +1454,31 @@ function buildLoyaltyStatus(completedRides, grantRows) {
     // True once they've crossed the next threshold but an admin hasn't
     // granted it yet — distinct from actually having the certificate.
     awaitingGrant: completedRides >= nextThreshold,
-    latestCertificate: latest ? { milestoneRides: latest.milestone_rides, grantedAt: latest.granted_at } : null
+    // seenAt is only present once loyalty_certificates.seen_at exists (see
+    // certificateSeen.js); the browser treats its absence as "can't tell".
+    latestCertificate: latest ? {
+      certificateId: latest.certificate_id,
+      milestoneRides: latest.milestone_rides,
+      grantedAt: latest.granted_at,
+      ...(hasCertificateSeenColumn() ? { seenAt: latest.seen_at || null } : {})
+    } : null
   };
 }
+
+// The owner has seen the "You earned a loyalty certificate!" popup for this
+// certificate, so it isn't shown again on any device. Only their own.
+exports.markCertificateSeen = (req, res) => {
+  const { certificateId } = req.params;
+  if (!hasCertificateSeenColumn()) return res.status(200).json({ saved: false });
+  db.query(
+    `UPDATE loyalty_certificates SET seen_at = NOW() WHERE certificate_id = ? AND account_id = ? AND seen_at IS NULL`,
+    [certificateId, req.user.accountId],
+    (err) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.status(200).json({ saved: true });
+    }
+  );
+};
 
 exports.getLoyaltyStatus = (req, res) => {
   const accountId = req.user.accountId;
@@ -1466,7 +1489,7 @@ exports.getLoyaltyStatus = (req, res) => {
     (err, rideRows) => {
       if (err) return res.status(500).json({ error: err.message });
       db.query(
-        `SELECT milestone_rides, granted_at FROM loyalty_certificates WHERE account_id = ? ORDER BY granted_at DESC`,
+        `SELECT certificate_id, milestone_rides, granted_at${hasCertificateSeenColumn() ? ', seen_at' : ''} FROM loyalty_certificates WHERE account_id = ? ORDER BY granted_at DESC`,
         [accountId],
         (err, certRows) => {
           if (err) return res.status(500).json({ error: err.message });
@@ -1488,7 +1511,7 @@ exports.getDriverLoyaltyStatus = (req, res) => {
     (err, rideRows) => {
       if (err) return res.status(500).json({ error: err.message });
       db.query(
-        `SELECT milestone_rides, granted_at FROM loyalty_certificates WHERE account_id = ? ORDER BY granted_at DESC`,
+        `SELECT certificate_id, milestone_rides, granted_at${hasCertificateSeenColumn() ? ', seen_at' : ''} FROM loyalty_certificates WHERE account_id = ? ORDER BY granted_at DESC`,
         [accountId],
         (err, certRows) => {
           if (err) return res.status(500).json({ error: err.message });

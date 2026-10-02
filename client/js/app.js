@@ -3071,10 +3071,11 @@ function showActionPopup({ tone = 'info', icon, title, message, primaryLabel, on
 
 const CERTIFICATE_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="9" r="6"/><path d="M8.6 13.9L7 22l5-3 5 3-1.6-8.1"/><path d="M9.8 9l1.5 1.5L14.5 7.5"/></svg>';
 
-// "You got a certificate" for passengers and drivers. Compares the newest
-// certificate the server has for them with the newest one this device has
-// already announced, so it pops up live when the admin grants it, or the
-// next time they open the app if they weren't online then, and only once.
+// "You got a certificate" for passengers and drivers: live when the admin
+// grants it, or the next time they open the app if they weren't online
+// then, and only once. "Seen" is kept on the server (seenAt), because some
+// browsers wipe localStorage on close and the popup returned every visit.
+// localStorage is only the fallback for a server without that column.
 async function checkNewLoyaltyCertificate() {
   const user = getStoredUser();
   if (!isAuthenticated() || (user.role !== 'passenger' && user.role !== 'driver') || !user.accountId) return;
@@ -3084,13 +3085,28 @@ async function checkNewLoyaltyCertificate() {
   if (!latest) return;
 
   const seenKey = `certificateSeen:${user.accountId}`;
-  let seen = 0;
+  let seenLocally = 0;
   try {
-    seen = Number(localStorage.getItem(seenKey)) || 0;
+    seenLocally = Number(localStorage.getItem(seenKey)) || 0;
   } catch (error) {
-    // Storage unavailable: the popup may show again next visit, which is harmless.
+    // Storage unavailable; the server's record decides.
   }
-  if (Number(latest.milestoneRides) <= seen) return;
+  const serverTracksSeen = Object.prototype.hasOwnProperty.call(latest, 'seenAt');
+  const markSeenOnServer = () => {
+    if (!serverTracksSeen || !latest.certificateId) return;
+    fetch(`${RIDES_API_URL}/loyalty/${latest.certificateId}/seen`, { method: 'PUT', headers: getAuthHeaders() })
+      .catch(() => {});
+  };
+
+  if (serverTracksSeen) {
+    if (latest.seenAt) return;
+    // Already shown on this device before the server kept track: record it
+    // there quietly instead of showing it again.
+    if (Number(latest.milestoneRides) <= seenLocally) return markSeenOnServer();
+  } else if (Number(latest.milestoneRides) <= seenLocally) {
+    return;
+  }
+  markSeenOnServer();
   try {
     localStorage.setItem(seenKey, String(latest.milestoneRides));
   } catch (error) {

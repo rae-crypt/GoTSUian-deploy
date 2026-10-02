@@ -27,6 +27,7 @@ router.put('/:rideId/decline', authMiddleware, rideController.declineRide);
 router.put('/:rideId/convert-to-solo', authMiddleware, rideController.convertRideToSolo);
 router.put('/:rideId/status', authMiddleware, rideController.updateRideStatus);
 router.get('/loyalty', authMiddleware, rideController.getLoyaltyStatus);
+router.put('/loyalty/:certificateId/seen', authMiddleware, rideController.markCertificateSeen);
 router.get('/driver-loyalty', authMiddleware, rideController.getDriverLoyaltyStatus);
 
 module.exports = router;
