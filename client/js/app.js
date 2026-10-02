@@ -133,6 +133,24 @@ function setupFooterReportLink() {
   if (target) links.forEach((a) => a.setAttribute('href', target));
 }
 
+// The Home page's big "Book a Ride" button only makes sense for a guest or
+// a passenger; a driver tapping it was bounced off the login page back to
+// their own dashboard. Each role now gets the button for where they'd go.
+function setupHeroBookButton() {
+  const btn = document.querySelector('.hero-book-btn');
+  if (!btn || !isAuthenticated()) return;
+  const role = (getStoredUser() || {}).role;
+  const target = role === 'passenger' ? { href: 'passenger.html', label: 'Book a Ride' }
+    : role === 'driver' ? { href: 'driver.html', label: 'Go to My Rides' }
+    : role === 'admin' ? { href: 'admin.html', label: 'Open Dashboard' }
+    : null;
+  if (!target) return;
+  btn.setAttribute('href', target.href);
+  // The label is the text after the calendar icon.
+  const textNode = Array.from(btn.childNodes).reverse().find(n => n.nodeType === Node.TEXT_NODE && n.textContent.trim());
+  if (textNode) textNode.textContent = target.label;
+}
+
 function setupHowItWorksPage() {
   const roleButtons = document.querySelectorAll('.how-role-btn');
   if (roleButtons.length) {
@@ -7368,6 +7386,7 @@ document.addEventListener('DOMContentLoaded', function() {
   setupHowItWorksPage();
   setupHowItWorksFares();
   setupFooterReportLink();
+  setupHeroBookButton();
   setupGettingStartedPage();
   highlightActiveNav();
   setupScrollReveal();
