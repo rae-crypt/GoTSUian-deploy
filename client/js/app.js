@@ -367,8 +367,8 @@ function renderAuthStatus() {
             <strong class="nav-user-dropdown-name"></strong>
             <small class="nav-user-dropdown-role"></small>
           </a>
-          <a href="index.html">Home</a>
-          <a class="nav-user-dropdown-dashboard" href="#">Booking</a>
+          <a class="nav-user-dropdown-profile" href="#">My profile</a>
+          <a class="nav-user-dropdown-history" href="#">Booking history</a>
           <button type="button" data-action="logout">Logout</button>
         </div>
       `;
@@ -405,10 +405,19 @@ function renderAuthStatus() {
       headerLink.removeAttribute('href');
     }
 
-    const dashboardLink = menu.querySelector('.nav-user-dropdown-dashboard');
-    dashboardLink.href = dashboardHref;
-    dashboardLink.textContent = user.role === 'admin' ? 'Dashboard' : 'Booking';
-    dashboardLink.style.display = dashboardHref !== '#' ? '' : 'none';
+    // Account pages only. Home and the dashboard used to be here too, but
+    // the nav bar right next to this menu already has both. Admin has no
+    // profile or history page, so their menu is just their name + Logout.
+    const historyHref = user.role === 'driver' ? 'driver-bookings.html'
+      : user.role === 'passenger' ? 'passenger-bookings.html'
+      : '#';
+    const profileLink = menu.querySelector('.nav-user-dropdown-profile');
+    profileLink.href = profileHref;
+    profileLink.style.display = profileHref !== '#' ? '' : 'none';
+    const historyLink = menu.querySelector('.nav-user-dropdown-history');
+    historyLink.href = historyHref;
+    historyLink.textContent = user.role === 'driver' ? 'Ride history' : 'Booking history';
+    historyLink.style.display = historyHref !== '#' ? '' : 'none';
   } else if (menu) {
     menu.remove();
   }
@@ -550,6 +559,11 @@ function updateMarketingLinksVisibility() {
   const authenticated = isAuthenticated();
   document.querySelectorAll('.nav-links a[data-page="about"], .nav-links a[data-page="how-it-works"], .nav-links a[data-page="getting-started"]').forEach(function(link) {
     link.classList.toggle('nav-marketing-link-hide-mobile', authenticated);
+  });
+  // "Get Started" is the sign-up walkthrough, so it's of no use to someone
+  // already logged in; hidden for them at every width.
+  document.querySelectorAll('.nav-links a[data-page="getting-started"]').forEach(function(link) {
+    link.classList.toggle('hidden', authenticated);
   });
 }
 
