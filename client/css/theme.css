@@ -39,7 +39,9 @@ h1, h2, h3, h4, h5, h6 {
 
 /* NAV — glass blur skin over the existing sticky header, same markup. */
 header {
-  background: rgba(255, 246, 236, 0.78);
+  /* Was 0.78: over the maroon page heroes the see-through bar turned a
+     muddy pink while scrolling. Nearly solid keeps the soft blur edge. */
+  background: rgba(255, 248, 241, 0.96);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   box-shadow: none;

@@ -2259,3 +2259,30 @@ body[data-page="rules"] .rules-ack p {
   font-family: 'Poppins', 'Plus Jakarta Sans', sans-serif;
   font-weight: 400;
 }
+
+/* DESKTOP WIDTH (2026-10-02). Every list here was capped at 820px and
+   left-aligned, so on a laptop the cards filled half the width under a
+   full-width hero, leaving the right side empty. From 960px the rule cards
+   sit in two columns across the full width; the Terms and Privacy cards
+   (long, numbered text read in order) stay one column at full width with
+   their text kept to a readable line length. */
+@media (min-width: 960px) {
+  .rules-section-head,
+  .rules-legend,
+  .rules-note {
+    max-width: none;
+  }
+  .rules-list {
+    max-width: none;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+  }
+  .terms-list {
+    max-width: none;
+  }
+  .term-body > p,
+  .term-body > ul {
+    max-width: 80ch;
+  }
+}
