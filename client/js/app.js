@@ -1432,6 +1432,72 @@ function findNearestRouteIndex(route, point) {
   return nearestIndex;
 }
 
+
+// ESTIMATED TIME OF ARRIVAL on the passenger's and the driver's ride card
+// (see getRideEta on the server). Refreshed at most every ETA_REFRESH_MS per
+// ride, piggybacking on updates that already happen (the driver's location
+// reaching the passenger, the driver's own GPS fixes) rather than a timer of
+// its own. The last answer is kept so a card that re-renders shows it again
+// straight away instead of blanking until the next refresh.
+const ETA_REFRESH_MS = 15 * 1000;
+const ETA_ACTIVE_STATUSES = ['Accepted', 'Picked Up', 'In Progress'];
+const rideEtaCache = {};
+
+function rideEtaText(eta, role) {
+  if (!eta || eta.waiting) return 'Estimating arrival…';
+  const km = eta.distanceKm != null ? ` · ${Number(eta.distanceKm).toFixed(1)} km` : '';
+  if (eta.phase === 'to_pickup') {
+    if (eta.arriving) return role === 'driver' ? "You're at the pickup point" : 'Your driver is arriving now';
+    return role === 'driver'
+      ? `About ${eta.minutes} min to pickup${km}`
+      : `Driver arrives in about ${eta.minutes} min${km} away`;
+  }
+  return role === 'driver'
+    ? `About ${eta.minutes} min to drop-off${km}`
+    : `About ${eta.minutes} min to your destination${km}`;
+}
+
+// The ETA line inside a ride card's template. Empty for rides with nothing
+// to estimate (still Pending, or already finished).
+function rideEtaRowHtml(ride, role) {
+  if (!ride || !ETA_ACTIVE_STATUSES.includes(ride.status)) return '';
+  const cached = rideEtaCache[ride.ride_id];
+  const eta = cached ? cached.eta : null;
+  return `<p class="ride-eta${eta && eta.arriving ? ' is-arriving' : ''}" data-eta-ride="${ride.ride_id}" data-eta-role="${role}">${escapeHtml(rideEtaText(eta, role))}</p>`;
+}
+
+function paintRideEta(rideId) {
+  const cached = rideEtaCache[rideId];
+  const eta = cached ? cached.eta : null;
+  document.querySelectorAll(`[data-eta-ride="${rideId}"]`).forEach((el) => {
+    el.textContent = rideEtaText(eta, el.dataset.etaRole);
+    el.classList.toggle('is-arriving', Boolean(eta && eta.arriving));
+  });
+  // The tricycle on the passenger's map says the same thing when tapped.
+  if (typeof driverLocationMarker !== 'undefined' && driverLocationMarker && eta && !eta.waiting && eta.phase) {
+    driverLocationMarker.setPopupContent(`Your driver · ${escapeHtml(rideEtaText(eta, 'passenger'))}`);
+  }
+}
+
+async function refreshRideEta(ride) {
+  if (!ride || !ETA_ACTIVE_STATUSES.includes(ride.status)) return;
+  const cached = rideEtaCache[ride.ride_id];
+  if (cached && (cached.loading || Date.now() - cached.at < ETA_REFRESH_MS)) return;
+  rideEtaCache[ride.ride_id] = { eta: cached ? cached.eta : null, at: cached ? cached.at : 0, loading: true };
+  try {
+    const res = await fetch(`${RIDES_API_URL}/${ride.ride_id}/eta`, { headers: getAuthHeaders() });
+    const eta = res.ok ? await res.json() : (cached ? cached.eta : null);
+    rideEtaCache[ride.ride_id] = { eta, at: Date.now(), loading: false };
+  } catch (error) {
+    rideEtaCache[ride.ride_id] = { eta: cached ? cached.eta : null, at: Date.now(), loading: false };
+  }
+  paintRideEta(ride.ride_id);
+}
+
+// The ride the driver's own GPS fixes should refresh the ETA for; set by
+// renderDriverMapTrackingBody while a trip is active.
+let driverEtaRide = null;
+
 async function pollDriverLocation() {
   if (!passengerMapInstance) return;
   const user = getStoredUser();
@@ -1456,6 +1522,8 @@ async function pollDriverLocation() {
   if (driverTrackedRideId !== null && driverTrackedRideId !== activeRide.ride_id) {
     clearDriverTracking();
   }
+
+  refreshRideEta(activeRide);
 
   if (driverTrackedRideId !== activeRide.ride_id) {
     driverTrackedRideId = activeRide.ride_id;
@@ -1673,6 +1741,7 @@ async function renderDriverMapTrackingBody() {
   const activeRide = rides.find(r => ['Accepted', 'Picked Up', 'In Progress'].includes(r.status));
 
   if (!activeRide) {
+    driverEtaRide = null;
     if (driverMapTrackedRideId !== null) clearDriverMapTracking();
     return;
   }
@@ -1680,6 +1749,9 @@ async function renderDriverMapTrackingBody() {
   if (driverMapTrackedRideId !== null && driverMapTrackedRideId !== activeRide.ride_id) {
     clearDriverMapTracking();
   }
+
+  driverEtaRide = activeRide;
+  refreshRideEta(activeRide);
 
   if (driverMapTrackedRideId !== activeRide.ride_id) {
     driverMapTrackedRideId = activeRide.ride_id;
@@ -3566,6 +3638,7 @@ function startDriverLocationSharing(label) {
       label.textContent = '📍 Sharing your location with your passenger';
       lastKnownDriverPosition = [position.coords.latitude, position.coords.longitude];
       placeDriverMapMarker();
+      if (driverEtaRide) refreshRideEta(driverEtaRide);
       const now = Date.now();
       if (now - lastLocationSentAt < 7000) return;
       lastLocationSentAt = now;
@@ -4589,6 +4662,7 @@ async function renderPassengerRideStatus() {
       <span class="fare${fareIsCalculating ? ' is-calculating' : ''}">${escapeHtml(fareText)}</span>
     </div>
     ${fareTierRow}
+    ${rideEtaRowHtml(activeRide, 'passenger')}
 
     <div class="ride-actions">
       ${activeRide.driver_account_id ? `
@@ -5240,6 +5314,7 @@ function renderActiveRideCard(group) {
       </div>
       ${fareTierRow}
       ${waitingNote}
+      ${rideEtaRowHtml(anchor, 'driver')}
       <p class="driver-card-description">${escapeHtml(statusConfig.description)}</p>
       <div class="driver-card-actions">
         ${chatButtons}

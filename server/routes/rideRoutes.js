@@ -20,6 +20,7 @@ router.put('/driver/location', authMiddleware, rideController.updateDriverLocati
 router.get('/:rideId/driver-location', authMiddleware, rideController.getDriverLocationForRide);
 router.get('/:rideId/passenger-location', authMiddleware, rideController.getPassengerLocationForRide);
 router.get('/:rideId/route', authMiddleware, rideController.getRideRoute);
+router.get('/:rideId/eta', authMiddleware, rideController.getRideEta);
 router.put('/:rideId/pickup-location', authMiddleware, rideController.updateRidePickupLocation);
 router.put('/:rideId/accept', authMiddleware, rideController.acceptRide);
 router.put('/:rideId/decline', authMiddleware, rideController.declineRide);

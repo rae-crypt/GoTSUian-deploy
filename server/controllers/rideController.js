@@ -894,6 +894,73 @@ function notifyIfNoDriversLeft(rideId, passengerAccountId) {
   );
 }
 
+// ESTIMATED TIME OF ARRIVAL — how far the driver is, by road, from where
+// they're headed next: the pickup while the ride is Accepted, the drop-off
+// once the passenger is on board. Minutes come from that distance at an
+// average tricycle speed rather than the routing server's own duration,
+// which assumes a car. The free routing server has no traffic data, so this
+// is an estimate. A result is reused while the driver hasn't moved
+// ETA_MOVE_KM and it's younger than ETA_CACHE_MS, which keeps a busy trip
+// from asking the routing server every few seconds.
+const TRICYCLE_AVG_KMH = 20;
+const ETA_CACHE_MS = 30 * 1000;
+const ETA_MOVE_KM = 0.1;
+const ETA_ARRIVING_KM = 0.15;
+const etaCache = new Map();
+
+exports.getRideEta = (req, res) => {
+  const { rideId } = req.params;
+  const accountId = req.user.accountId;
+
+  db.query(
+    `SELECT r.status, r.pickup_lat, r.pickup_lng, r.dropoff_lat, r.dropoff_lng,
+            td.current_lat, td.current_lng
+     FROM rides r
+     LEFT JOIN tricycle_driver td ON td.account_id = r.driver_account_id
+     WHERE r.ride_id = ? AND (r.passenger_account_id = ? OR r.driver_account_id = ?)`,
+    [rideId, accountId, accountId],
+    async (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      if (!rows.length) return res.status(404).json({ error: 'Ride not found.' });
+      const ride = rows[0];
+
+      const phase = ride.status === 'Accepted' ? 'to_pickup'
+        : ['Picked Up', 'In Progress'].includes(ride.status) ? 'to_dropoff'
+        : null;
+      if (!phase) return res.status(200).json({ phase: null });
+
+      const target = phase === 'to_pickup'
+        ? normalizePoint({ lat: ride.pickup_lat, lng: ride.pickup_lng })
+        : normalizePoint({ lat: ride.dropoff_lat, lng: ride.dropoff_lng });
+      const driverPoint = normalizePoint({ lat: ride.current_lat, lng: ride.current_lng });
+      // No GPS from the driver yet (just accepted, or indoors): say so
+      // rather than guess.
+      if (!target || !driverPoint) return res.status(200).json({ phase, waiting: true });
+
+      const cacheKey = `${rideId}:${phase}`;
+      const cached = etaCache.get(cacheKey);
+      let distanceKm;
+      if (cached && Date.now() - cached.at < ETA_CACHE_MS && haversineKm(cached.from, driverPoint) < ETA_MOVE_KM) {
+        distanceKm = cached.distanceKm;
+      } else {
+        // Already handles a slow or failed routing server with a buffered
+        // straight-line distance, so an ETA never just disappears.
+        distanceKm = Math.round((await getRoadDistanceKm(driverPoint, target)) * 10) / 10;
+        if (etaCache.size > 500) etaCache.clear();
+        etaCache.set(cacheKey, { from: driverPoint, distanceKm, at: Date.now() });
+      }
+
+      const minutes = Math.max(1, Math.round((distanceKm / TRICYCLE_AVG_KMH) * 60));
+      res.status(200).json({
+        phase,
+        distanceKm,
+        minutes,
+        arriving: phase === 'to_pickup' && distanceKm <= ETA_ARRIVING_KM
+      });
+    }
+  );
+};
+
 // PASSENGER reads the location of the driver assigned to ONE of their own
 // rides — scoped by ride_id + passenger_account_id so a passenger can never
 // see a driver they aren't actually riding with.
