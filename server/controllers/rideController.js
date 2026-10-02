@@ -782,6 +782,7 @@ exports.updateDriverLocation = (req, res) => {
       if (err) return res.status(500).json({ error: err.message });
       if (result.affectedRows === 0) return res.status(404).json({ error: 'Driver not found' });
       res.status(200).json({ message: 'Location updated' });
+      recordDriverSpeedSample(accountId, lat, lng);
       db.query(
         `SELECT passenger_account_id FROM rides WHERE driver_account_id = ? AND status IN ('Accepted', 'Picked Up', 'In Progress')`,
         [accountId],
@@ -904,6 +905,47 @@ function notifyIfNoDriversLeft(rideId, passengerAccountId) {
 // from asking the routing server every few seconds.
 const TRICYCLE_AVG_KMH = 20;
 const ETA_CACHE_MS = 30 * 1000;
+
+// The driver's real recent speed, from the location reports their phone
+// already sends every few seconds during a trip (kept in memory only, last
+// SPEED_WINDOW_MS). Lets the ETA follow actual conditions: clear roads
+// shorten it, traffic lengthens it, without a paid traffic service. Bounded
+// to SPEED_MIN/MAX_KMH so one red light or one fast stretch can't make the
+// number jump about.
+const SPEED_WINDOW_MS = 3 * 60 * 1000;
+const SPEED_MIN_SPAN_MS = 60 * 1000;
+const SPEED_MIN_KMH = 8;
+const SPEED_MAX_KMH = 35;
+const SPEED_STOPPED_KMH = 3;
+const driverSpeedSamples = new Map();
+
+function recordDriverSpeedSample(accountId, lat, lng) {
+  const point = normalizePoint({ lat, lng });
+  if (!point) return;
+  const now = Date.now();
+  const samples = (driverSpeedSamples.get(accountId) || []).filter(s => now - s.at <= SPEED_WINDOW_MS);
+  samples.push({ point, at: now });
+  driverSpeedSamples.set(accountId, samples);
+  if (driverSpeedSamples.size > 1000) driverSpeedSamples.clear();
+}
+
+// Average km/h over the recent window, or null if there isn't a full minute
+// of movement data yet (just accepted), in which case the plain average is
+// used. Barely moving before pickup usually means the driver hasn't set off
+// yet, so it keeps the average; barely moving with the passenger on board
+// means traffic, so it drops to the slowest speed.
+function estimateDriverSpeedKmh(accountId, phase) {
+  const now = Date.now();
+  const samples = (driverSpeedSamples.get(accountId) || []).filter(s => now - s.at <= SPEED_WINDOW_MS);
+  if (samples.length < 2) return null;
+  const spanMs = samples[samples.length - 1].at - samples[0].at;
+  if (spanMs < SPEED_MIN_SPAN_MS) return null;
+  let km = 0;
+  for (let i = 1; i < samples.length; i++) km += haversineKm(samples[i - 1].point, samples[i].point);
+  const observed = km / (spanMs / 3600000);
+  if (observed < SPEED_STOPPED_KMH) return phase === 'to_dropoff' ? SPEED_MIN_KMH : null;
+  return Math.min(SPEED_MAX_KMH, Math.max(SPEED_MIN_KMH, observed));
+}
 const ETA_MOVE_KM = 0.1;
 const ETA_ARRIVING_KM = 0.15;
 const etaCache = new Map();
@@ -913,7 +955,7 @@ exports.getRideEta = (req, res) => {
   const accountId = req.user.accountId;
 
   db.query(
-    `SELECT r.status, r.pickup_lat, r.pickup_lng, r.dropoff_lat, r.dropoff_lng,
+    `SELECT r.status, r.driver_account_id, r.pickup_lat, r.pickup_lng, r.dropoff_lat, r.dropoff_lng,
             td.current_lat, td.current_lng
      FROM rides r
      LEFT JOIN tricycle_driver td ON td.account_id = r.driver_account_id
@@ -950,7 +992,8 @@ exports.getRideEta = (req, res) => {
         etaCache.set(cacheKey, { from: driverPoint, distanceKm, at: Date.now() });
       }
 
-      const minutes = Math.max(1, Math.round((distanceKm / TRICYCLE_AVG_KMH) * 60));
+      const speedKmh = estimateDriverSpeedKmh(ride.driver_account_id, phase) || TRICYCLE_AVG_KMH;
+      const minutes = Math.max(1, Math.round((distanceKm / speedKmh) * 60));
       res.status(200).json({
         phase,
         distanceKm,

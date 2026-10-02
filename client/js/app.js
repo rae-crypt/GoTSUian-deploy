@@ -703,7 +703,9 @@ async function renderLoyaltyStatus() {
   const role = getStoredUser().role;
   const title = role === 'driver' ? 'Loyal Driver' : 'Loyal Passenger';
 
-  document.querySelector('#loyalty-current').textContent = completedRides;
+  // Capped at the target: rides beyond it while the certificate waits for
+  // the admin read as "14/10", which looks like a counting error.
+  document.querySelector('#loyalty-current').textContent = Math.min(completedRides, nextThreshold);
   document.querySelector('#loyalty-threshold').textContent = nextThreshold;
 
   const ringFill = document.querySelector('#loyalty-ring-fill');
@@ -723,25 +725,32 @@ async function renderLoyaltyStatus() {
   const roleWordEl = document.querySelector('#loyalty-role-word');
   if (roleWordEl) roleWordEl.textContent = role === 'driver' ? 'Driver' : 'Passenger';
 
+  // The grey line under the ring says where they stand; the message below
+  // it says what happens next. They used to repeat each other.
   const statsSubEl = document.querySelector('#loyalty-stats-sub');
   if (statsSubEl) {
-    if (awaitingGrant) {
-      statsSubEl.innerHTML = `You've reached ${nextThreshold} rides — an admin will review and grant your certificate soon.`;
-    } else {
-      const remaining = nextThreshold - completedRides;
-      statsSubEl.innerHTML = `Complete <strong>${remaining} more</strong> ride${remaining === 1 ? '' : 's'} to reach your next certificate milestone.`;
-    }
+    statsSubEl.textContent = `${completedRides} completed ride${completedRides === 1 ? '' : 's'} so far · ${latestCertificate.milestoneRides}-ride certificate earned`;
   }
 
   const messageEl = document.querySelector('#loyalty-message');
   messageEl.classList.remove('eligible', 'in-progress');
   if (awaitingGrant) {
-    messageEl.textContent = `🎉 You've reached ${nextThreshold} rides! Your certificate is awaiting admin approval.`;
+    messageEl.textContent = `🎉 You've reached ${nextThreshold} rides! Your ${nextThreshold}-ride certificate is waiting for the TODA admin's approval.`;
     messageEl.classList.add('eligible');
   } else {
     const remaining = nextThreshold - completedRides;
-    messageEl.textContent = `${remaining} more completed ride${remaining === 1 ? '' : 's'} to become a ${title}.`;
+    messageEl.textContent = `${remaining} more completed ride${remaining === 1 ? '' : 's'} to earn your ${nextThreshold}-ride certificate.`;
     messageEl.classList.add('in-progress');
+  }
+
+  // The dashboard teaser's button opens the certificate they already have;
+  // say which one, so it isn't mistaken for the one still awaiting approval.
+  const teaserLink = document.querySelector('.rewards-teaser-link');
+  if (teaserLink) {
+    teaserLink.textContent = `View your ${latestCertificate.milestoneRides}-ride certificate`;
+    if (!/#loyalty-card$/.test(teaserLink.getAttribute('href') || '')) {
+      teaserLink.setAttribute('href', `${teaserLink.getAttribute('href')}#loyalty-card`);
+    }
   }
 
   const certificateEl = document.querySelector('#loyalty-certificate');
