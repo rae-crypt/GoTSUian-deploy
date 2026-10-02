@@ -83,9 +83,13 @@ function setupBackToTop() {
 // How It Works shows the fare rates the admin has set, not just the
 // defaults written into the page, so the page stays right after a change.
 // Uses the same "started kilometre counts" rule as the server.
+// Also fills [data-fare="first|per|basis"] spans, used by the Fares and
+// Payments section of the Terms (rules.html), so the rates written there
+// always match what the admin has set.
 function setupHowItWorksFares() {
   const firstEl = document.querySelector('#how-fare-first');
-  if (!firstEl) return;
+  const termSpans = document.querySelectorAll('[data-fare]');
+  if (!firstEl && !termSpans.length) return;
   fetch(`${RIDES_API_URL}/fare-settings`)
     .then(res => res.ok ? res.json() : null)
     .then(settings => {
@@ -93,6 +97,13 @@ function setupHowItWorksFares() {
       const first = Number(settings.first_km_fare);
       const rate = Number(settings.per_km_fare);
       const fareFor = (km) => Math.round(first + rate * Math.max(0, Math.ceil(km - 1)));
+      termSpans.forEach((el) => {
+        const which = el.getAttribute('data-fare');
+        if (which === 'first') el.textContent = `₱${first}`;
+        else if (which === 'per') el.textContent = `₱${rate}`;
+        else if (which === 'basis' && settings.basis) el.textContent = settings.basis;
+      });
+      if (!firstEl) return;
       firstEl.textContent = `₱${first}`;
       const perEl = document.querySelector('#how-fare-per');
       if (perEl) perEl.textContent = `+₱${rate}`;
