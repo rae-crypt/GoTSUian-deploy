@@ -170,3 +170,76 @@ header {
     transform: none;
   }
 }
+
+/* FOOTER LAYOUT, shared by every page (2026-10-02). Each page's own
+   stylesheet styles the maroon footer, but they all laid Quick Links out as
+   one wrapping row, which broke unevenly once the list grew (two links on
+   one line, the rest one per line). Now: brand | Quick Links | Contact on
+   wide screens, brand on top with the two lists side by side on tablets,
+   and one stacked column on phones. "body footer.footer.site-shell" outranks
+   the per-page footer rules, including body[data-page="home"] .footer. */
+body footer.footer.site-shell .footer-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 28px 48px;
+  align-items: start;
+}
+body footer.footer.site-shell .footer-grid > div {
+  min-width: 0;
+}
+body footer.footer.site-shell .footer-grid > div:first-child p {
+  max-width: 44ch;
+  font-size: 14.5px;
+  line-height: 1.6;
+}
+body footer.footer.site-shell .footer-grid > div:first-child .footer-note {
+  font-size: 13px;
+}
+body footer.footer.site-shell h4 {
+  margin: 0 0 14px;
+  font-size: 15px;
+}
+body footer.footer.site-shell .footer-links {
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  gap: 12px;
+  margin: 0;
+}
+body footer.footer.site-shell .footer-links a {
+  font-size: 14.5px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+body footer.footer.site-shell .footer-staff-link {
+  margin-top: 18px !important;
+  font-size: 13px;
+}
+/* Room for the round back-to-top button, which sits over the bottom-right
+   corner of the page and was covering "Made for student mobility". */
+body footer.footer.site-shell .footer-bottom {
+  padding-right: 76px;
+}
+
+@media (max-width: 900px) {
+  body footer.footer.site-shell .footer-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  body footer.footer.site-shell .footer-grid > div:first-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 560px) {
+  body footer.footer.site-shell .footer-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+  }
+  body footer.footer.site-shell .footer-links a {
+    font-size: 14px;
+  }
+  body footer.footer.site-shell .footer-bottom {
+    padding-right: 0;
+    padding-bottom: 56px;
+  }
+}
