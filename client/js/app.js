@@ -4030,11 +4030,20 @@ function shortCampusName(locationText) {
 // needs a second confirmation before an irreversible action (creating the
 // ride), so it's a dedicated layout rather than a generic message dialog.
 function showRideConfirmModal({ pickupLocation, dropoffLocation, rideType, fareText, whenLabel, bookedFor }) {
+  // Same card shape as the pickup/drop-off box above it, with the person's
+  // initial in the round badge where the A/B dots sit.
   const bookedForBlock = bookedFor && !bookedFor.error ? `
         <div class="ride-confirm-for">
-          <span class="ride-confirm-kicker">Booked for</span>
-          <strong>${escapeHtml(bookedFor.name)} · ${escapeHtml(formatPhMobile(bookedFor.contact))}</strong>
-          <small>The driver will call this number. You're responsible for this ride and its fare.</small>
+          <span class="ride-confirm-for-avatar" aria-hidden="true">${escapeHtml(bookedFor.name.charAt(0).toUpperCase())}</span>
+          <span class="ride-confirm-for-text">
+            <span class="ride-confirm-kicker">Booked for</span>
+            <span class="ride-confirm-name">${escapeHtml(bookedFor.name)}</span>
+            <span class="ride-confirm-for-phone">
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 3.5h-2a1 1 0 0 0-1 1C3.5 11 9 16.5 15.5 16.5a1 1 0 0 0 1-1v-2l-3-1.2-1.5 1.5a8 8 0 0 1-4.3-4.3L9.2 8 8 5Z"/></svg>
+              ${escapeHtml(formatPhMobile(bookedFor.contact))}
+            </span>
+            <span class="ride-confirm-for-note">The driver will call this number. You're responsible for this ride and its fare.</span>
+          </span>
         </div>` : '';
   return new Promise((resolve) => {
     const overlay = document.createElement('div');
