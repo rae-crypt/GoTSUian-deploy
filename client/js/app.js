@@ -4058,32 +4058,109 @@ function syncRideTypeAvailability() {
 // towers, easily a kilometre off, with real GPS arriving a few seconds
 // later. Listen for up to PRECISE_FIX_WAIT_MS and keep the most precise
 // reading, finishing early once one is within PRECISE_FIX_METERS. Resolves
-// with a GeolocationPosition, or rejects if no reading came at all.
+// with a GeolocationPosition, or rejects with an Error whose message is
+// DENIED, UNAVAILABLE (the phone's location is off) or TIMEOUT.
+//
+// Three things used to make it fail for no good reason:
+// - The wait started while the browser's "Allow location?" prompt was still
+//   open, so anyone slower than 12 s to tap Allow got "Could not get your
+//   location" and the box stayed empty after they allowed it. Now, while the
+//   permission is still being asked, the wait starts only once it's granted.
+// - Only a brand-new GPS reading counted, which indoors may never come. A
+//   quick rough reading (Wi-Fi/cell, up to ROUGH_FIX_MAX_AGE_MS old) now
+//   runs alongside it and is used if GPS doesn't arrive.
+// - With no Permissions API to tell (older iPhones), the prompt can't be
+//   detected, so the wait is longer: PROMPT_FALLBACK_WAIT_MS.
 const PRECISE_FIX_METERS = 30;
 const PRECISE_FIX_WAIT_MS = 12000;
+const PROMPT_FALLBACK_WAIT_MS = 30000;
+const ROUGH_FIX_MAX_AGE_MS = 5 * 60 * 1000;
+const PROMPT_UNANSWERED_MS = 60000;
+
+// 'granted', 'denied', 'prompt', or null when the browser can't say.
+async function getLocationPermissionStatus() {
+  try {
+    if (!navigator.permissions || !navigator.permissions.query) return null;
+    return await navigator.permissions.query({ name: 'geolocation' });
+  } catch (error) {
+    return null;
+  }
+}
 
 function getPreciseLocation() {
-  return new Promise((resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
     let best = null;
     let watchId = null;
+    let timer = null;
+    let done = false;
+    let lastErrorCode = null;
+    const status = await getLocationPermissionStatus();
+
     const finish = () => {
+      if (done) return;
+      done = true;
       navigator.geolocation.clearWatch(watchId);
       clearTimeout(timer);
-      if (best) resolve(best);
-      else reject(new Error('NO_FIX'));
+      if (status) status.removeEventListener('change', onPermissionChange);
+      if (best) return resolve(best);
+      const reason = lastErrorCode === 1 ? 'DENIED'
+        : status && status.state === 'prompt' ? 'PROMPT'
+        : lastErrorCode === 2 ? 'UNAVAILABLE' : 'TIMEOUT';
+      reject(new Error(reason));
     };
-    const timer = setTimeout(finish, PRECISE_FIX_WAIT_MS);
-    watchId = navigator.geolocation.watchPosition(
-      (position) => {
-        if (!best || position.coords.accuracy < best.coords.accuracy) best = position;
-        if (position.coords.accuracy <= PRECISE_FIX_METERS) finish();
-      },
-      // Permission denied fails at once; any other error just waits out the
-      // timer in case a later reading still arrives.
-      (err) => { if (err.code === err.PERMISSION_DENIED) finish(); },
-      { enableHighAccuracy: true, maximumAge: 0, timeout: PRECISE_FIX_WAIT_MS }
-    );
+    const startTimer = (ms) => {
+      if (timer === null && !done) timer = setTimeout(finish, ms);
+    };
+    const keep = (position) => {
+      if (done) return;
+      if (!best || position.coords.accuracy < best.coords.accuracy) best = position;
+      // A reading means permission is granted, so the wait can start.
+      startTimer(PRECISE_FIX_WAIT_MS);
+      if (position.coords.accuracy <= PRECISE_FIX_METERS) finish();
+    };
+    const onError = (err) => {
+      lastErrorCode = err.code;
+      // Denied fails at once; anything else waits out the timer in case a
+      // later reading still arrives.
+      if (err.code === err.PERMISSION_DENIED) finish();
+    };
+    function onPermissionChange() {
+      if (status.state === 'granted') startTimer(PRECISE_FIX_WAIT_MS);
+      else if (status.state === 'denied') { lastErrorCode = 1; finish(); }
+    }
+
+    if (status && status.state === 'denied') {
+      lastErrorCode = 1;
+      return finish();
+    }
+    if (status && status.state === 'prompt') {
+      status.addEventListener('change', onPermissionChange);
+      // Never answered at all: stop waiting eventually. Allowing later
+      // still fills the box (see setupPickupField).
+      setTimeout(() => { if (timer === null) finish(); }, PROMPT_UNANSWERED_MS);
+    } else {
+      startTimer(status ? PRECISE_FIX_WAIT_MS : PROMPT_FALLBACK_WAIT_MS);
+    }
+
+    watchId = navigator.geolocation.watchPosition(keep, onError,
+      { enableHighAccuracy: true, maximumAge: 0, timeout: PRECISE_FIX_WAIT_MS });
+    navigator.geolocation.getCurrentPosition(keep, onError,
+      { enableHighAccuracy: false, maximumAge: ROUGH_FIX_MAX_AGE_MS, timeout: PRECISE_FIX_WAIT_MS });
   });
+}
+
+// What to tell the passenger for each way getPreciseLocation can fail.
+function locationErrorMessage(reason) {
+  if (reason === 'DENIED') {
+    return 'Location is blocked for this site. Tap the lock icon next to the web address → Permissions → Location → Allow, then tap the pickup box.';
+  }
+  if (reason === 'PROMPT') {
+    return 'Tap "Allow" when your browser asks to use your location. If you missed it, tap the pickup box.';
+  }
+  if (reason === 'UNAVAILABLE') {
+    return "Your phone's location is off. Turn on Location (GPS) in your phone's settings, then tap the pickup box.";
+  }
+  return 'Could not get a GPS signal. Move outdoors or near a window, then tap the pickup box to try again.';
 }
 
 function fillWithCurrentLocation(side) {
@@ -4126,12 +4203,12 @@ function fillWithCurrentLocation(side) {
         error.textContent = `Your location may be off by about ${accuracy} m. Move outdoors or near a window, then tap the pickup box to update it.`;
       }
     },
-    () => {
+    (failure) => {
       customLocationCoords[side] = null;
       input.disabled = false;
       delete input.dataset.detecting;
       input.value = '';
-      if (error) error.textContent = 'Could not get your location. Turn on location access in your browser, then tap the pickup box to try again.';
+      if (error) error.textContent = locationErrorMessage(failure && failure.message);
     }
   );
 }
@@ -4181,6 +4258,25 @@ function setupPickupField() {
   });
 
   fillWithCurrentLocation('pickup');
+
+  // Fill the box by itself once location becomes available after a failed
+  // try: when the passenger allows it (late on the prompt, or in the
+  // browser's site settings), or comes back to the page after turning on
+  // their phone's location.
+  const retryIfStillEmpty = () => {
+    if (input.dataset.detecting === 'true' || customLocationCoords.pickup) return;
+    fillWithCurrentLocation('pickup');
+  };
+  getLocationPermissionStatus().then((status) => {
+    if (!status) return;
+    status.addEventListener('change', () => {
+      if (status.state === 'granted') retryIfStillEmpty();
+    });
+  });
+  document.addEventListener('visibilitychange', () => {
+    const error = document.querySelector('#pickup-other-error');
+    if (document.visibilityState === 'visible' && error && error.textContent) retryIfStillEmpty();
+  });
 }
 
 function setupOthersDropoff() {
