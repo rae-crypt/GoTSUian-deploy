@@ -906,6 +906,22 @@ function notifyIfNoDriversLeft(rideId, passengerAccountId) {
 // from asking the routing server every few seconds.
 const TRICYCLE_AVG_KMH = 20;
 const ETA_CACHE_MS = 30 * 1000;
+// Without the driver's own speed yet, a flat 20 km/h made long trips look
+// absurd (20 km = an hour), since past the first few town streets a
+// tricycle is on open highway. So the first ETA_TOWN_KM count at the town
+// speed and the rest at ETA_OPEN_ROAD_KMH.
+const ETA_TOWN_KM = 3;
+const ETA_OPEN_ROAD_KMH = 35;
+// tricycle_driver.current_lat/lng keep the driver's last position from
+// whenever they last shared it, possibly another trip on another day. Older
+// than this, it isn't where they are now, so the ETA waits for a fresh one.
+const ETA_LOCATION_MAX_AGE_S = 120;
+
+function defaultEtaMinutes(distanceKm) {
+  const townKm = Math.min(distanceKm, ETA_TOWN_KM);
+  const openKm = Math.max(0, distanceKm - ETA_TOWN_KM);
+  return (townKm / TRICYCLE_AVG_KMH + openKm / ETA_OPEN_ROAD_KMH) * 60;
+}
 
 // The driver's real recent speed, from the location reports their phone
 // already sends every few seconds during a trip (kept in memory only, last
@@ -957,7 +973,8 @@ exports.getRideEta = (req, res) => {
 
   db.query(
     `SELECT r.status, r.driver_account_id, r.pickup_lat, r.pickup_lng, r.dropoff_lat, r.dropoff_lng,
-            td.current_lat, td.current_lng
+            td.current_lat, td.current_lng,
+            TIMESTAMPDIFF(SECOND, td.location_updated_at, NOW()) AS location_age_s
      FROM rides r
      LEFT JOIN tricycle_driver td ON td.account_id = r.driver_account_id
      WHERE r.ride_id = ? AND (r.passenger_account_id = ? OR r.driver_account_id = ?)`,
@@ -975,9 +992,10 @@ exports.getRideEta = (req, res) => {
       const target = phase === 'to_pickup'
         ? normalizePoint({ lat: ride.pickup_lat, lng: ride.pickup_lng })
         : normalizePoint({ lat: ride.dropoff_lat, lng: ride.dropoff_lng });
-      const driverPoint = normalizePoint({ lat: ride.current_lat, lng: ride.current_lng });
-      // No GPS from the driver yet (just accepted, or indoors): say so
-      // rather than guess.
+      const locationIsFresh = ride.location_age_s != null && Number(ride.location_age_s) <= ETA_LOCATION_MAX_AGE_S;
+      const driverPoint = locationIsFresh ? normalizePoint({ lat: ride.current_lat, lng: ride.current_lng }) : null;
+      // No fresh GPS from the driver yet (just accepted, or indoors): say so
+      // rather than guess from an old position.
       if (!target || !driverPoint) return res.status(200).json({ phase, waiting: true });
 
       const cacheKey = `${rideId}:${phase}`;
@@ -993,8 +1011,8 @@ exports.getRideEta = (req, res) => {
         etaCache.set(cacheKey, { from: driverPoint, distanceKm, at: Date.now() });
       }
 
-      const speedKmh = estimateDriverSpeedKmh(ride.driver_account_id, phase) || TRICYCLE_AVG_KMH;
-      const minutes = Math.max(1, Math.round((distanceKm / speedKmh) * 60));
+      const speedKmh = estimateDriverSpeedKmh(ride.driver_account_id, phase);
+      const minutes = Math.max(1, Math.round(speedKmh ? (distanceKm / speedKmh) * 60 : defaultEtaMinutes(distanceKm)));
       res.status(200).json({
         phase,
         distanceKm,

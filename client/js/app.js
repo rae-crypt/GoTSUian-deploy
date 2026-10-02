@@ -1452,18 +1452,30 @@ const ETA_REFRESH_MS = 15 * 1000;
 const ETA_ACTIVE_STATUSES = ['Accepted', 'Picked Up', 'In Progress'];
 const rideEtaCache = {};
 
+// "1 hr 5 min" rather than "65 min".
+function formatEtaMinutes(minutes) {
+  const total = Math.max(1, Math.round(Number(minutes) || 0));
+  if (total < 60) return `${total} min`;
+  const hours = Math.floor(total / 60);
+  const rest = total % 60;
+  return rest ? `${hours} hr ${rest} min` : `${hours} hr`;
+}
+
 function rideEtaText(eta, role) {
-  if (!eta || eta.waiting) return 'Estimating arrival…';
+  if (!eta || eta.waiting) {
+    return role === 'driver' ? 'Waiting for your GPS to estimate arrival…' : "Waiting for the driver's location…";
+  }
   const km = eta.distanceKm != null ? ` · ${Number(eta.distanceKm).toFixed(1)} km` : '';
+  const time = formatEtaMinutes(eta.minutes);
   if (eta.phase === 'to_pickup') {
     if (eta.arriving) return role === 'driver' ? "You're at the pickup point" : 'Your driver is arriving now';
     return role === 'driver'
-      ? `About ${eta.minutes} min to pickup${km}`
-      : `Driver arrives in about ${eta.minutes} min${km} away`;
+      ? `About ${time} to pickup${km}`
+      : `Driver arrives in about ${time}${km} away`;
   }
   return role === 'driver'
-    ? `About ${eta.minutes} min to drop-off${km}`
-    : `About ${eta.minutes} min to your destination${km}`;
+    ? `About ${time} to drop-off${km}`
+    : `About ${time} to your destination${km}`;
 }
 
 // The ETA line inside a ride card's template. Empty for rides with nothing
