@@ -2264,8 +2264,9 @@ body[data-page="rules"] .rules-ack p {
    left-aligned, so on a laptop the cards filled half the width under a
    full-width hero, leaving the right side empty. From 960px the rule cards
    sit in two columns across the full width; the Terms and Privacy cards
-   (long, numbered text read in order) stay one column at full width with
-   their text kept to a readable line length. */
+   (long, numbered text read in order) stay one column at full width, and
+   their text and every section intro run to the card's edge (an 80ch cap
+   here left a block of empty space on the right that looked unfinished). */
 @media (min-width: 960px) {
   .rules-section-head,
   .rules-legend,
@@ -2282,7 +2283,19 @@ body[data-page="rules"] .rules-ack p {
     max-width: none;
   }
   .term-body > p,
-  .term-body > ul {
-    max-width: 80ch;
+  .term-body > ul,
+  .rules-intro,
+  .section p.lead,
+  .section-intro p,
+  .rules-ack,
+  body[data-page="rules"] .rules-section-head .section-intro p,
+  body[data-page="rules"] .hero.hero-simple .hero-copy p {
+    max-width: none;
   }
+}
+
+/* The fare figures and ordinance name in Terms #5 are <span>s filled in
+   live; keep them in the paragraph's font instead of a global span rule. */
+body[data-page="rules"] .term-body span {
+  font-family: inherit;
 }
