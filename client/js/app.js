@@ -756,20 +756,23 @@ async function renderLoyaltyStatus() {
   const outerCardEl = document.querySelector('#loyalty-card') || document.querySelector('#loyalty-teaser-card');
   if (outerCardEl) outerCardEl.style.display = latestCertificate ? '' : 'none';
   if (!latestCertificate) return;
-  const percent = Math.min(100, Math.round((progressWithinLeg / LOYALTY_MILESTONE_STEP_CLIENT) * 100));
+  // The ring always reads "rides / next target" and keeps climbing as the
+  // passenger books. Once a target is reached its certificate waits for the
+  // admin, and the ring moves on to the next one: 11 rides with the 10-ride
+  // certificate pending shows 11/15, one dot filled.
+  const step = LOYALTY_MILESTONE_STEP_CLIENT;
+  // Exactly on the target shows a full ring (10/10); the next ride starts the next leg.
+  const pastTarget = completedRides > nextThreshold;
+  const ringTarget = pastTarget ? (Math.floor(completedRides / step) + 1) * step : nextThreshold;
+  const ringProgress = pastTarget ? completedRides - (ringTarget - step) : progressWithinLeg;
+  const percent = Math.min(100, Math.round((ringProgress / step) * 100));
   const role = getStoredUser().role;
   const title = role === 'driver' ? 'Loyal Driver' : 'Loyal Passenger';
 
-  // The ring shows the real ride count, so it always matches the
-  // "N completed rides" line under it. While counting up it reads "7/10";
-  // once the target is reached (the certificate is waiting for the admin)
-  // the ring is full and shows just the count, e.g. "11", because "11/10"
-  // looks like a counting error and a capped "10/10" contradicted the "11".
+  // Real ride count over the ring's target, so it matches the
+  // "N completed rides" line under it (never a capped "10/10" next to "11").
   const counterEl = document.querySelector('#loyalty-current').parentNode;
-  const reachedTarget = awaitingGrant || completedRides >= nextThreshold;
-  counterEl.innerHTML = reachedTarget
-    ? `<span id="loyalty-current">${completedRides}</span>`
-    : `<span id="loyalty-current">${completedRides}</span>/<span id="loyalty-threshold">${nextThreshold}</span>`;
+  counterEl.innerHTML = `<span id="loyalty-current">${completedRides}</span>/<span id="loyalty-threshold">${ringTarget}</span>`;
 
   const ringFill = document.querySelector('#loyalty-ring-fill');
   if (ringFill) {
@@ -781,7 +784,7 @@ async function renderLoyaltyStatus() {
   const milestonesEl = document.querySelector('#loyalty-milestones');
   if (milestonesEl) {
     milestonesEl.innerHTML = Array.from({ length: LOYALTY_MILESTONE_STEP_CLIENT }, (_, i) =>
-      `<span class="milestone-dot${i < progressWithinLeg ? ' is-filled' : ''}"></span>`
+      `<span class="milestone-dot${i < ringProgress ? ' is-filled' : ''}"></span>`
     ).join('');
   }
 
