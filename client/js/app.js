@@ -4121,16 +4121,9 @@ function showRideConfirmModal({ pickupLocation, dropoffLocation, rideType, fareT
 
         ${bookedForBlock}
 
-        <div class="ride-confirm-chips">
-          <span class="ride-confirm-chip">
-            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="7"/><path d="M10 6v4l3 2"/></svg>
-            ${escapeHtml(rideType)}
-          </span>
-          <span class="ride-confirm-chip">
-            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 6v4l2.5 2.5"/><circle cx="10" cy="10" r="7.2"/></svg>
-            ${escapeHtml(whenLabel)}
-          </span>
-        </div>
+        <!-- The Solo / "Leave now" chips were removed (IT expert review,
+             3 Oct 2026): every ride is Solo and leaves now while Shared and
+             scheduling are paused, so they told the passenger nothing. -->
 
         <div class="ride-confirm-fare">
           <span class="ride-confirm-fare-label">Estimated fare</span>
