@@ -3833,7 +3833,6 @@ function openAvailableDriversModal() {
             <strong class="driver-list-label">${escapeHtml(d.name || 'Driver')}</strong>
             <span class="driver-list-plate">${escapeHtml(plateText)}</span>
           </div>
-          <span class="driver-list-radio"></span>
         </div>
       `;
       }).join('');

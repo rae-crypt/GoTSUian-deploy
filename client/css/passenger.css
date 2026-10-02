@@ -2237,14 +2237,6 @@ select {
   color: var(--primary);
 }
 
-.driver-list-radio {
-  flex-shrink: 0;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  border: 1.5px solid #9a8a8a;
-}
-
 .driver-list-loading,
 .driver-list-empty {
   color: var(--muted);
@@ -4553,11 +4545,18 @@ body.is-passenger-home * {
 .action-popup-secondary { border: 1.5px solid #f1d9d9; background: transparent; color: var(--primary); }
 .action-popup-buttons button:focus-visible { outline: 3px solid rgba(127, 29, 29, 0.35); outline-offset: 2px; }
 
-/* Estimated time of arrival on a ride card (see rideEtaRowHtml in app.js). */
-.ride-eta {
+/* Estimated time of arrival on a ride card (see rideEtaRowHtml in app.js).
+   Written as .dashboard-card p.ride-eta as well because the ride card is a
+   .dashboard-card, and the old ".dashboard-card p" rule (2rem, bold) was
+   beating the plain .ride-eta class, so on phones the line rendered as a
+   giant headline. Sizes are in px with wrapping so it fits any width. */
+.ride-eta,
+.dashboard-card p.ride-eta {
   display: flex; align-items: center; gap: 8px;
-  margin: 10px 0 0; padding: 9px 12px; border-radius: 10px;
-  background: #eef4ff; color: #1e3a8a; font-size: 0.9rem; font-weight: 600;
+  margin: 0 0 14px; padding: 9px 12px; border-radius: 10px;
+  background: #eef4ff; color: #1e3a8a;
+  font-size: 13.5px; font-weight: 600; line-height: 1.35;
+  min-width: 0; max-width: 100%; overflow-wrap: anywhere;
 }
 .ride-eta::before {
   content: ""; flex: none; width: 15px; height: 15px;
@@ -4565,4 +4564,9 @@ body.is-passenger-home * {
   -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 7v5l3 2'/%3E%3C/svg%3E") center / contain no-repeat;
           mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 7v5l3 2'/%3E%3C/svg%3E") center / contain no-repeat;
 }
-.ride-eta.is-arriving { background: #ecfdf3; color: #14532d; }
+.ride-eta.is-arriving,
+.dashboard-card p.ride-eta.is-arriving { background: #ecfdf3; color: #14532d; }
+@media (max-width: 360px) {
+  .ride-eta,
+  .dashboard-card p.ride-eta { font-size: 12.5px; padding: 8px 10px; gap: 6px; }
+}
