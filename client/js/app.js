@@ -127,7 +127,7 @@ function setupFooterReportLink() {
   if (!links.length || !isAuthenticated()) return;
   const role = (getStoredUser() || {}).role;
   const target = role === 'passenger' ? 'passenger-bookings.html'
-    : role === 'driver' ? 'driver.html#ride-history-section'
+    : role === 'driver' ? 'driver-bookings.html'
     : role === 'admin' ? 'admin.html'
     : null;
   if (target) links.forEach((a) => a.setAttribute('href', target));
@@ -566,19 +566,6 @@ function updateDriverLinkVisibility() {
   }
 }
 
-// Driver phone-menu "Ride history" row (jumps to the history card on My
-// Rides). theme.css keeps it out of the desktop nav bar. Drivers only —
-// the passenger phone menu stays as it was.
-function updateHistoryLinkVisibility() {
-  const historyLink = document.querySelector('.nav-links a[data-page="history"]');
-  if (!historyLink) return;
-  const user = getStoredUser();
-  const show = isAuthenticated() && user.role === 'driver';
-  historyLink.classList.toggle('hidden', !show);
-  if (!show) return;
-  historyLink.href = 'driver.html#ride-history-section';
-  historyLink.querySelector('span').textContent = 'Ride history';
-}
 
 // Same pattern, the passenger-side equivalent of the Driver link — takes a
 // logged-in passenger back to their own dashboard (passenger.html) from
@@ -5536,7 +5523,17 @@ function setupRideHistoryFilter() {
   sync();
   chips.forEach(chip => chip.addEventListener('click', () => setFilter(chip.getAttribute('data-show'))));
   document.querySelectorAll('a[data-history-show]').forEach(link => {
-    link.addEventListener('click', () => setFilter(link.getAttribute('data-history-show')));
+    link.addEventListener('click', (event) => {
+      // Phones keep the old My Rides (no history card there, see
+      // driver.css): Completed opens the history page as before, the other
+      // cards do nothing.
+      if (window.matchMedia('(max-width: 720px)').matches) {
+        event.preventDefault();
+        if (link.getAttribute('data-history-show') === 'all') location.href = 'driver-bookings.html';
+        return;
+      }
+      setFilter(link.getAttribute('data-history-show'));
+    });
   });
 }
 
@@ -7707,7 +7704,6 @@ function refreshAuthState() {
   enforceDashboardAccess();
   hideAdminLinkForNonAdmin();
   updateDriverLinkVisibility();
-  updateHistoryLinkVisibility();
   updatePassengerLinkVisibility();
   updateMarketingLinksVisibility();
   updateHomeCtaVisibility();

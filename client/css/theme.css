@@ -262,11 +262,6 @@ body footer.footer.site-shell .footer-bottom {
   font-size: 13px; font-weight: 500; color: var(--gt-muted); text-align: center;
 }
 
-/* Phone-menu "Ride history" / "Booking history" row. Only shown inside the
-   open hamburger drawer (.nav-links.open exists only there); on desktop the
-   avatar menu already has the link, so it stays out of the nav bar. */
-.nav-links a.nav-row-history { display: none; }
-.nav-links.open a.nav-row-history:not(.hidden) { display: flex; }
 
 /* Driver history empty state ("You haven't accepted any rides yet."):
    driver.css's .btn-secondary has no padding or radius, so its button

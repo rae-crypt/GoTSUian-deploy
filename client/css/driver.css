@@ -3806,3 +3806,10 @@ body[data-page="driver"] #ride-history-section .booking-info { flex: 1; text-ali
 body[data-page="driver"] #ride-history-section .booking-actions { justify-content: flex-start; text-align: left; }
 body[data-page="driver"] #ride-history-section .booking-item { align-items: stretch; }
 body[data-page="driver"] #ride-history-section .booking-top { width: 100%; justify-content: space-between; }
+
+/* Phones keep My Rides exactly as it was before 2026-10-03: the Ride
+   history card is a desktop-only addition (phones reach the history page
+   from the Completed card, as before). */
+@media (max-width: 720px) {
+  body[data-page="driver"] #ride-history-section { display: none; }
+}
