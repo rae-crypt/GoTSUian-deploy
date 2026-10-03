@@ -4206,11 +4206,12 @@ async function declineRideRemote(rideId) {
   return data;
 }
 
-async function updateRideStatusRemote(rideId, status) {
+// `extra` carries the reason/note a Failed ride needs (see openFailedRideForm).
+async function updateRideStatusRemote(rideId, status, extra = {}) {
   const res = await fetch(`${RIDES_API_URL}/${rideId}/status`, {
     method: 'PUT',
     headers: getAuthHeaders(),
-    body: JSON.stringify({ status })
+    body: JSON.stringify({ status, ...extra })
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Unable to update this ride');
@@ -5257,6 +5258,7 @@ async function renderPassengerRideStatus() {
   const rides = await fetchMyRides();
   const activeRide = rides.find(ride => !['Completed', 'Cancelled', 'Failed', 'Declined'].includes(ride.status)) || null;
   updateRideRequestFormAvailability(Boolean(activeRide));
+  notifyFailedRide(rides);
 
   if (!activeRide) {
     emptyState.style.display = 'block';
@@ -5806,6 +5808,7 @@ async function renderBookingsList() {
               <span>${escapeHtml(otherPartyLabel)}: ${escapeHtml(otherPartyName)}</span>
               <span>Requested ${escapeHtml(requestedAt)}</span>
             </div>
+            ${ride.status === 'Failed' && ride.failed_reason ? `<div class="booking-failed-reason"><strong>Ended by the driver: ${escapeHtml(ride.failed_reason)}</strong>${ride.failed_note ? ` — ${escapeHtml(ride.failed_note)}` : ''}</div>` : ''}
           </div>
           <div class="booking-status">
             <span class="booking-fare">${escapeHtml(fareText)}</span>
@@ -6191,6 +6194,11 @@ async function renderDriverRideRequests() {
     button.addEventListener('click', async function() {
       const rideId = this.getAttribute('data-ride-id');
       const nextStatus = this.getAttribute('data-next-status');
+      // Failed never ends the ride in one tap: it asks why first.
+      if (nextStatus === 'Failed') {
+        openFailedRideForm(rideId);
+        return;
+      }
       try {
         await updateRideStatusRemote(rideId, nextStatus);
         showRideFeedback('success', 'Status updated', `The ride is now marked as ${nextStatus}.`);
@@ -6201,6 +6209,95 @@ async function renderDriverRideRequests() {
         showRideFeedback('error', 'Could not update', error.message || 'Please try again.');
       }
     });
+  });
+}
+
+// Passenger side of a Failed ride: once, the passenger is told the driver's
+// reason (the ride card itself just disappears, since the ride is over).
+// Only for a ride that failed in the last hour, so an old one never pops up.
+const FAILED_SEEN_KEY = 'failedRidesSeen';
+
+function notifyFailedRide(rides) {
+  const failed = (rides || []).find(r => r.status === 'Failed' && r.failed_reason);
+  if (!failed) return;
+  const endedAt = new Date(failed.updated_at || failed.created_at).getTime();
+  if (!endedAt || Date.now() - endedAt > 60 * 60 * 1000) return;
+  let seen = [];
+  try { seen = JSON.parse(localStorage.getItem(FAILED_SEEN_KEY) || '[]'); } catch (e) {}
+  if (seen.includes(failed.ride_id)) return;
+  try { localStorage.setItem(FAILED_SEEN_KEY, JSON.stringify(seen.concat(failed.ride_id).slice(-20))); } catch (e) {}
+  showActionPopup({
+    tone: 'error',
+    title: 'Your ride was ended by the driver',
+    message: `Reason: ${failed.failed_reason}. "${failed.failed_note || ''}" The TODA admin reviews every failed ride. If this isn't right, report a concern from your Booking history.`,
+    primaryLabel: 'View booking history',
+    onPrimary: () => { location.href = 'passenger-bookings.html'; },
+    secondaryLabel: 'Close'
+  });
+}
+
+// Ending a ride as Failed (IT expert review, 2026-10-04): the driver must
+// pick a reason and explain what happened. The passenger sees both, and the
+// admin gets it in Complaints (see updateRideStatus in rideController.js).
+// Must match FAILED_REASONS in server/rideFailures.js.
+const FAILED_RIDE_REASONS = [
+  'Tricycle breakdown',
+  'Passenger asked to stop early',
+  'Passenger misbehaved',
+  'Road or safety problem',
+  'Other'
+];
+
+function openFailedRideForm(rideId) {
+  document.querySelectorAll('[data-failed-form]').forEach(el => el.remove());
+  const overlay = document.createElement('div');
+  overlay.setAttribute('data-failed-form', '');
+  overlay.className = 'ride-feedback-overlay';
+  overlay.innerHTML = `
+    <form class="ride-feedback-modal failed-form" role="dialog" aria-labelledby="failed-form-title" novalidate>
+      <h3 id="failed-form-title">Why can't this ride be completed?</h3>
+      <p class="failed-form-lead">The passenger will see your reason, and the TODA admin reviews every failed ride.</p>
+      <div class="failed-form-reasons" role="radiogroup" aria-label="Reason">
+        ${FAILED_RIDE_REASONS.map((reason, i) => `
+          <label class="failed-form-reason">
+            <input type="radio" name="failed-reason" value="${escapeHtml(reason)}"${i === 0 ? ' required' : ''}>
+            <span>${escapeHtml(reason)}</span>
+          </label>`).join('')}
+      </div>
+      <label class="failed-form-note-label" for="failed-form-note">What happened?</label>
+      <textarea id="failed-form-note" class="failed-form-note" rows="3" maxlength="255" placeholder="E.g. flat tire near San Roque, passenger moved to another tricycle."></textarea>
+      <small class="error-msg failed-form-error"></small>
+      <div class="action-popup-buttons">
+        <button type="submit" class="action-popup-primary">End ride as Failed</button>
+        <button type="button" class="action-popup-secondary failed-form-cancel">Keep the ride going</button>
+      </div>
+    </form>
+  `;
+  document.body.appendChild(overlay);
+
+  const close = () => overlay.remove();
+  overlay.addEventListener('click', (event) => { if (event.target === overlay) close(); });
+  overlay.querySelector('.failed-form-cancel').addEventListener('click', close);
+  overlay.querySelector('form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const errorEl = overlay.querySelector('.failed-form-error');
+    const picked = overlay.querySelector('input[name="failed-reason"]:checked');
+    const note = overlay.querySelector('#failed-form-note').value.trim();
+    if (!picked) { errorEl.textContent = 'Choose a reason.'; return; }
+    if (!note) { errorEl.textContent = 'Explain briefly what happened.'; return; }
+    const submitBtn = overlay.querySelector('.action-popup-primary');
+    submitBtn.disabled = true;
+    try {
+      await updateRideStatusRemote(rideId, 'Failed', { reason: picked.value, note });
+      close();
+      showRideFeedback('success', 'Ride ended', 'The passenger has been told why, and the admin will review it.');
+      renderPassengerRideStatus();
+      renderDriverRideRequests();
+      renderDriverDashboardStats();
+    } catch (error) {
+      errorEl.textContent = error.message || 'Please try again.';
+      submitBtn.disabled = false;
+    }
   });
 }
 

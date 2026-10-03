@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const db = require('../config/db');
-const { emitRideUpdated, emitNewPendingRide, emitDriverLocation, emitAvailabilityChanged, getPresentDriverIds, emitNoDriversLeft } = require('../socket');
+const { emitRideUpdated, emitNewPendingRide, emitDriverLocation, emitAvailabilityChanged, getPresentDriverIds, emitNoDriversLeft, emitComplaintFiled } = require('../socket');
+const { FAILED_REASONS, PASSENGER_REASONS, hasFailureColumns } = require('../rideFailures');
 const { hasDeclinesTable } = require('../rideDeclines');
 const { hasCertificateSeenColumn } = require('../certificateSeen');
 const { hasBookedForColumns } = require('../bookedFor');
@@ -1439,6 +1440,18 @@ exports.updateRideStatus = (req, res) => {
     return res.status(400).json({ error: 'Invalid status' });
   }
 
+  // Failed needs a reason and an explanation (see rideFailures.js).
+  const failedReason = status === 'Failed' ? String(req.body.reason || '').trim() : null;
+  const failedNote = status === 'Failed' ? String(req.body.note || '').trim().slice(0, 255) : null;
+  if (status === 'Failed') {
+    if (!FAILED_REASONS.includes(failedReason)) {
+      return res.status(400).json({ error: 'Choose why the ride could not be completed.' });
+    }
+    if (!failedNote) {
+      return res.status(400).json({ error: 'Explain briefly what happened.' });
+    }
+  }
+
   db.query(`SELECT * FROM rides WHERE ride_id = ?`, [rideId], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     if (!rows.length) return res.status(404).json({ error: 'Ride not found' });
@@ -1450,6 +1463,11 @@ exports.updateRideStatus = (req, res) => {
       return res.status(409).json({ error: 'This ride can no longer be cancelled because the passenger has already been picked up.' });
     }
 
+    // Only the ride's own driver can end it as Failed.
+    if (status === 'Failed' && String(ride.driver_account_id) !== String(req.user.accountId)) {
+      return res.status(403).json({ error: 'Only the driver of this ride can end it as Failed.' });
+    }
+
     // 'Declined' behaves like 'Cancelled' for cascade purposes — it only
     // ever applies to a single still-Pending ride (or, for a Shared pool
     // decline, every rider's ride_id is targeted individually by the
@@ -1459,13 +1477,36 @@ exports.updateRideStatus = (req, res) => {
     // Excludes riders who already left this pool (Cancelled/Completed/Failed/
     // Declined) — otherwise a later whole-trip status change (e.g. Picked Up)
     // would sweep them back up and resurrect a ride they already cancelled.
+    // A Failed ride keeps its reason and explanation on the row (when the
+    // columns exist, see rideFailures.js).
+    const withFailure = status === 'Failed' && hasFailureColumns();
+    const setClause = withFailure ? 'status = ?, failed_reason = ?, failed_note = ?' : 'status = ?';
+    const setParams = withFailure ? [status, failedReason, failedNote] : [status];
     const sql = cascadeToPool
-      ? `UPDATE rides SET status = ? WHERE pool_id = ? AND status NOT IN ('Cancelled', 'Completed', 'Failed', 'Declined')`
-      : `UPDATE rides SET status = ? WHERE ride_id = ?`;
-    const params = cascadeToPool ? [status, ride.pool_id] : [status, rideId];
+      ? `UPDATE rides SET ${setClause} WHERE pool_id = ? AND status NOT IN ('Cancelled', 'Completed', 'Failed', 'Declined')`
+      : `UPDATE rides SET ${setClause} WHERE ride_id = ?`;
+    const params = cascadeToPool ? [...setParams, ride.pool_id] : [...setParams, rideId];
 
     db.query(sql, params, (err) => {
       if (err) return res.status(500).json({ error: err.message });
+
+      // Every Failed ride reaches the admin as a Complaints entry from the
+      // driver (red "N pending" badge), against the passenger only when the
+      // reason points at them, so the admin can review it and warn whoever
+      // was at fault.
+      if (status === 'Failed') {
+        const againstPassenger = PASSENGER_REASONS.includes(failedReason);
+        db.query(
+          `INSERT INTO complaints (filed_by_account_id, against_account_id, ride_id, category, description)
+           VALUES (?, ?, ?, ?, ?)`,
+          [ride.driver_account_id, againstPassenger ? ride.passenger_account_id : null, ride.ride_id,
+           `Ride failed: ${failedReason}`.slice(0, 50), failedNote],
+          (complaintErr) => {
+            if (complaintErr) return console.warn('Could not file the Failed-ride report', complaintErr.message);
+            emitComplaintFiled();
+          }
+        );
+      }
 
       // Whichever rides just changed, tell their passenger(s) + driver to
       // re-check live instead of waiting for their next poll. A terminal

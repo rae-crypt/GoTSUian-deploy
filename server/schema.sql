@@ -344,3 +344,12 @@ ALTER TABLE rides
 ALTER TABLE user_account
   ADD COLUMN suspended_at DATETIME NULL DEFAULT NULL,
   ADD COLUMN suspension_reason VARCHAR(255) NULL DEFAULT NULL;
+
+-- Failed rides need a reason (2026-10-04, IT expert review). When a driver
+-- ends a ride as Failed they pick a reason and explain what happened; the
+-- passenger is shown both and the admin gets a Complaints entry. NULL for
+-- every ride that didn't fail. server/rideFailures.js adds them on startup
+-- if missing.
+ALTER TABLE rides
+  ADD COLUMN failed_reason VARCHAR(50) NULL DEFAULT NULL,
+  ADD COLUMN failed_note VARCHAR(255) NULL DEFAULT NULL;

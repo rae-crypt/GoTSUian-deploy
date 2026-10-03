@@ -291,3 +291,9 @@ body[data-page="driver"] .bookings-empty a.btn-secondary:focus-visible {
 /* My Rides' Ride history card: land below the sticky header when a stat
    card or menu link scrolls to it. */
 #ride-history-section { scroll-margin-top: 96px; }
+
+/* A Failed ride in Ride/Booking history: the driver's reason and note. */
+.booking-failed-reason {
+  margin-top: 8px; padding: 8px 12px; border-radius: 10px;
+  background: #fef2f2; color: #7f1d1d; font-size: 12.5px; line-height: 1.5;
+}
