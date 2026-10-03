@@ -748,12 +748,16 @@ exports.createRide = async (req, res) => {
 
 // LIST PENDING RIDES — for the driver dashboard. Shared rides are grouped
 // by pool so a driver sees one card per tricycle trip, not one per rider.
+// A "book for someone else" request shows the person's name but never their
+// mobile number here (Data Privacy Act, RA 10173): every online driver sees
+// this list, so the number is only sent to the one driver who accepts the
+// ride (getDriverRides).
 exports.listPendingRides = (req, res) => {
   // Hides requests this driver has already declined (see declineRide).
   const withDeclines = hasDeclinesTable();
   const sql = `
     SELECT r.ride_id, r.passenger_account_id, r.pickup_location, r.dropoff_location,
-           r.ride_type, r.pool_id, r.fare,${hasDistanceColumn() ? ' r.distance_km,' : ''}${hasBookedForColumns() ? ' r.booked_for_name, r.booked_for_contact,' : ''} r.status, r.scheduled_at, r.notes, r.created_at,
+           r.ride_type, r.pool_id, r.fare,${hasDistanceColumn() ? ' r.distance_km,' : ''}${hasBookedForColumns() ? ' r.booked_for_name,' : ''} r.status, r.scheduled_at, r.notes, r.created_at,
            CONCAT(s.first_name, ' ', s.last_name) AS passenger_name,
            rp.status AS pool_status
     FROM rides r

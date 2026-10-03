@@ -4777,10 +4777,13 @@ function readBookedForFields() {
 }
 
 // "Booked for" block on a driver's ride card, for a ride booked for
-// someone else. Empty for an ordinary booking.
+// someone else. Empty for an ordinary booking. On a pending request the
+// server leaves the number out (Data Privacy Act), so the card says it
+// appears after accepting; the driver who accepts gets the Call button.
 function bookedForDriverHtml(ride) {
   if (!ride || !ride.booked_for_name) return '';
   const contact = ride.booked_for_contact || '';
+  const isPending = ride.status === 'Pending';
   // Same look as the "Booked for" box in the passenger's confirm popup.
   return `
     <div class="booked-for-card">
@@ -4792,7 +4795,8 @@ function bookedForDriverHtml(ride) {
         </span>
       </span>
       ${contact ? `<a class="booked-for-call" href="tel:${escapeHtml(contact)}"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 3.5h-2a1 1 0 0 0-1 1C3.5 11 9 16.5 15.5 16.5a1 1 0 0 0 1-1v-2l-3-1.2-1.5 1.5a8 8 0 0 1-4.3-4.3L9.2 8 8 5Z"/></svg><span>Call <span class="booked-for-num">${escapeHtml(formatPhMobile(contact))}</span></span></a>` : ''}
-      <span class="booked-for-note">Booked by ${escapeHtml(ride.passenger_name || 'the passenger')} for someone else. Call to confirm the pickup before you go.</span>
+      ${isPending && !contact ? '<span class="booked-for-locked"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="9" width="11" height="8" rx="1.6"/><path d="M7 9V6.5a3 3 0 0 1 6 0V9"/></svg><span>Their number appears once you accept</span></span>' : ''}
+      <span class="booked-for-note">Booked by ${escapeHtml(ride.passenger_name || 'the passenger')} for someone else. ${isPending && !contact ? 'Accept the ride to see their number and call them before you go.' : 'Call to confirm the pickup before you go.'}</span>
     </div>
   `;
 }
