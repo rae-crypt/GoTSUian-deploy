@@ -552,6 +552,21 @@ function updateDriverLinkVisibility() {
   }
 }
 
+// Phone-menu row for the history page. On desktop the avatar menu already
+// has it; the drawer had no way there except tapping a dashboard card.
+// theme.css keeps the row out of the desktop nav bar.
+function updateHistoryLinkVisibility() {
+  const historyLink = document.querySelector('.nav-links a[data-page="history"]');
+  if (!historyLink) return;
+  const user = getStoredUser();
+  const isDriver = user.role === 'driver';
+  const show = isAuthenticated() && (isDriver || user.role === 'passenger');
+  historyLink.classList.toggle('hidden', !show);
+  if (!show) return;
+  historyLink.href = isDriver ? 'driver-bookings.html' : 'passenger-bookings.html';
+  historyLink.querySelector('span').textContent = isDriver ? 'Ride history' : 'Booking history';
+}
+
 // Same pattern, the passenger-side equivalent of the Driver link — takes a
 // logged-in passenger back to their own dashboard (passenger.html) from
 // anywhere else in the app, e.g. the Profile page.
@@ -5480,8 +5495,9 @@ function openChatModal(rideId, otherPartyName) {
   activeChatLoadMessages = loadMessages;
 }
 
-// Driver Ride history's Today/All chips. The dashboard's "Today's trips" and
-// "Earnings today" cards link here with ?show=today, "Completed" with
+// Ride/Booking history's Today/All chips (driver-bookings.html and
+// passenger-bookings.html). The driver dashboard's "Today's trips" and
+// "Today's earnings" cards link here with ?show=today, "Completed" with
 // ?show=all.
 let rideHistoryFilter = new URLSearchParams(location.search).get('show') === 'today' ? 'today' : 'all';
 
@@ -5502,16 +5518,17 @@ function setupRideHistoryFilter() {
   }));
 }
 
-function renderRideFilterSummary(summary, isToday) {
+// Driver: "3 trips today · ₱150 earned". Passenger: "3 rides today · ₱150 spent".
+function renderRideFilterSummary(summary, isToday, isDriver) {
   const el = document.querySelector('#ride-filter-summary');
   if (!el) return;
   if (!summary) {
     el.innerHTML = '';
     return;
   }
-  const tripWord = summary.trips === 1 ? 'trip' : 'trips';
-  el.innerHTML = `<span><strong>${summary.trips}</strong> ${tripWord}${isToday ? ' today' : ''}</span>`
-    + `<span><strong>₱${summary.earnings.toFixed(0)}</strong> earned</span>`;
+  const noun = isDriver ? 'trip' : 'ride';
+  el.innerHTML = `<span><strong>${summary.trips}</strong> ${noun}${summary.trips === 1 ? '' : 's'}${isToday ? ' today' : ''}</span>`
+    + `<span><strong>₱${summary.earnings.toFixed(0)}</strong> ${isDriver ? 'earned' : 'spent'}</span>`;
 }
 
 async function renderBookingsList() {
@@ -5535,16 +5552,16 @@ async function renderBookingsList() {
     return;
   }
 
-  // Only driver-bookings.html has the Today/All chips; everywhere else this
-  // stays the full list.
-  const showToday = isDriver && rideHistoryFilter === 'today' && document.querySelector('#ride-filter');
-  const rides = showToday ? allRides.filter(isDriverRideToday) : allRides;
-  if (isDriver) renderRideFilterSummary(summarizeDriverRides(rides), showToday);
+  // Only the two history pages have the Today/All chips.
+  const hasFilter = Boolean(document.querySelector('#ride-filter'));
+  const showToday = hasFilter && rideHistoryFilter === 'today';
+  const rides = showToday ? allRides.filter(isRideToday) : allRides;
+  if (hasFilter) renderRideFilterSummary(summarizeRides(rides), showToday, isDriver);
 
   emptyState.style.display = 'none';
   list.style.display = 'flex';
   if (!rides.length) {
-    list.innerHTML = '<div class="ride-filter-empty">No trips today yet.</div>';
+    list.innerHTML = `<div class="ride-filter-empty">No ${isDriver ? 'trips' : 'rides'} today yet.</div>`;
     return;
   }
   list.innerHTML = rides.map(ride => {
@@ -6019,7 +6036,7 @@ async function renderDriverDashboardStats() {
   const [driverRides, pendingGroups] = await Promise.all([fetchDriverRides(), fetchPendingRides()]);
   const completedRides = driverRides.filter(r => r.status === 'Completed');
   const pendingRideCount = pendingGroups.reduce((sum, g) => sum + (g.type === 'shared' ? g.riders.length : 1), 0);
-  const todaySummary = summarizeDriverRides(driverRides.filter(isDriverRideToday));
+  const todaySummary = summarizeRides(driverRides.filter(isRideToday));
   const allEarnings = sumRideFares(completedRides);
   const earningsAll = document.querySelector('#driver-earnings-all');
 
@@ -6032,10 +6049,10 @@ async function renderDriverDashboardStats() {
   if (completedCount) completedCount.textContent = String(completedRides.length);
 }
 
-// "Today" for a driver's stats and Ride history: a completed ride counts on
+// "Today" for the driver's stats and both history pages: a completed ride counts on
 // the day it was completed (its updated_at — nothing changes a ride once
 // it's Completed), anything else on the day it was booked.
-function isDriverRideToday(ride) {
+function isRideToday(ride) {
   const stamp = ride.status === 'Completed' ? (ride.updated_at || ride.created_at) : ride.created_at;
   return new Date(stamp).toDateString() === new Date().toDateString();
 }
@@ -6044,10 +6061,10 @@ function sumRideFares(rides) {
   return rides.reduce((sum, r) => sum + Number(r.fare || 0), 0);
 }
 
-// A trip is a ride the driver actually took on (active or finished);
-// earnings only come from finished ones, since the fare is paid in cash
-// at drop-off.
-function summarizeDriverRides(rides) {
+// A trip is a ride that actually went ahead (active or finished); the money
+// total only counts finished ones, since the fare is paid in cash at
+// drop-off. Same numbers for both sides: driver earned, passenger spent.
+function summarizeRides(rides) {
   const trips = rides.filter(r => ['Accepted', 'Picked Up', 'In Progress', 'Completed'].includes(r.status));
   return {
     trips: trips.length,
@@ -7665,6 +7682,7 @@ function refreshAuthState() {
   enforceDashboardAccess();
   hideAdminLinkForNonAdmin();
   updateDriverLinkVisibility();
+  updateHistoryLinkVisibility();
   updatePassengerLinkVisibility();
   updateMarketingLinksVisibility();
   updateHomeCtaVisibility();

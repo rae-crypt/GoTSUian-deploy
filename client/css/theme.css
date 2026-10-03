@@ -245,3 +245,25 @@ body footer.footer.site-shell .footer-bottom {
     padding-bottom: 56px;
   }
 }
+
+/* Ride/Booking history Today/All chips + trips/money line
+   (driver-bookings.html and passenger-bookings.html, 2026-10-03). */
+.ride-filter { display: flex; gap: 8px; margin: 0 0 12px; }
+.ride-filter-chip {
+  font-family: inherit; font-size: 13px; font-weight: 700; padding: 7px 16px; border-radius: 999px;
+  border: 1px solid #f1d9d9; background: var(--white); color: var(--gt-muted); cursor: pointer;
+}
+.ride-filter-chip.is-active { background: var(--primary); border-color: var(--primary); color: #fff8f6; }
+.ride-filter-summary { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 0 0 14px; font-size: 13px; color: var(--gt-muted); }
+.ride-filter-summary:empty { display: none; }
+.ride-filter-summary strong { color: var(--text); font-size: 15px; }
+.ride-filter-empty {
+  padding: 18px 16px; border: 1px dashed #f1d9d9; border-radius: 14px;
+  font-size: 13px; font-weight: 500; color: var(--gt-muted); text-align: center;
+}
+
+/* Phone-menu "Ride history" / "Booking history" row. Only shown inside the
+   open hamburger drawer (.nav-links.open exists only there); on desktop the
+   avatar menu already has the link, so it stays out of the nav bar. */
+.nav-links a.nav-row-history { display: none; }
+.nav-links.open a.nav-row-history:not(.hidden) { display: flex; }
