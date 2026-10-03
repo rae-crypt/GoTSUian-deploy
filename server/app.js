@@ -16,6 +16,7 @@ const { ensureFareSchema } = require('./fareSettings');
 const { ensureRideDeclinesTable } = require('./rideDeclines');
 const { ensureCertificateSeenColumn } = require('./certificateSeen');
 const { ensureBookedForColumns } = require('./bookedFor');
+const { ensureSuspensionColumns } = require('./suspension');
 const authRoutes = require('./routes/authRoutes');
 const rideRoutes = require('./routes/rideRoutes');
 const adminRoutes = require('./routes/adminRoutes');
@@ -126,4 +127,6 @@ server.listen(PORT, () => {
   ensureCertificateSeenColumn();
   // rides.booked_for_name / booked_for_contact (see bookedFor.js). Additions only.
   ensureBookedForColumns();
+  // user_account.suspended_at / suspension_reason (see suspension.js). Additions only.
+  ensureSuspensionColumns();
 });

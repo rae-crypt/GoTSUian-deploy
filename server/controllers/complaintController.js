@@ -1,5 +1,6 @@
 const db = require('../config/db');
-const { emitComplaintUpdated, emitViolationIssued } = require('../socket');
+const { emitComplaintUpdated, emitViolationIssued, emitAccountSuspended, emitAvailabilityChanged, emitNewPendingRide } = require('../socket');
+const { suspendAccount, SUSPENDED_MESSAGE } = require('../suspension');
 
 // Categories mirror rules.html's Code of Conduct — passengers report the
 // "For Drivers" violations, drivers report the "For Students / Passengers"
@@ -132,26 +133,44 @@ function insertViolationRow(res, { account_id, issued_by_admin_id, complaint_id,
     (err) => {
       if (err) return res.status(500).json({ error: err.message });
 
-      const responseBody = { message, escalated, finalSeverity: severity };
+      const responseBody = { message, escalated, finalSeverity: severity, suspended: false };
       emitViolationIssued(account_id);
 
-      if (!complaint_id) {
-        return res.status(201).json(responseBody);
-      }
+      // A Violation suspends the account straight away (see suspension.js).
+      const afterSuspension = (next) => {
+        if (severity !== 'Violation') return next();
+        suspendAccount(account_id, reason, (suspErr, suspended) => {
+          if (suspErr) console.warn('Could not suspend account', account_id, suspErr.message);
+          if (suspended) {
+            responseBody.suspended = true;
+            responseBody.message += ' — account suspended';
+            emitAccountSuspended(account_id, SUSPENDED_MESSAGE);
+            emitAvailabilityChanged();
+            emitNewPendingRide();
+          }
+          next();
+        });
+      };
 
-      db.query(
-        `UPDATE complaints SET status = 'Resolved', resolved_by_admin_id = ? WHERE complaint_id = ?`,
-        [issued_by_admin_id, complaint_id],
-        (err2) => {
-          if (err2) return res.status(500).json({ error: err2.message });
-          responseBody.message += ' and complaint resolved';
-          res.status(201).json(responseBody);
-
-          db.query(`SELECT filed_by_account_id FROM complaints WHERE complaint_id = ?`, [complaint_id], (err3, rows) => {
-            if (!err3 && rows[0]) emitComplaintUpdated(rows[0].filed_by_account_id);
-          });
+      afterSuspension(() => {
+        if (!complaint_id) {
+          return res.status(201).json(responseBody);
         }
-      );
+
+        db.query(
+          `UPDATE complaints SET status = 'Resolved', resolved_by_admin_id = ? WHERE complaint_id = ?`,
+          [issued_by_admin_id, complaint_id],
+          (err2) => {
+            if (err2) return res.status(500).json({ error: err2.message });
+            responseBody.message += ' and complaint resolved';
+            res.status(201).json(responseBody);
+
+            db.query(`SELECT filed_by_account_id FROM complaints WHERE complaint_id = ?`, [complaint_id], (err3, rows) => {
+              if (!err3 && rows[0]) emitComplaintUpdated(rows[0].filed_by_account_id);
+            });
+          }
+        );
+      });
     }
   );
 }

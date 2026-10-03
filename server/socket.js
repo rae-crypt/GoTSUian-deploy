@@ -169,6 +169,14 @@ function emitViolationIssued(accountId) {
   io.to(accountRoom(accountId)).emit('violation:issued');
 }
 
+// A Violation suspends the account (see suspension.js): every tab it has
+// open logs out right away with the reason, instead of waiting for its
+// next API call to be refused.
+function emitAccountSuspended(accountId, message) {
+  if (!io || !accountId) return;
+  io.to(accountRoom(accountId)).emit('account:suspended', { message });
+}
+
 // A certificate is granted by an admin acting on someone else's account, so
 // the recipient has no reason to reload just then — without this their
 // loyalty card kept showing the old count until they happened to refresh.
@@ -197,6 +205,7 @@ module.exports = {
   emitChatMessage,
   emitComplaintUpdated,
   emitViolationIssued,
+  emitAccountSuspended,
   emitLoyaltyGranted,
   emitNoDriversLeft
 };

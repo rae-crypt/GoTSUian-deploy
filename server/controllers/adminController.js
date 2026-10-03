@@ -5,6 +5,29 @@ const bcrypt = require('bcrypt');
 const db = require('../config/db');
 const { emitDriverAccountStatus, emitLoyaltyGranted, getPresentPassengerIds, getPresentDriverIds } = require('../socket');
 const { getFareSettings, saveFareSettings } = require('../fareSettings');
+const { getSuspensionMap, liftSuspension } = require('../suspension');
+
+// Adds suspended_at / suspension_reason (null when not suspended) to each
+// passenger/driver row, so the admin lists can flag suspended accounts.
+function withSuspensions(rows, cb) {
+  getSuspensionMap((err, map) => {
+    cb(rows.map((row) => {
+      const s = map.get(String(row.account_id));
+      return { ...row, suspended_at: s ? s.suspended_at : null, suspension_reason: s ? s.suspension_reason : null };
+    }));
+  });
+}
+
+// ADMIN lifts an account's suspension (see suspension.js). Its warnings and
+// violations stay on record.
+exports.liftAccountSuspension = (req, res) => {
+  const { accountId } = req.params;
+  liftSuspension(accountId, (err, lifted) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!lifted) return res.status(404).json({ error: 'This account is not suspended.' });
+    res.status(200).json({ message: 'Suspension lifted. They can log in again.' });
+  });
+};
 
 // Excludes visually-ambiguous characters (0/O, 1/l/I) since this gets read
 // aloud or copied over a phone call, not typed by the person who generated it.
@@ -57,12 +80,12 @@ exports.listDrivers = (req, res) => {
   db.query(sql, (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     const presentIds = new Set(getPresentDriverIds().map(String));
-    res.status(200).json({
-      drivers: rows.map((row) => ({
+    withSuspensions(rows, (withSusp) => res.status(200).json({
+      drivers: withSusp.map((row) => ({
         ...row,
         is_online: Boolean(row.is_online) && presentIds.has(String(row.account_id))
       }))
-    });
+    }));
   });
 };
 
@@ -120,12 +143,12 @@ exports.listPassengers = (req, res) => {
   db.query(sql, (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     const presentIds = new Set(getPresentPassengerIds().map(String));
-    res.status(200).json({
-      passengers: rows.map((row) => ({
+    withSuspensions(rows, (withSusp) => res.status(200).json({
+      passengers: withSusp.map((row) => ({
         ...row,
         is_online: Boolean(row.is_online) && presentIds.has(String(row.account_id))
       }))
-    });
+    }));
   });
 };
 

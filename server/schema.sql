@@ -335,3 +335,12 @@ ALTER TABLE loyalty_certificates ADD COLUMN seen_at TIMESTAMP NULL DEFAULT NULL 
 ALTER TABLE rides
   ADD COLUMN booked_for_name VARCHAR(100) NULL DEFAULT NULL,
   ADD COLUMN booked_for_contact VARCHAR(15) NULL DEFAULT NULL;
+
+-- Account suspension (2026-10-04). A Violation (issued directly, or a 2nd
+-- Warning auto-escalated) suspends the passenger/driver: they're logged out,
+-- can't log in, and every API call with their old token is refused until an
+-- admin lifts it. NULL = not suspended. server/suspension.js adds them on
+-- startup if missing.
+ALTER TABLE user_account
+  ADD COLUMN suspended_at DATETIME NULL DEFAULT NULL,
+  ADD COLUMN suspension_reason VARCHAR(255) NULL DEFAULT NULL;

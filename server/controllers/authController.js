@@ -4,6 +4,16 @@ const db = require('../config/db');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { emitAvailabilityChanged } = require('../socket');
+const { getSuspension, SUSPENDED_MESSAGE } = require('../suspension');
+
+// True when an admin-issued Violation has suspended this account (see
+// suspension.js). Checked after the password, so a wrong password never
+// reveals whether an account is suspended.
+function isSuspended(accountId) {
+  return new Promise((resolve) => {
+    getSuspension(accountId, (err, suspension) => resolve(!err && Boolean(suspension)));
+  });
+}
 
 // REGISTER STUDENT (Passenger)
 exports.registerStudent = async (req, res) => {
@@ -146,6 +156,9 @@ exports.loginStudent = async (req, res) => {
 
     if (!passwordMatch) {
       return res.status(401).json({ error: 'Invalid username or password' });
+    }
+    if (await isSuspended(user.account_id)) {
+      return res.status(403).json({ error: SUSPENDED_MESSAGE, code: 'ACCOUNT_SUSPENDED' });
     }
     const token = jwt.sign(
       { accountId: user.account_id, role: user.role },
@@ -486,6 +499,9 @@ exports.loginDriver = async (req, res) => {
     }
     if (user.account_status === 'Rejected') {
       return res.status(403).json({ error: 'Your driver application was not approved. Please contact the TODA admin.' });
+    }
+    if (await isSuspended(user.account_id)) {
+      return res.status(403).json({ error: SUSPENDED_MESSAGE, code: 'ACCOUNT_SUSPENDED' });
     }
 
         const token = jwt.sign(

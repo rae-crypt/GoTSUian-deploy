@@ -24,5 +24,6 @@ router.get('/drivers/:driverId/license', authMiddleware, requireAdmin, adminCont
 router.get('/loyalty/overview', authMiddleware, requireAdmin, adminController.listLoyaltyOverview);
 router.get('/loyalty/history', authMiddleware, requireAdmin, adminController.listLoyaltyHistory);
 router.post('/loyalty/grant', authMiddleware, requireAdmin, adminController.grantLoyaltyCertificate);
+router.put('/accounts/:accountId/lift-suspension', authMiddleware, requireAdmin, adminController.liftAccountSuspension);
 
 module.exports = router;

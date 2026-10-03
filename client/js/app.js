@@ -306,6 +306,43 @@ function setStoredUser(user, skipRefresh) {
   if (!skipRefresh) refreshAuthState();
 }
 
+// Suspended accounts (server/suspension.js). The server refuses every API
+// call from a suspended passenger/driver with code ACCOUNT_SUSPENDED, and
+// also pushes "account:suspended" over the socket the moment it happens;
+// either one logs this tab out and takes it to the login page, which then
+// explains why (see showSuspendedNoticeIfAny).
+const SUSPENDED_NOTICE_KEY = 'suspendedNotice';
+
+function forceSuspendedLogout(message) {
+  if (!isAuthenticated() || getStoredUser().role === 'admin') return;
+  try { sessionStorage.setItem(SUSPENDED_NOTICE_KEY, message || 'Your account has been suspended. Please contact the TODA admin.'); } catch (e) {}
+  clearStoredUser();
+  location.replace('auth.html?tab=login');
+}
+
+function showSuspendedNoticeIfAny() {
+  let message = null;
+  try {
+    message = sessionStorage.getItem(SUSPENDED_NOTICE_KEY);
+    sessionStorage.removeItem(SUSPENDED_NOTICE_KEY);
+  } catch (e) {}
+  if (message && document.querySelector('#auth-modal')) showAuthFeedback('error', 'Account suspended', message);
+}
+
+(function watchApiForSuspension() {
+  if (!window.fetch) return;
+  const realFetch = window.fetch.bind(window);
+  window.fetch = async function(...args) {
+    const res = await realFetch(...args);
+    if (res.status === 403) {
+      res.clone().json().then((data) => {
+        if (data && data.code === 'ACCOUNT_SUSPENDED') forceSuspendedLogout(data.error);
+      }).catch(() => {});
+    }
+    return res;
+  };
+})();
+
 function getAuthHeaders() {
   const token = getStoredUser().token;
   const headers = { 'Content-Type': 'application/json' };
@@ -2175,6 +2212,18 @@ function pillHtml(tone, label) {
   return `<span class="admin-pill tone-${tone}"><svg viewBox="0 0 8 8"><circle cx="4" cy="4" r="4" fill="currentColor"/></svg>${escapeHtml(label)}</span>`;
 }
 
+// Suspended accounts (a Violation suspends them, see server/suspension.js):
+// a red pill in the admin lists, and a button to lift it.
+function suspendedPill(account) {
+  return account.suspended_at ? pillHtml('danger', 'Suspended') : '';
+}
+
+function liftSuspensionButton(account, safeName) {
+  return account.suspended_at
+    ? `<button type="button" class="admin-btn tone-danger" data-action="lift-suspension" data-account-id="${account.account_id}" data-target-name="${safeName}">Lift suspension</button>`
+    : '';
+}
+
 // Same driver data renders two ways — a table row for web sizes, a stacked
 // card for mobile (see admin.css's @media(max-width:640px) which swaps
 // which one is visible) — kept as separate small templates rather than one
@@ -2197,8 +2246,8 @@ function renderDriverRow(driver) {
       <td><div class="admin-person"><span class="admin-avatar">${initials(driver.first_name, driver.last_name)}</span><div><strong>${driverName}</strong></div></div></td>
       <td>${escapeHtml(driver.contact_number || '—')}</td>
       <td>${licenseCell}</td>
-      <td><div class="admin-pill-stack">${pillHtml(statusPillTone(driver.account_status), driverStatusLabel(driver.account_status))}${driverPresencePill(driver)}</div></td>
-      <td><div class="admin-actions">${approvalActions}<button type="button" class="admin-btn" data-action="reset-driver-password" data-driver-id="${driver.driver_id}" data-target-name="${driverName}">Reset password</button><button type="button" class="admin-btn" data-action="issue-warning" data-account-id="${driver.account_id}" data-target-name="${driverName}">Issue Warning</button></div></td>
+      <td><div class="admin-pill-stack">${pillHtml(statusPillTone(driver.account_status), driverStatusLabel(driver.account_status))}${suspendedPill(driver)}${driverPresencePill(driver)}</div></td>
+      <td><div class="admin-actions">${approvalActions}${liftSuspensionButton(driver, driverName)}<button type="button" class="admin-btn" data-action="reset-driver-password" data-driver-id="${driver.driver_id}" data-target-name="${driverName}">Reset password</button><button type="button" class="admin-btn" data-action="issue-warning" data-account-id="${driver.account_id}" data-target-name="${driverName}">Issue Warning</button></div></td>
     </tr>
   `;
 }
@@ -2219,7 +2268,7 @@ function renderDriverCard(driver) {
     <div class="admin-mcard"${isPending ? ' data-pending-row' : ''} data-driver-id="${driver.driver_id}">
       <div class="admin-mcard-top">
         <div class="admin-person"><span class="admin-avatar">${initials(driver.first_name, driver.last_name)}</span><div><strong>${driverName}</strong></div></div>
-        ${pillHtml(statusPillTone(driver.account_status), driverStatusLabel(driver.account_status))}
+        ${suspendedPill(driver) || pillHtml(statusPillTone(driver.account_status), driverStatusLabel(driver.account_status))}
       </div>
       <div class="admin-mcard-rows">
         ${driver.account_status === 'Active' ? `<div class="admin-mcard-row"><span>Right now</span><span>${driverPresencePill(driver)}</span></div>` : ''}
@@ -2228,6 +2277,7 @@ function renderDriverCard(driver) {
       </div>
       <div class="admin-mcard-actions">
         ${actions}
+        ${liftSuspensionButton(driver, driverName)}
         <button class="admin-btn" data-action="reset-driver-password" data-driver-id="${driver.driver_id}" data-target-name="${driverName}">Reset password</button>
         <button class="admin-btn" data-action="issue-warning" data-account-id="${driver.account_id}" data-target-name="${driverName}">Warn</button>
       </div>
@@ -2467,8 +2517,8 @@ function renderPassengerRow(p) {
       <td><div class="admin-person"><span class="admin-avatar">${passengerInitials(p.name)}</span><div><strong>${passengerName}</strong></div></div></td>
       <td>${p.ride_count}</td>
       <td>${escapeHtml(lastBooking)}</td>
-      <td>${pillHtml(isOnline ? 'success' : 'neutral', isOnline ? 'Online' : 'Offline')}</td>
-      <td><button type="button" class="admin-btn" data-action="issue-warning" data-account-id="${p.account_id}" data-target-name="${passengerName}">Issue Warning</button></td>
+      <td><div class="admin-pill-stack">${suspendedPill(p)}${pillHtml(isOnline ? 'success' : 'neutral', isOnline ? 'Online' : 'Offline')}</div></td>
+      <td><div class="admin-actions">${liftSuspensionButton(p, passengerName)}<button type="button" class="admin-btn" data-action="issue-warning" data-account-id="${p.account_id}" data-target-name="${passengerName}">Issue Warning</button></div></td>
     </tr>
   `;
 }
@@ -2481,13 +2531,14 @@ function renderPassengerCard(p) {
     <div class="admin-mcard">
       <div class="admin-mcard-top">
         <div class="admin-person"><span class="admin-avatar">${passengerInitials(p.name)}</span><div><strong>${passengerName}</strong></div></div>
-        ${pillHtml(isOnline ? 'success' : 'neutral', isOnline ? 'Online' : 'Offline')}
+        ${suspendedPill(p) || pillHtml(isOnline ? 'success' : 'neutral', isOnline ? 'Online' : 'Offline')}
       </div>
       <div class="admin-mcard-rows">
         <div class="admin-mcard-row"><span>Rides booked</span><span>${p.ride_count}</span></div>
         <div class="admin-mcard-row"><span>Last booking</span><span>${escapeHtml(lastBooking)}</span></div>
       </div>
       <div class="admin-mcard-actions">
+        ${liftSuspensionButton(p, passengerName)}
         <button type="button" class="admin-btn" data-action="issue-warning" data-account-id="${p.account_id}" data-target-name="${passengerName}">Issue Warning</button>
       </div>
     </div>
@@ -2871,6 +2922,26 @@ async function issueViolationRemote(accountId, severity, reason, complaintId) {
 // Complaints panel, the driver-management table/cards, and the passenger-
 // management table/cards alike, all sharing the one #violation-modal.
 function setupIssueWarningButtons(container) {
+  container.querySelectorAll('[data-action="lift-suspension"]').forEach(button => {
+    button.addEventListener('click', async function() {
+      const name = this.getAttribute('data-target-name') || 'This account';
+      this.disabled = true;
+      try {
+        const res = await fetch(`${ADMIN_API_URL}/accounts/${this.getAttribute('data-account-id')}/lift-suspension`, {
+          method: 'PUT',
+          headers: getAuthHeaders()
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Unable to lift the suspension');
+        showRideFeedback('success', 'Suspension lifted', `${name} can log in again. Their warnings and violations stay on record, so another Violation suspends them again.`);
+        renderAdminDriverManagement();
+        renderAdminPassengerManagement();
+      } catch (error) {
+        showRideFeedback('error', 'Could not lift suspension', error.message || 'Please try again.');
+        this.disabled = false;
+      }
+    });
+  });
   container.querySelectorAll('[data-action="issue-warning"]').forEach(button => {
     button.addEventListener('click', function() {
       openViolationModal({
@@ -2936,7 +3007,10 @@ function setupViolationModal() {
     this.disabled = true;
     try {
       const result = await issueViolationRemote(violationModalContext.accountId, violationSelectedSeverity, reason, violationModalContext.complaintId);
-      if (result.escalated) {
+      if (result.suspended) {
+        showRideFeedback('success', result.escalated ? 'Escalated to Violation — account suspended' : 'Violation issued — account suspended',
+          `${result.escalated ? 'This account already had a prior warning, so this was automatically issued as a Violation. ' : ''}The account is now suspended: they've been logged out and can't log in until you lift it from the Passengers or Drivers list.`);
+      } else if (result.escalated) {
         showRideFeedback('success', 'Escalated to Violation', 'This account already had a prior warning, so this was automatically issued as a Violation instead.');
       } else {
         showRideFeedback('success', `${result.finalSeverity} issued`, 'The account has been notified on their profile.');
@@ -7553,6 +7627,10 @@ function setupAuthForm() {
             if (reuploadBtn) reuploadBtn.classList.remove('hidden');
             return;
           }
+          if (data.code === 'ACCOUNT_SUSPENDED') {
+            showAuthFeedback('error', 'Account suspended', data.error);
+            return;
+          }
           if (errorEl) errorEl.textContent = data.error || 'Invalid credentials.';
           return;
         }
@@ -7665,6 +7743,10 @@ function manageRealtimeConnection() {
     renderAccountStanding();
   });
 
+  realtimeSocket.on('account:suspended', function(payload) {
+    forceSuspendedLogout(payload && payload.message);
+  });
+
   // Every driver who could take the passenger's ride has declined it. The
   // ride is still open; they choose whether to keep waiting or cancel.
   realtimeSocket.on('ride:no-drivers', function(payload) {
@@ -7751,6 +7833,7 @@ document.addEventListener('DOMContentLoaded', function() {
   refreshAuthState();
   setupLoginNavLink();
   setupViolationModal();
+  showSuspendedNoticeIfAny();
   setupRideHistoryFilter();
   setupLicenseModal();
   setupAdminFareSettings();
