@@ -5762,17 +5762,23 @@ function setupRideHistoryFilter() {
   });
 }
 
-// Driver: "3 trips today · ₱150 earned". Passenger: "3 rides today · ₱150 spent".
-function renderRideFilterSummary(summary, isToday, isDriver) {
+// The count is every ride in the list below it (so the two always match,
+// cancelled ones included), then how many were completed and the money from
+// those. Driver: "2 rides today · 1 completed · ₱50 earned". Passenger:
+// "2 bookings today · 1 completed · ₱50 spent". Same shape as the admin's
+// All bookings line.
+function renderRideFilterSummary(rides, isToday, isDriver) {
   const el = document.querySelector('#ride-filter-summary');
   if (!el) return;
-  if (!summary) {
+  if (!rides) {
     el.innerHTML = '';
     return;
   }
-  const noun = isDriver ? 'trip' : 'ride';
-  el.innerHTML = `<span><strong>${summary.trips}</strong> ${noun}${summary.trips === 1 ? '' : 's'}${isToday ? ' today' : ''}</span>`
-    + `<span><strong>₱${summary.earnings.toFixed(0)}</strong> ${isDriver ? 'earned' : 'spent'}</span>`;
+  const completed = rides.filter(r => r.status === 'Completed');
+  const noun = isDriver ? 'ride' : 'booking';
+  el.innerHTML = `<span><strong>${rides.length}</strong> ${noun}${rides.length === 1 ? '' : 's'}${isToday ? ' today' : ''}</span>`
+    + `<span><strong>${completed.length}</strong> completed</span>`
+    + `<span><strong>₱${sumRideFares(completed).toFixed(0)}</strong> ${isDriver ? 'earned' : 'spent'}</span>`;
 }
 
 async function renderBookingsList() {
@@ -5803,7 +5809,7 @@ async function renderBookingsList() {
   const hasFilter = Boolean(document.querySelector('#ride-filter'));
   const showToday = hasFilter && rideHistoryFilter === 'today';
   const rides = showToday ? allRides.filter(isRideToday) : allRides;
-  if (hasFilter) renderRideFilterSummary(summarizeRides(rides), showToday, isDriver);
+  if (hasFilter) renderRideFilterSummary(rides, showToday, isDriver);
 
   emptyState.style.display = 'none';
   list.style.display = 'flex';
