@@ -5400,7 +5400,7 @@ async function renderPassengerRideStatus() {
       <span class="ride-driver-avatar"><img src="../images/tricycle.png" alt="Tricycle"></span>
       <div>
         <strong>${escapeHtml(driverName)}</strong>
-        <small>${activeRide.driver_plate ? escapeHtml(activeRide.driver_plate) + ' · ' : ''}${escapeHtml(activeRide.ride_type)}</small>
+        <small>${[activeRide.driver_plate, activeRide.ride_type === 'Shared' ? 'Shared' : ''].filter(Boolean).map(escapeHtml).join(' · ')}</small>
       </div>
       <span class="fare${fareIsCalculating ? ' is-calculating' : ''}">${escapeHtml(fareText)}</span>
     </div>
@@ -5873,7 +5873,7 @@ async function renderBookingsList() {
           <div class="booking-info">
             <p class="booking-route">${escapeHtml(shortLocationLabel(ride.pickup_location))} <span class="ride-route-arrow">→</span> ${escapeHtml(shortLocationLabel(ride.dropoff_location))}</p>
             <div class="booking-meta">
-              <span>${escapeHtml(ride.ride_type)}</span>
+              ${ride.ride_type === 'Shared' ? '<span>Shared</span>' : ''}
               <span>${escapeHtml(otherPartyLabel)}: ${escapeHtml(otherPartyName)}</span>
               <span>Requested ${escapeHtml(requestedAt)}</span>
             </div>
@@ -6007,7 +6007,6 @@ function scheduledBadgeHtml(scheduledAt) {
 function renderPendingRideCard(group) {
   if (group.type === 'solo') {
     const ride = group.ride;
-    const statusConfig = getRideStatusConfig(ride.status);
     return `
       <article class="driver-card">
         <div class="driver-card-header">
@@ -6015,7 +6014,6 @@ function renderPendingRideCard(group) {
             <h3>${escapeHtml(ride.passenger_name || 'Passenger')}</h3>
             <p>${escapeHtml(ride.pickup_location)} → ${escapeHtml(ride.dropoff_location)}</p>
           </div>
-          <span class="ride-badge tone-${statusConfig.tone}">Solo</span>
         </div>
         <div class="driver-card-meta">
           <span>Estimated fare: ${escapeHtml(formatFareWithDistance(ride.fare || 0, ride.distance_km))}</span>
@@ -6128,7 +6126,7 @@ function renderActiveRideCard(group) {
         <span class="ride-badge tone-${statusConfig.tone}">${escapeHtml(statusConfig.label)}</span>
       </div>
       <div class="driver-card-meta">
-        <span>${group.riders.length > 1 ? names : escapeHtml(anchor.ride_type)}</span>
+        ${group.riders.length > 1 ? `<span>${names}</span>` : (anchor.ride_type === 'Shared' ? '<span>Shared</span>' : '')}
         <span>${anchor.ride_type === 'Shared'
           ? `Fare: ₱${Number(anchor.fare || 0).toFixed(0)}/student`
           : `Estimated fare: ${escapeHtml(formatFareWithDistance(anchor.fare || 0, anchor.distance_km))}`}</span>
