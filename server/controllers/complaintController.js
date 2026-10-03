@@ -142,14 +142,17 @@ function insertViolationRow(res, { account_id, issued_by_admin_id, complaint_id,
         if (severity !== 'Violation') return next();
         suspendAccount(account_id, reason, (suspErr, suspended) => {
           if (suspErr) console.warn('Could not suspend account', account_id, suspErr.message);
-          if (suspended) {
-            responseBody.suspended = true;
-            responseBody.message += ' — account suspended';
-            emitAccountSuspended(account_id, SUSPENDED_MESSAGE);
-            emitAvailabilityChanged();
-            emitNewPendingRide();
-          }
-          next();
+          if (!suspended) return next();
+          responseBody.suspended = true;
+          responseBody.message += ' — account suspended';
+          emitAccountSuspended(account_id, SUSPENDED_MESSAGE);
+          emitAvailabilityChanged();
+          emitNewPendingRide();
+          // Tells the admin page which list to open for "Lift suspension".
+          db.query(`SELECT role FROM user_account WHERE account_id = ?`, [account_id], (roleErr, rows) => {
+            responseBody.role = !roleErr && rows[0] ? (rows[0].role === 'driver' ? 'driver' : 'passenger') : null;
+            next();
+          });
         });
       };
 

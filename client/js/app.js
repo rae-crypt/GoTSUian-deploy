@@ -2382,6 +2382,20 @@ function setupAdminPanelCollapse() {
   });
 }
 
+// Opens a collapsed admin panel and scrolls to it (the suspension popup's
+// "Open Passenger management" button).
+function openAdminPanel(selector) {
+  const panel = document.querySelector(selector);
+  if (!panel) return;
+  panel.classList.remove('is-collapsed');
+  const toggle = panel.querySelector('.admin-panel-toggle');
+  if (toggle) {
+    toggle.setAttribute('aria-expanded', 'true');
+    toggle.setAttribute('aria-label', 'Collapse this section');
+  }
+  panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 // Same collapsible-section treatment as the admin panels, applied to
 // passenger-profile.html / driver-profile.html's "Profile details" /
 // "Change password" / "Loyalty Rewards" cards. Safe no-op elsewhere.
@@ -3017,8 +3031,18 @@ function setupViolationModal() {
     try {
       const result = await issueViolationRemote(violationModalContext.accountId, violationSelectedSeverity, reason, violationModalContext.complaintId);
       if (result.suspended) {
-        showRideFeedback('success', result.escalated ? 'Escalated to Violation — account suspended' : 'Violation issued — account suspended',
-          `${result.escalated ? 'This account already had a prior warning, so this was automatically issued as a Violation. ' : ''}The account is now suspended: they've been logged out and can't log in until you lift it from the Passengers or Drivers list.`);
+        // Stays open until the admin taps a button (the usual feedback
+        // popup closes itself after 2.6 s, too fast for this one).
+        const isDriverAccount = result.role === 'driver';
+        const listName = isDriverAccount ? 'Driver management' : 'Passenger management';
+        showActionPopup({
+          tone: 'error',
+          title: result.escalated ? 'Escalated to Violation — account suspended' : 'Violation issued — account suspended',
+          message: `${result.escalated ? 'This account already had a prior warning, so this was automatically issued as a Violation. ' : ''}They've been logged out and can't log in. To let them back in, open ${listName} and tap "Lift suspension" on their row.`,
+          primaryLabel: `Open ${listName}`,
+          onPrimary: () => openAdminPanel(isDriverAccount ? '#driver-management-panel' : '#passenger-management-panel'),
+          secondaryLabel: 'Close'
+        });
       } else if (result.escalated) {
         showRideFeedback('success', 'Escalated to Violation', 'This account already had a prior warning, so this was automatically issued as a Violation instead.');
       } else {
