@@ -438,11 +438,9 @@ function renderAuthStatus() {
     dashboardLink.href = dashboardHref;
     dashboardLink.textContent = user.role === 'driver' ? 'My Rides' : 'Booking';
     dashboardLink.style.display = dashboardHref !== '#' ? '' : 'none';
-    // A driver's ride history now lives on My Rides itself, under the
-    // pending requests (driver-bookings.html stays for ratings/reviews).
-    const historyHref = user.role === 'driver' ? 'driver.html#ride-history-section'
-      : user.role === 'passenger' ? 'passenger-bookings.html'
-      : '#';
+    // Passengers only: a driver's ride history lives on My Rides itself,
+    // under the pending requests, so "My Rides" already covers it.
+    const historyHref = user.role === 'passenger' ? 'passenger-bookings.html' : '#';
     const historyLink = menu.querySelector('.nav-user-dropdown-history');
     historyLink.href = historyHref;
     historyLink.textContent = user.role === 'driver' ? 'Ride history' : 'Booking history';
@@ -563,19 +561,19 @@ function updateDriverLinkVisibility() {
   }
 }
 
-// Phone-menu row for the history page. On desktop the avatar menu already
-// has it; the drawer had no way there except tapping a dashboard card.
+// Phone-menu "Booking history" row (passengers). On desktop the avatar menu
+// already has it; the drawer had no way there except a dashboard card.
 // theme.css keeps the row out of the desktop nav bar.
 function updateHistoryLinkVisibility() {
   const historyLink = document.querySelector('.nav-links a[data-page="history"]');
   if (!historyLink) return;
   const user = getStoredUser();
-  const isDriver = user.role === 'driver';
-  const show = isAuthenticated() && (isDriver || user.role === 'passenger');
+  // Passengers only — a driver's ride history is part of My Rides.
+  const show = isAuthenticated() && user.role === 'passenger';
   historyLink.classList.toggle('hidden', !show);
   if (!show) return;
-  historyLink.href = isDriver ? 'driver.html#ride-history-section' : 'passenger-bookings.html';
-  historyLink.querySelector('span').textContent = isDriver ? 'Ride history' : 'Booking history';
+  historyLink.href = 'passenger-bookings.html';
+  historyLink.querySelector('span').textContent = 'Booking history';
 }
 
 // Same pattern, the passenger-side equivalent of the Driver link — takes a
