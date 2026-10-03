@@ -10,8 +10,8 @@
   <link href="https://api.fontshare.com/v2/css?f[]=clash-display@500,600,700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <link rel="stylesheet" href="../css/driver.css?v=20261003h">
-  <link rel="stylesheet" href="../css/theme.css?v=20261003c">
+  <link rel="stylesheet" href="../css/driver.css?v=20261003i">
+  <link rel="stylesheet" href="../css/theme.css?v=20261003d">
 </head>
 <body data-page="driver">
   <header>
@@ -87,7 +87,7 @@
     </div>
 
     <section class="section dashboard-grid">
-      <a href="driver-bookings.html?show=today" class="dashboard-card dashboard-card-link">
+      <a href="#ride-history-section" data-history-show="today" class="dashboard-card dashboard-card-link">
         <h3>Today's trips</h3>
         <p id="driver-count-today">0</p>
       </a>
@@ -95,12 +95,12 @@
         <h3><span class="copy-full">Pending requests</span><span class="copy-short">Pending</span></h3>
         <p id="driver-pending-count">0</p>
       </a>
-      <a href="driver-bookings.html?show=today" class="dashboard-card dashboard-card-link">
+      <a href="#ride-history-section" data-history-show="today" class="dashboard-card dashboard-card-link">
         <h3>Today's earnings</h3>
         <p id="driver-earnings">₱0</p>
         <span id="driver-earnings-all" class="stat-card-sub">₱0 all time</span>
       </a>
-      <a href="driver-bookings.html?show=all" class="dashboard-card dashboard-card-link">
+      <a href="#ride-history-section" data-history-show="all" class="dashboard-card dashboard-card-link">
         <h3><span class="copy-full">Completed rides</span><span class="copy-short">Completed</span></h3>
         <p id="driver-completed-count">0</p>
       </a>
@@ -112,6 +112,30 @@
         <p class="lead copy-full">Review new ride requests and accept the ones you can serve.</p>
       </div>
       <div id="driver-ride-requests" class="driver-grid"></div>
+    </section>
+
+    <section class="section" id="ride-history-section">
+      <article class="dashboard-card">
+        <div class="dashboard-card-head">
+          <h3>Ride history</h3>
+          <button type="button" class="dashboard-card-toggle" aria-expanded="true" aria-label="Collapse this section">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7.5L10 12.5L15 7.5"/></svg>
+          </button>
+        </div>
+        <div class="dashboard-card-body">
+          <div id="ride-filter" class="ride-filter" role="group" aria-label="Show rides from" data-default="today">
+            <button type="button" class="ride-filter-chip" data-show="today" aria-pressed="true">Today</button>
+            <button type="button" class="ride-filter-chip" data-show="all" aria-pressed="false">All</button>
+          </div>
+          <div id="ride-filter-summary" class="ride-filter-summary"></div>
+          <p id="bookings-loading">Loading your rides...</p>
+          <div id="bookings-empty" class="bookings-empty" style="display:none;">
+            <p>You haven't accepted any rides yet.</p>
+            <a href="#pending-requests-section" class="btn-secondary">View pending requests</a>
+          </div>
+          <div id="bookings-list" class="bookings-list" style="display:none;"></div>
+        </div>
+      </article>
     </section>
 
     <section class="section request-status-stack">
@@ -249,6 +273,6 @@
   </footer>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="../js/app.js?v=20261003n"></script>
+  <script src="../js/app.js?v=20261003o"></script>
 </body>
 </html>

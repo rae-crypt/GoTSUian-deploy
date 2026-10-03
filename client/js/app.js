@@ -127,7 +127,7 @@ function setupFooterReportLink() {
   if (!links.length || !isAuthenticated()) return;
   const role = (getStoredUser() || {}).role;
   const target = role === 'passenger' ? 'passenger-bookings.html'
-    : role === 'driver' ? 'driver-bookings.html'
+    : role === 'driver' ? 'driver.html#ride-history-section'
     : role === 'admin' ? 'admin.html'
     : null;
   if (target) links.forEach((a) => a.setAttribute('href', target));
@@ -381,13 +381,12 @@ function renderAuthStatus() {
           <span class="nav-user-avatar"></span>
         </button>
         <div class="nav-user-dropdown">
-          <div class="nav-user-dropdown-header">
+          <a class="nav-user-dropdown-header" href="#">
             <strong class="nav-user-dropdown-name"></strong>
             <small class="nav-user-dropdown-role"></small>
-          </div>
+          </a>
           <a class="nav-user-dropdown-dashboard" href="#">My Rides</a>
           <a class="nav-user-dropdown-history" href="#">Booking history</a>
-          <a class="nav-user-dropdown-profile" href="#">My profile</a>
           <button type="button" data-action="logout">Logout</button>
         </div>
       `;
@@ -416,9 +415,17 @@ function renderAuthStatus() {
     menu.querySelector('.nav-user-dropdown-name').textContent = user.name;
     menu.querySelector('.nav-user-dropdown-role').textContent = user.role || '';
 
-    // The name header is a plain label: it used to open the profile too,
-    // a duplicate of "My profile" right under it.
-    //
+    // The name header is the profile link (no separate "My profile" item).
+    // Admin has no profile page, so theirs stays a plain label.
+    const headerLink = menu.querySelector('.nav-user-dropdown-header');
+    if (profileHref !== '#') {
+      headerLink.href = profileHref;
+      headerLink.classList.add('is-link');
+    } else {
+      headerLink.removeAttribute('href');
+      headerLink.classList.remove('is-link');
+    }
+
     // The dashboard link is back (2026-10-03). It was dropped on 2026-10-02
     // on the assumption the nav bar had it, but every page's CSS hides the
     // own-dashboard nav link at desktop widths, so desktop drivers and
@@ -431,12 +438,11 @@ function renderAuthStatus() {
     dashboardLink.href = dashboardHref;
     dashboardLink.textContent = user.role === 'driver' ? 'My Rides' : 'Booking';
     dashboardLink.style.display = dashboardHref !== '#' ? '' : 'none';
-    const historyHref = user.role === 'driver' ? 'driver-bookings.html'
+    // A driver's ride history now lives on My Rides itself, under the
+    // pending requests (driver-bookings.html stays for ratings/reviews).
+    const historyHref = user.role === 'driver' ? 'driver.html#ride-history-section'
       : user.role === 'passenger' ? 'passenger-bookings.html'
       : '#';
-    const profileLink = menu.querySelector('.nav-user-dropdown-profile');
-    profileLink.href = profileHref;
-    profileLink.style.display = profileHref !== '#' ? '' : 'none';
     const historyLink = menu.querySelector('.nav-user-dropdown-history');
     historyLink.href = historyHref;
     historyLink.textContent = user.role === 'driver' ? 'Ride history' : 'Booking history';
@@ -568,7 +574,7 @@ function updateHistoryLinkVisibility() {
   const show = isAuthenticated() && (isDriver || user.role === 'passenger');
   historyLink.classList.toggle('hidden', !show);
   if (!show) return;
-  historyLink.href = isDriver ? 'driver-bookings.html' : 'passenger-bookings.html';
+  historyLink.href = isDriver ? 'driver.html#ride-history-section' : 'passenger-bookings.html';
   historyLink.querySelector('span').textContent = isDriver ? 'Ride history' : 'Booking history';
 }
 
@@ -5504,7 +5510,12 @@ function openChatModal(rideId, otherPartyName) {
 // passenger-bookings.html). The driver dashboard's "Today's trips" and
 // "Today's earnings" cards link here with ?show=today, "Completed" with
 // ?show=all.
-let rideHistoryFilter = new URLSearchParams(location.search).get('show') === 'today' ? 'today' : 'all';
+// My Rides (driver.html) has the same history card under its pending
+// requests, starting on Today (data-default) so the dashboard stays short;
+// its stat cards scroll down to it and switch the filter (data-history-show).
+const initialShowParam = new URLSearchParams(location.search).get('show');
+const rideFilterDefault = (document.querySelector('#ride-filter') || { dataset: {} }).dataset.default;
+let rideHistoryFilter = (initialShowParam || rideFilterDefault) === 'today' ? 'today' : 'all';
 
 function setupRideHistoryFilter() {
   const chips = document.querySelectorAll('#ride-filter .ride-filter-chip');
@@ -5514,13 +5525,17 @@ function setupRideHistoryFilter() {
     chip.classList.toggle('is-active', on);
     chip.setAttribute('aria-pressed', String(on));
   });
-  sync();
-  chips.forEach(chip => chip.addEventListener('click', () => {
-    if (chip.getAttribute('data-show') === rideHistoryFilter) return;
-    rideHistoryFilter = chip.getAttribute('data-show');
+  const setFilter = (value) => {
+    if (value === rideHistoryFilter) return;
+    rideHistoryFilter = value;
     sync();
     renderBookingsList();
-  }));
+  };
+  sync();
+  chips.forEach(chip => chip.addEventListener('click', () => setFilter(chip.getAttribute('data-show'))));
+  document.querySelectorAll('a[data-history-show]').forEach(link => {
+    link.addEventListener('click', () => setFilter(link.getAttribute('data-history-show')));
+  });
 }
 
 // Driver: "3 trips today · ₱150 earned". Passenger: "3 rides today · ₱150 spent".

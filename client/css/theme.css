@@ -285,6 +285,16 @@ body footer.footer.site-shell .footer-bottom {
   background: var(--primary); color: #fff8f6; transform: none; box-shadow: none; filter: none;
 }
 
-/* Avatar menu name header is a plain <div> now (no longer a duplicate
-   "My profile" link), so it doesn't pick up the dropdown links' padding. */
-.nav-user-dropdown div.nav-user-dropdown-header { padding: 9px 10px 12px; cursor: default; }
+/* Avatar menu: the name header is the profile link (the separate
+   "My profile" item is gone), so it gets a chevron to look clickable. */
+.nav-user-dropdown a.nav-user-dropdown-header { position: relative; padding: 9px 30px 12px 10px; }
+.nav-user-dropdown a.nav-user-dropdown-header.is-link::after {
+  content: '\203A'; position: absolute; right: 10px; top: 50%; transform: translateY(-60%);
+  font-size: 1.2rem; color: var(--muted);
+}
+.nav-user-dropdown a.nav-user-dropdown-header:not(.is-link) { cursor: default; }
+.nav-user-dropdown a.nav-user-dropdown-header:not(.is-link):hover { background: none; }
+
+/* My Rides' Ride history card: land below the sticky header when a stat
+   card or menu link scrolls to it. */
+#ride-history-section { scroll-margin-top: 96px; }
