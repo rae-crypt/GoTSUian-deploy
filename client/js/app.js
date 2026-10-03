@@ -386,6 +386,7 @@ function renderAuthStatus() {
             <small class="nav-user-dropdown-role"></small>
           </a>
           <a class="nav-user-dropdown-dashboard" href="#">My Rides</a>
+          <a class="nav-user-dropdown-profile" href="#">My profile</a>
           <a class="nav-user-dropdown-history" href="#">Booking history</a>
           <button type="button" data-action="logout">Logout</button>
         </div>
@@ -415,16 +416,20 @@ function renderAuthStatus() {
     menu.querySelector('.nav-user-dropdown-name').textContent = user.name;
     menu.querySelector('.nav-user-dropdown-role').textContent = user.role || '';
 
-    // The name header is the profile link (no separate "My profile" item).
-    // Admin has no profile page, so theirs stays a plain label.
+    // The name header opens the profile. Drivers get a chevron on it and
+    // no separate "My profile" item; passengers keep their "My profile"
+    // item as before. Admin has no profile page, so theirs is a plain label.
+    const isDriver = user.role === 'driver';
     const headerLink = menu.querySelector('.nav-user-dropdown-header');
     if (profileHref !== '#') {
       headerLink.href = profileHref;
-      headerLink.classList.add('is-link');
     } else {
       headerLink.removeAttribute('href');
-      headerLink.classList.remove('is-link');
     }
+    headerLink.classList.toggle('has-chevron', isDriver);
+    const profileLink = menu.querySelector('.nav-user-dropdown-profile');
+    profileLink.href = profileHref;
+    profileLink.style.display = profileHref !== '#' && !isDriver ? '' : 'none';
 
     // The dashboard link is back (2026-10-03). It was dropped on 2026-10-02
     // on the assumption the nav bar had it, but every page's CSS hides the

@@ -268,32 +268,30 @@ body footer.footer.site-shell .footer-bottom {
 .nav-links a.nav-row-history { display: none; }
 .nav-links.open a.nav-row-history:not(.hidden) { display: flex; }
 
-/* History empty state ("You haven't accepted any rides yet." / "You haven't
-   booked a ride yet."): driver.css's .btn-secondary has no padding or
-   radius, so its button rendered as a bare boxed link. One pill button for
-   both history pages. */
-.bookings-empty { padding: 28px 16px 12px; gap: 12px; }
-.bookings-empty a.btn-secondary {
+/* Driver history empty state ("You haven't accepted any rides yet."):
+   driver.css's .btn-secondary has no padding or radius, so its button
+   rendered as a bare boxed link. Driver pages only. */
+body[data-page="driver"] .bookings-empty { padding: 28px 16px 12px; gap: 12px; }
+body[data-page="driver"] .bookings-empty a.btn-secondary {
   display: inline-flex; align-items: center; justify-content: center;
   padding: 10px 22px; min-width: 0; border-radius: 999px;
   border: 1px solid var(--primary); background: var(--white); color: var(--primary);
   font-family: inherit; font-size: 13.5px; font-weight: 700; text-decoration: none;
   transition: background 0.2s ease, color 0.2s ease;
 }
-.bookings-empty a.btn-secondary:hover,
-.bookings-empty a.btn-secondary:focus-visible {
+body[data-page="driver"] .bookings-empty a.btn-secondary:hover,
+body[data-page="driver"] .bookings-empty a.btn-secondary:focus-visible {
   background: var(--primary); color: #fff8f6; transform: none; box-shadow: none; filter: none;
 }
 
-/* Avatar menu: the name header is the profile link (the separate
-   "My profile" item is gone), so it gets a chevron to look clickable. */
-.nav-user-dropdown a.nav-user-dropdown-header { position: relative; padding: 9px 30px 12px 10px; }
-.nav-user-dropdown a.nav-user-dropdown-header.is-link::after {
+/* Driver avatar menu: the name header is the profile link (no separate
+   "My profile" item for drivers), so it gets a chevron to look clickable.
+   Passenger/admin headers are unchanged. */
+.nav-user-dropdown a.nav-user-dropdown-header.has-chevron { position: relative; padding: 9px 30px 12px 10px; }
+.nav-user-dropdown a.nav-user-dropdown-header.has-chevron::after {
   content: '\203A'; position: absolute; right: 10px; top: 50%; transform: translateY(-60%);
   font-size: 1.2rem; color: var(--muted);
 }
-.nav-user-dropdown a.nav-user-dropdown-header:not(.is-link) { cursor: default; }
-.nav-user-dropdown a.nav-user-dropdown-header:not(.is-link):hover { background: none; }
 
 /* My Rides' Ride history card: land below the sticky header when a stat
    card or menu link scrolls to it. */
