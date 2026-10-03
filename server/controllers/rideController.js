@@ -1495,9 +1495,21 @@ exports.updateRideStatus = (req, res) => {
       return res.status(409).json({ error: 'This ride can no longer be cancelled because the passenger has already been picked up.' });
     }
 
-    // Only the ride's own driver can end it as Failed.
-    if (status === 'Failed' && String(ride.driver_account_id) !== String(req.user.accountId)) {
-      return res.status(403).json({ error: 'Only the driver of this ride can end it as Failed.' });
+    // Who may change this ride (checked here on the server, not only by which
+    // buttons a screen shows): a trip's progress (Picked Up, In Progress,
+    // Completed, Failed) only by the ride's own driver; Cancelled by the
+    // ride's passenger or its driver; Declined only by a driver. Anyone else
+    // -- another passenger, another driver -- is refused.
+    const me = String(req.user.accountId || '');
+    const isRideDriver = me !== '' && String(ride.driver_account_id) === me;
+    const isRidePassenger = me !== '' && String(ride.passenger_account_id) === me;
+    const allowed = status === 'Cancelled' ? (isRidePassenger || isRideDriver)
+      : status === 'Declined' ? req.user.role === 'driver'
+      : isRideDriver;
+    if (!allowed) {
+      return res.status(403).json({
+        error: status === 'Failed' ? 'Only the driver of this ride can end it as Failed.' : 'You can’t change this ride.'
+      });
     }
 
     // 'Declined' behaves like 'Cancelled' for cascade purposes — it only
