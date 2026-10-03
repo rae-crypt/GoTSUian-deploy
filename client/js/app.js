@@ -561,21 +561,18 @@ function updateDriverLinkVisibility() {
   }
 }
 
-// Phone-menu row for the history page. On desktop the avatar menu covers
-// it; the drawer had no way there except tapping a dashboard card.
-// theme.css keeps the row out of the desktop nav bar. (The desktop avatar
-// menu drops "Ride history" for drivers, since it's part of My Rides — the
-// phone menu keeps it.)
+// Driver phone-menu "Ride history" row (jumps to the history card on My
+// Rides). theme.css keeps it out of the desktop nav bar. Drivers only —
+// the passenger phone menu stays as it was.
 function updateHistoryLinkVisibility() {
   const historyLink = document.querySelector('.nav-links a[data-page="history"]');
   if (!historyLink) return;
   const user = getStoredUser();
-  const isDriver = user.role === 'driver';
-  const show = isAuthenticated() && (isDriver || user.role === 'passenger');
+  const show = isAuthenticated() && user.role === 'driver';
   historyLink.classList.toggle('hidden', !show);
   if (!show) return;
-  historyLink.href = isDriver ? 'driver.html#ride-history-section' : 'passenger-bookings.html';
-  historyLink.querySelector('span').textContent = isDriver ? 'Ride history' : 'Booking history';
+  historyLink.href = 'driver.html#ride-history-section';
+  historyLink.querySelector('span').textContent = 'Ride history';
 }
 
 // Same pattern, the passenger-side equivalent of the Driver link — takes a
