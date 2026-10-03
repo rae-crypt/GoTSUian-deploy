@@ -5,7 +5,9 @@ const db = require('./config/db');
 // disappear. The driver picks a reason and writes a short explanation; both
 // are kept on the ride (rides.failed_reason / rides.failed_note, NULL for any
 // other ride), the passenger is shown them, and the admin gets a Complaints
-// entry to review (see updateRideStatus in rideController.js).
+// entry to review (see updateRideStatus in rideController.js). The driver can
+// also attach an optional photo afterwards (rides.failed_photo_path, see
+// uploadFailedRidePhoto); only the admin can view it.
 
 const FAILED_REASONS = [
   'Tricycle breakdown',
@@ -33,13 +35,14 @@ function ensureFailureColumns() {
   db.query(
     `SELECT COLUMN_NAME AS name FROM information_schema.COLUMNS
      WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'rides'
-       AND COLUMN_NAME IN ('failed_reason', 'failed_note')`,
+       AND COLUMN_NAME IN ('failed_reason', 'failed_note', 'failed_photo_path')`,
     (err, rows) => {
       if (err) return console.warn('Could not check rides.failed_* columns:', err.message);
       const present = new Set(rows.map(r => r.name));
       const missing = [];
       if (!present.has('failed_reason')) missing.push('ADD COLUMN failed_reason VARCHAR(50) NULL DEFAULT NULL');
       if (!present.has('failed_note')) missing.push('ADD COLUMN failed_note VARCHAR(255) NULL DEFAULT NULL');
+      if (!present.has('failed_photo_path')) missing.push('ADD COLUMN failed_photo_path VARCHAR(255) NULL DEFAULT NULL');
       if (!missing.length) {
         failureColumnsReady = true;
         return;

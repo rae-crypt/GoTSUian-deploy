@@ -353,3 +353,9 @@ ALTER TABLE user_account
 ALTER TABLE rides
   ADD COLUMN failed_reason VARCHAR(50) NULL DEFAULT NULL,
   ADD COLUMN failed_note VARCHAR(255) NULL DEFAULT NULL;
+
+-- Optional photo for a Failed ride (2026-10-04): the driver can attach one
+-- (e.g. a flat tire) right after ending the ride; only the admin can view it
+-- (Complaints > View photo). Stored under server/uploads/failed-rides/.
+-- server/rideFailures.js adds it on startup if missing.
+ALTER TABLE rides ADD COLUMN failed_photo_path VARCHAR(255) NULL DEFAULT NULL;

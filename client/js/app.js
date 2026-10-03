@@ -2444,6 +2444,8 @@ function openLicenseModal(driverId) {
   if (!driver || !modal) return;
 
   document.querySelector('#license-modal-name').textContent = `${driver.first_name} ${driver.last_name}'s license`;
+  const licenseHint = document.querySelector('#license-modal-hint');
+  if (licenseHint) licenseHint.textContent = 'Uploaded at registration';
   const preview = document.querySelector('#license-modal-preview');
   const errorEl = document.querySelector('#license-modal-error');
   const actionsEl = document.querySelector('#license-modal-actions');
@@ -2875,7 +2877,9 @@ function complaintTone(status) {
 function renderComplaintRow(c) {
   const route = c.pickup_location ? `${escapeHtml(c.pickup_location)} → ${escapeHtml(c.dropoff_location)}` : '—';
   const againstName = escapeHtml(c.against_name || '—');
-  const actions = c.status === 'Resolved' ? '—' : `
+  const photoBtn = failedPhotoButton(c);
+  const actions = c.status === 'Resolved' ? (photoBtn || '—') : `
+    ${photoBtn}
     <button type="button" class="admin-btn" data-action="mark-reviewed" data-complaint-id="${c.complaint_id}">Mark Reviewed</button>
     ${c.against_account_id ? `<button type="button" class="admin-btn" data-action="issue-warning" data-account-id="${c.against_account_id}" data-target-name="${againstName}" data-complaint-id="${c.complaint_id}">Issue Warning</button>` : ''}
   `;
@@ -2895,7 +2899,9 @@ function renderComplaintRow(c) {
 function renderComplaintCard(c) {
   const route = c.pickup_location ? `${escapeHtml(c.pickup_location)} → ${escapeHtml(c.dropoff_location)}` : '—';
   const againstName = escapeHtml(c.against_name || '—');
-  const actions = c.status === 'Resolved' ? '' : `
+  const photoBtn = failedPhotoButton(c);
+  const actions = c.status === 'Resolved' ? photoBtn : `
+    ${photoBtn}
     <button type="button" class="admin-btn" data-action="mark-reviewed" data-complaint-id="${c.complaint_id}">Mark Reviewed</button>
     ${c.against_account_id ? `<button type="button" class="admin-btn" data-action="issue-warning" data-account-id="${c.against_account_id}" data-target-name="${againstName}" data-complaint-id="${c.complaint_id}">Warn</button>` : ''}
   `;
@@ -2954,7 +2960,50 @@ async function renderAdminComplaints() {
   }
 }
 
+// A "Ride failed" complaint whose driver attached a photo gets a View photo
+// button (see uploadFailedRidePhoto on the server).
+function failedPhotoButton(c) {
+  return c.has_failed_photo && c.ride_id
+    ? `<button type="button" class="admin-btn" data-action="view-failed-photo" data-ride-id="${c.ride_id}">View photo</button>`
+    : '';
+}
+
+// Shows a failed ride's photo in the license viewer popup (#license-modal),
+// fetched as a blob because the admin-only endpoint needs the auth header.
+function openFailedPhotoModal(rideId) {
+  const modal = document.querySelector('#license-modal');
+  if (!modal) return;
+  document.querySelector('#license-modal-name').textContent = 'Photo from the driver';
+  const hint = document.querySelector('#license-modal-hint');
+  if (hint) hint.textContent = 'Attached when the ride was ended as Failed';
+  const preview = document.querySelector('#license-modal-preview');
+  const errorEl = document.querySelector('#license-modal-error');
+  document.querySelector('#license-modal-actions').innerHTML = '';
+  errorEl.textContent = '';
+  preview.innerHTML = '<strong>Loading photo…</strong>';
+  modal.classList.remove('hidden');
+
+  fetch(`${ADMIN_API_URL}/rides/${rideId}/failed-photo`, { headers: getAuthHeaders() })
+    .then(async res => {
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Could not load the photo');
+      }
+      const url = URL.createObjectURL(await res.blob());
+      preview.innerHTML = `<img src="${url}" alt="Photo from the driver">`;
+    })
+    .catch(error => {
+      preview.innerHTML = '<strong>Photo not available</strong>';
+      errorEl.textContent = error.message || 'Could not load the photo';
+    });
+}
+
 function wireComplaintActions(container) {
+  container.querySelectorAll('[data-action="view-failed-photo"]').forEach(button => {
+    button.addEventListener('click', function() {
+      openFailedPhotoModal(this.getAttribute('data-ride-id'));
+    });
+  });
   container.querySelectorAll('[data-action="mark-reviewed"]').forEach(button => {
     button.addEventListener('click', async function() {
       try {
@@ -6226,6 +6275,20 @@ async function renderDriverRideRequests() {
   });
 }
 
+// Sends the optional photo for a ride just ended as Failed. multipart, so
+// only the Authorization header (the browser sets the Content-Type).
+async function uploadFailedRidePhoto(rideId, file) {
+  const formData = new FormData();
+  formData.append('photo', file);
+  const headers = {};
+  const token = getStoredUser().token;
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const res = await fetch(`${RIDES_API_URL}/${rideId}/failed-photo`, { method: 'POST', headers, body: formData });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'Unable to upload the photo');
+  return data;
+}
+
 // Passenger side of a Failed ride: once, the passenger is told the driver's
 // reason (the ride card itself just disappears, since the ride is over).
 // Only for a ride that failed in the last hour, so an old one never pops up.
@@ -6280,6 +6343,12 @@ function openFailedRideForm(rideId) {
       </div>
       <label class="failed-form-note-label" for="failed-form-note">What happened?</label>
       <textarea id="failed-form-note" class="failed-form-note" rows="3" maxlength="255" placeholder="E.g. flat tire near San Roque, passenger moved to another tricycle."></textarea>
+      <label class="failed-form-photo">
+        <input type="file" id="failed-form-photo" accept="image/jpeg,image/png">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 6.5h3l1.5-2h4l1.5 2h3v9h-13z"/><circle cx="10" cy="11" r="2.8"/></svg>
+        <span class="failed-form-photo-text">Add a photo (optional)</span>
+      </label>
+      <small class="failed-form-photo-note">Only the TODA admin sees it. JPG or PNG, up to 5 MB.</small>
       <small class="error-msg failed-form-error"></small>
       <div class="action-popup-buttons">
         <button type="submit" class="action-popup-primary">End ride as Failed</button>
@@ -6292,6 +6361,12 @@ function openFailedRideForm(rideId) {
   const close = () => overlay.remove();
   overlay.addEventListener('click', (event) => { if (event.target === overlay) close(); });
   overlay.querySelector('.failed-form-cancel').addEventListener('click', close);
+  const photoInput = overlay.querySelector('#failed-form-photo');
+  photoInput.addEventListener('change', () => {
+    const file = photoInput.files[0];
+    overlay.querySelector('.failed-form-photo-text').textContent = file ? `Photo: ${file.name}` : 'Add a photo (optional)';
+    overlay.querySelector('.failed-form-photo').classList.toggle('has-file', Boolean(file));
+  });
   overlay.querySelector('form').addEventListener('submit', async (event) => {
     event.preventDefault();
     const errorEl = overlay.querySelector('.failed-form-error');
@@ -6299,12 +6374,29 @@ function openFailedRideForm(rideId) {
     const note = overlay.querySelector('#failed-form-note').value.trim();
     if (!picked) { errorEl.textContent = 'Choose a reason.'; return; }
     if (!note) { errorEl.textContent = 'Explain briefly what happened.'; return; }
+    const photo = photoInput.files[0] || null;
+    if (photo && !['image/jpeg', 'image/png'].includes(photo.type)) { errorEl.textContent = 'The photo must be a JPG or PNG.'; return; }
+    if (photo && photo.size > 5 * 1024 * 1024) { errorEl.textContent = 'The photo must be 5 MB or smaller.'; return; }
     const submitBtn = overlay.querySelector('.action-popup-primary');
     submitBtn.disabled = true;
     try {
       await updateRideStatusRemote(rideId, 'Failed', { reason: picked.value, note });
       close();
-      showRideFeedback('success', 'Ride ended', 'The passenger has been told why, and the admin will review it.');
+      // The ride is already ended at this point; the photo is extra evidence,
+      // so a failed upload only gets a heads-up, never undoes anything.
+      let photoError = null;
+      if (photo) {
+        try {
+          await uploadFailedRidePhoto(rideId, photo);
+        } catch (uploadError) {
+          photoError = uploadError.message || 'Please try again.';
+        }
+      }
+      if (photoError) {
+        showRideFeedback('error', 'Ride ended, photo not sent', `The ride was ended and the admin was notified, but the photo couldn't be uploaded: ${photoError}`);
+      } else {
+        showRideFeedback('success', 'Ride ended', 'The passenger has been told why, and the admin will review it.');
+      }
       renderPassengerRideStatus();
       renderDriverRideRequests();
       renderDriverDashboardStats();

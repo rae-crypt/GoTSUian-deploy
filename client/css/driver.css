@@ -3886,3 +3886,16 @@ body[data-page="driver"] #ride-history-section .booking-top { width: 100%; justi
     grid-column: 2; grid-row: 1 / span 2; align-self: center;
   }
 }
+
+/* Optional photo on the Failed form: a dashed pick-a-file button (the real
+   file input is hidden inside it), solid once a photo is chosen. */
+.failed-form-photo {
+  display: flex; align-items: center; gap: 8px; margin-top: 12px; padding: 10px 12px;
+  border: 1.5px dashed #e3cfc4; border-radius: 12px; cursor: pointer;
+  font-size: 13.5px; font-weight: 600; color: var(--primary);
+}
+.failed-form-photo.has-file { border-style: solid; border-color: var(--primary); background: rgba(127, 29, 29, 0.05); }
+.failed-form-photo input[type="file"] { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.failed-form-photo svg { width: 18px; height: 18px; flex: none; }
+.failed-form-photo-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.failed-form-photo-note { display: block; margin-top: 4px; font-size: 11.5px; color: #7a5c50; }

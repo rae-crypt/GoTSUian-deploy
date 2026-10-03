@@ -1,4 +1,6 @@
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 const db = require('../config/db');
 const { emitRideUpdated, emitNewPendingRide, emitDriverLocation, emitAvailabilityChanged, getPresentDriverIds, emitNoDriversLeft, emitComplaintFiled } = require('../socket');
 const { FAILED_REASONS, PASSENGER_REASONS, hasFailureColumns } = require('../rideFailures');
@@ -1422,6 +1424,36 @@ exports.convertRideToSolo = (req, res) => {
           emitRideUpdated(passengerAccountId, null);
         }
       );
+    });
+  });
+};
+
+// DRIVER attaches an optional photo to a ride they just ended as Failed
+// (sent separately, after the status change, so ending a ride never waits
+// on an upload). Only the ride's own driver, only for a Failed ride; a new
+// photo replaces the old one. The admin views it from Complaints.
+exports.uploadFailedRidePhoto = (req, res) => {
+  const { rideId } = req.params;
+  const discard = () => { if (req.file) fs.unlink(req.file.path, () => {}); };
+  if (!req.file) return res.status(400).json({ error: 'Choose a photo to upload.' });
+  if (!hasFailureColumns()) {
+    discard();
+    return res.status(503).json({ error: 'Photos cannot be saved yet. Please try again in a minute.' });
+  }
+
+  db.query(`SELECT driver_account_id, status, failed_photo_path FROM rides WHERE ride_id = ?`, [rideId], (err, rows) => {
+    if (err) { discard(); return res.status(500).json({ error: err.message }); }
+    const ride = rows[0];
+    if (!ride) { discard(); return res.status(404).json({ error: 'Ride not found' }); }
+    if (String(ride.driver_account_id) !== String(req.user.accountId) || ride.status !== 'Failed') {
+      discard();
+      return res.status(403).json({ error: 'You can only add a photo to a ride you ended as Failed.' });
+    }
+    const relativePath = `uploads/failed-rides/${req.file.filename}`;
+    db.query(`UPDATE rides SET failed_photo_path = ? WHERE ride_id = ?`, [relativePath, rideId], (err2) => {
+      if (err2) { discard(); return res.status(500).json({ error: err2.message }); }
+      if (ride.failed_photo_path) fs.unlink(path.join(__dirname, '..', ride.failed_photo_path), () => {});
+      res.status(200).json({ message: 'Photo attached' });
     });
   });
 };

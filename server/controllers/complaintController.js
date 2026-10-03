@@ -1,6 +1,7 @@
 const db = require('../config/db');
 const { emitComplaintUpdated, emitComplaintFiled, emitViolationIssued, emitAccountSuspended, emitAvailabilityChanged, emitNewPendingRide } = require('../socket');
 const { suspendAccount, getSuspension, SUSPENDED_MESSAGE } = require('../suspension');
+const { hasFailureColumns } = require('../rideFailures');
 
 // Categories mirror rules.html's Code of Conduct — passengers report the
 // "For Drivers" violations, drivers report the "For Students / Passengers"
@@ -81,7 +82,8 @@ exports.getMyViolations = (req, res) => {
 exports.listComplaints = (req, res) => {
   db.query(
     `SELECT c.complaint_id, c.category, c.description, c.status, c.admin_notes,
-            c.created_at, c.against_account_id,
+            c.created_at, c.against_account_id, c.ride_id,
+            ${hasFailureColumns() ? 'r.failed_photo_path IS NOT NULL' : 'FALSE'} AS has_failed_photo,
             COALESCE(CONCAT(fs.first_name, ' ', fs.last_name), CONCAT(ftd.first_name, ' ', ftd.last_name)) AS filed_by_name,
             COALESCE(CONCAT(as_.first_name, ' ', as_.last_name), CONCAT(atd.first_name, ' ', atd.last_name)) AS against_name,
             r.pickup_location, r.dropoff_location

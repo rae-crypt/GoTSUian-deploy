@@ -25,5 +25,6 @@ router.get('/loyalty/overview', authMiddleware, requireAdmin, adminController.li
 router.get('/loyalty/history', authMiddleware, requireAdmin, adminController.listLoyaltyHistory);
 router.post('/loyalty/grant', authMiddleware, requireAdmin, adminController.grantLoyaltyCertificate);
 router.put('/accounts/:accountId/lift-suspension', authMiddleware, requireAdmin, adminController.liftAccountSuspension);
+router.get('/rides/:rideId/failed-photo', authMiddleware, requireAdmin, adminController.getFailedRidePhoto);
 
 module.exports = router;

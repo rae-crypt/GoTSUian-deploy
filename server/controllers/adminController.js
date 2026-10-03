@@ -6,6 +6,7 @@ const db = require('../config/db');
 const { emitDriverAccountStatus, emitLoyaltyGranted, getPresentPassengerIds, getPresentDriverIds } = require('../socket');
 const { getFareSettings, saveFareSettings } = require('../fareSettings');
 const { getSuspensionMap, liftSuspension } = require('../suspension');
+const { hasFailureColumns } = require('../rideFailures');
 
 // Adds suspended_at / suspension_reason (null when not suspended) to each
 // passenger/driver row, so the admin lists can flag suspended accounts.
@@ -104,6 +105,25 @@ exports.getDriverLicenseFile = (req, res) => {
     const filePath = path.join(__dirname, '..', rows[0].license_document_path);
     if (!fs.existsSync(filePath)) {
       return res.status(404).json({ error: 'License file is missing from the server' });
+    }
+    res.sendFile(filePath);
+  });
+};
+
+// SERVE A FAILED RIDE'S PHOTO — admin-only, the driver's optional evidence
+// for ending a ride as Failed (see uploadFailedRidePhoto in rideController).
+exports.getFailedRidePhoto = (req, res) => {
+  const { rideId } = req.params;
+  if (!hasFailureColumns()) return res.status(404).json({ error: 'No photo for this ride' });
+
+  db.query(`SELECT failed_photo_path FROM rides WHERE ride_id = ?`, [rideId], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!rows.length || !rows[0].failed_photo_path) {
+      return res.status(404).json({ error: 'No photo for this ride' });
+    }
+    const filePath = path.join(__dirname, '..', rows[0].failed_photo_path);
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: 'The photo is missing from the server' });
     }
     res.sendFile(filePath);
   });
