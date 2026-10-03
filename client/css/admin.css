@@ -2681,3 +2681,12 @@ body {
 .action-popup-primary { border: none; background: var(--primary); color: #fff8f6; }
 .action-popup-secondary { border: 1.5px solid #f1d9d9; background: transparent; color: var(--primary); }
 .action-popup-buttons button:focus-visible { outline: 3px solid rgba(127, 29, 29, 0.35); outline-offset: 2px; }
+
+/* All bookings Today/All chips + count line (2026-10-04). The chip styles
+   live in theme.css; the admin page has no --gt-muted, so its colours are
+   set here. */
+.admin-bookings-filter { padding: 16px 4px 4px; }
+.admin-bookings-filter .ride-filter { margin-bottom: 10px; }
+.admin-bookings-filter .ride-filter-chip { color: var(--muted); }
+.admin-bookings-filter .ride-filter-chip.is-active { color: #fff8f6; }
+.admin-bookings-filter .ride-filter-summary { color: var(--muted); margin-bottom: 4px; }

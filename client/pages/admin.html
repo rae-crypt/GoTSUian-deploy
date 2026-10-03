@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link href="https://api.fontshare.com/v2/css?f[]=clash-display@500,600,700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="../css/admin.css?v=20261004b">
+  <link rel="stylesheet" href="../css/admin.css?v=20261004c">
   <link rel="stylesheet" href="../css/theme.css?v=20261003f">
 </head>
 <body data-page="admin" class="admin-portal">
@@ -216,6 +216,13 @@
         </div>
 
         <div class="admin-panel-body">
+          <div class="admin-bookings-filter">
+            <div id="admin-bookings-filter" class="ride-filter" role="group" aria-label="Show bookings from">
+              <button type="button" class="ride-filter-chip" data-show="today" aria-pressed="false">Today</button>
+              <button type="button" class="ride-filter-chip is-active" data-show="all" aria-pressed="true">All</button>
+            </div>
+            <div id="admin-bookings-summary" class="ride-filter-summary"></div>
+          </div>
           <div class="admin-table-scroll">
             <table class="admin-table">
               <thead><tr><th>Passenger</th><th>Driver</th><th>Route</th><th>Type</th><th>Fare</th><th>Status</th><th>Requested</th></tr></thead>
@@ -357,6 +364,6 @@
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="../js/app.js?v=20261004d"></script>
+  <script src="../js/app.js?v=20261004e"></script>
 </body>
 </html>

@@ -266,7 +266,7 @@ exports.listLoyaltyHistory = (req, res) => {
 exports.listBookings = (req, res) => {
   const sql = `
     SELECT r.ride_id, r.pickup_location, r.dropoff_location, r.ride_type,
-           r.status, r.fare, r.created_at,
+           r.status, r.fare, r.created_at, r.updated_at,
            CONCAT(s.first_name, ' ', s.last_name) AS passenger_name,
            CONCAT(td.first_name, ' ', td.last_name) AS driver_name
     FROM rides r

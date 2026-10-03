@@ -2803,25 +2803,64 @@ function renderBookingCard(b) {
 }
 
 // ADMIN — all-bookings audit table, only present on admin.html.
-async function renderAdminBookings() {
+// Admin "All bookings" Today/All chips (same "today" rule as the history
+// pages, see isRideToday). Starts on All; switching re-renders the cached
+// list without another fetch.
+let adminBookingsCache = [];
+let adminBookingsFilter = 'all';
+
+function setupAdminBookingsFilter() {
+  const chips = document.querySelectorAll('#admin-bookings-filter .ride-filter-chip');
+  chips.forEach(chip => chip.addEventListener('click', () => {
+    adminBookingsFilter = chip.getAttribute('data-show');
+    chips.forEach(c => {
+      const on = c === chip;
+      c.classList.toggle('is-active', on);
+      c.setAttribute('aria-pressed', String(on));
+    });
+    drawAdminBookings();
+  }));
+}
+
+function drawAdminBookings() {
   const tbody = document.querySelector('#admin-bookings-tbody');
   const mobileList = document.querySelector('#admin-bookings-mobile');
+  const summaryEl = document.querySelector('#admin-bookings-summary');
+  if (!tbody) return;
+
+  const showToday = adminBookingsFilter === 'today';
+  const bookings = showToday ? adminBookingsCache.filter(isRideToday) : adminBookingsCache;
+
+  if (summaryEl) {
+    const completed = bookings.filter(b => b.status === 'Completed');
+    summaryEl.innerHTML = adminBookingsCache.length
+      ? `<span><strong>${bookings.length}</strong> booking${bookings.length === 1 ? '' : 's'}${showToday ? ' today' : ''}</span>`
+        + `<span><strong>${completed.length}</strong> completed</span>`
+        + `<span><strong>₱${sumRideFares(completed).toFixed(0)}</strong> collected</span>`
+      : '';
+  }
+
+  if (!bookings.length) {
+    const emptyText = adminBookingsCache.length ? 'No bookings today yet.' : 'No bookings yet.';
+    tbody.innerHTML = `<tr><td colspan="7">${emptyText}</td></tr>`;
+    if (mobileList) mobileList.innerHTML = `<p class="admin-mcard-empty">${emptyText}</p>`;
+    return;
+  }
+
+  tbody.innerHTML = bookings.map(renderBookingRow).join('');
+  if (mobileList) mobileList.innerHTML = bookings.map(renderBookingCard).join('');
+}
+
+async function renderAdminBookings() {
+  const tbody = document.querySelector('#admin-bookings-tbody');
   if (!tbody) return;
 
   try {
     const res = await fetch(`${ADMIN_API_URL}/bookings`, { headers: getAuthHeaders() });
     if (!res.ok) return;
     const data = await res.json();
-    const bookings = data.bookings || [];
-
-    if (!bookings.length) {
-      tbody.innerHTML = '<tr><td colspan="7">No bookings yet.</td></tr>';
-      if (mobileList) mobileList.innerHTML = '<p class="admin-mcard-empty">No bookings yet.</p>';
-      return;
-    }
-
-    tbody.innerHTML = bookings.map(renderBookingRow).join('');
-    if (mobileList) mobileList.innerHTML = bookings.map(renderBookingCard).join('');
+    adminBookingsCache = data.bookings || [];
+    drawAdminBookings();
   } catch (error) {
     console.warn('Unable to fetch bookings', error);
   }
@@ -7882,6 +7921,7 @@ document.addEventListener('DOMContentLoaded', function() {
   setupRideHistoryFilter();
   setupLicenseModal();
   setupAdminFareSettings();
+  setupAdminBookingsFilter();
   setupAdminPanelCollapse();
   setupLoyaltyHistoryToggle();
   setupLoyaltyRoleTabs();
