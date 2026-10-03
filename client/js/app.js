@@ -381,12 +381,13 @@ function renderAuthStatus() {
           <span class="nav-user-avatar"></span>
         </button>
         <div class="nav-user-dropdown">
-          <a class="nav-user-dropdown-header" href="#">
+          <div class="nav-user-dropdown-header">
             <strong class="nav-user-dropdown-name"></strong>
             <small class="nav-user-dropdown-role"></small>
-          </a>
-          <a class="nav-user-dropdown-profile" href="#">My profile</a>
+          </div>
+          <a class="nav-user-dropdown-dashboard" href="#">My Rides</a>
           <a class="nav-user-dropdown-history" href="#">Booking history</a>
+          <a class="nav-user-dropdown-profile" href="#">My profile</a>
           <button type="button" data-action="logout">Logout</button>
         </div>
       `;
@@ -415,17 +416,21 @@ function renderAuthStatus() {
     menu.querySelector('.nav-user-dropdown-name').textContent = user.name;
     menu.querySelector('.nav-user-dropdown-role').textContent = user.role || '';
 
-    // Admin has no profile page — leave the header un-clickable for them.
-    const headerLink = menu.querySelector('.nav-user-dropdown-header');
-    if (profileHref !== '#') {
-      headerLink.href = profileHref;
-    } else {
-      headerLink.removeAttribute('href');
-    }
-
-    // Account pages only. Home and the dashboard used to be here too, but
-    // the nav bar right next to this menu already has both. Admin has no
-    // profile or history page, so their menu is just their name + Logout.
+    // The name header is a plain label: it used to open the profile too,
+    // a duplicate of "My profile" right under it.
+    //
+    // The dashboard link is back (2026-10-03). It was dropped on 2026-10-02
+    // on the assumption the nav bar had it, but every page's CSS hides the
+    // own-dashboard nav link at desktop widths, so desktop drivers and
+    // passengers had no way back to the map/booking page. Admin has no
+    // dashboard/profile/history links here — their menu is name + Logout.
+    const dashboardHref = user.role === 'driver' ? 'driver.html'
+      : user.role === 'passenger' ? 'passenger.html'
+      : '#';
+    const dashboardLink = menu.querySelector('.nav-user-dropdown-dashboard');
+    dashboardLink.href = dashboardHref;
+    dashboardLink.textContent = user.role === 'driver' ? 'My Rides' : 'Booking';
+    dashboardLink.style.display = dashboardHref !== '#' ? '' : 'none';
     const historyHref = user.role === 'driver' ? 'driver-bookings.html'
       : user.role === 'passenger' ? 'passenger-bookings.html'
       : '#';

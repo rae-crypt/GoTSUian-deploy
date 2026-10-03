@@ -284,3 +284,7 @@ body footer.footer.site-shell .footer-bottom {
 .bookings-empty a.btn-secondary:focus-visible {
   background: var(--primary); color: #fff8f6; transform: none; box-shadow: none; filter: none;
 }
+
+/* Avatar menu name header is a plain <div> now (no longer a duplicate
+   "My profile" link), so it doesn't pick up the dropdown links' padding. */
+.nav-user-dropdown div.nav-user-dropdown-header { padding: 9px 10px 12px; cursor: default; }
