@@ -2537,6 +2537,7 @@ function renderPassengerRow(p) {
   return `
     <tr>
       <td><div class="admin-person"><span class="admin-avatar">${passengerInitials(p.name)}</span><div><strong>${passengerName}</strong></div></div></td>
+      <td>${escapeHtml(p.contact_number || '—')}</td>
       <td>${p.ride_count}</td>
       <td>${escapeHtml(lastBooking)}</td>
       <td><div class="admin-pill-stack">${suspendedPill(p)}${pillHtml(isOnline ? 'success' : 'neutral', isOnline ? 'Online' : 'Offline')}</div></td>
@@ -2556,6 +2557,7 @@ function renderPassengerCard(p) {
         ${suspendedPill(p) || pillHtml(isOnline ? 'success' : 'neutral', isOnline ? 'Online' : 'Offline')}
       </div>
       <div class="admin-mcard-rows">
+        <div class="admin-mcard-row"><span>Contact</span><span>${escapeHtml(p.contact_number || '—')}</span></div>
         <div class="admin-mcard-row"><span>Rides booked</span><span>${p.ride_count}</span></div>
         <div class="admin-mcard-row"><span>Last booking</span><span>${escapeHtml(lastBooking)}</span></div>
       </div>
@@ -2751,7 +2753,7 @@ async function renderAdminPassengerManagement() {
     const passengers = data.passengers || [];
 
     if (!passengers.length) {
-      tbody.innerHTML = '<tr><td colspan="5">No passengers registered yet.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6">No passengers registered yet.</td></tr>';
       if (mobileList) mobileList.innerHTML = '<p class="admin-mcard-empty">No passengers registered yet.</p>';
       return;
     }
@@ -6973,11 +6975,12 @@ function setupAuthForm() {
       });
     }
 
-    // Passengers now register with name, email and password only. Testing moved
-    // off campus to a partner TODA after the bridge collapsed, so the people
-    // signing up are members of the public: they have no student number, and
-    // their contact number is never shown to a driver anywhere (they coordinate
-    // in the in-app chat), so asking for it only adds a field to fail on.
+    // Passengers register with name, email, mobile number and password. Testing
+    // moved off campus to a partner TODA after the bridge collapsed, so the
+    // people signing up are members of the public with no student number. The
+    // mobile number came back on 2026-10-04 (IT expert review): it's required
+    // and one per account, to make dummy accounts harder; drivers never see it
+    // (they coordinate in the in-app chat), only the admin does.
     //
     // Both inputs stay in the DOM rather than being deleted. A driver's contact
     // number is still REQUIRED -- it is their login ID -- and restoring the
@@ -6997,31 +7000,19 @@ function setupAuthForm() {
         studentIdInput.removeAttribute('required');
       }
 
-      // Contact number: drivers only.
+      // Contact number: required for both roles (a driver's login ID; a
+      // passenger's mobile number). The row is a two-column grid holding
+      // email + contact: passengers fill both side by side, drivers have no
+      // email (toggleDriverSection hides it), so for them it collapses to one
+      // column instead of leaving an empty one.
       const contactField = document.querySelector('#reg-contact-field');
       const contactRow = document.querySelector('#reg-email-contact-row');
       const regContact = document.querySelector('#reg-contact');
-      if (contactField) contactField.style.display = isDriver ? '' : 'none';
-      // That row is a two-column grid holding email + contact, and exactly one
-      // of the two is always hidden now: contact for passengers (just above),
-      // email for drivers (toggleDriverSection below -- they log in by contact
-      // number and have no email). So it collapses unconditionally; a hidden
-      // grid item leaves its column standing empty otherwise. The wrapper is
-      // kept rather than flattened so restoring either field needs no markup.
-      if (contactRow) contactRow.classList.add('is-single-column');
-      if (regContact) {
-        if (isDriver) {
-          regContact.setAttribute('required', 'required');
-        } else {
-          // Leaving a stale value here would post a contact number the
-          // passenger can no longer see or correct.
-          regContact.value = '';
-          const contactErr = document.querySelector('#contact-error');
-          if (contactErr) contactErr.textContent = '';
-          regContact.classList.remove('input-error', 'input-valid');
-          regContact.removeAttribute('required');
-        }
-      }
+      if (contactField) contactField.style.display = '';
+      if (contactRow) contactRow.classList.toggle('is-single-column', isDriver);
+      if (regContact) regContact.setAttribute('required', 'required');
+      const contactLabel = document.querySelector('label[for="reg-contact"]');
+      if (contactLabel) contactLabel.innerHTML = `${isDriver ? 'Contact number' : 'Mobile number'} <span class="required-star">*</span>`;
     };
     const toggleStudentSection = toggleRoleFields;
  
@@ -7274,10 +7265,9 @@ function setupAuthForm() {
         emailInput.classList.add('input-valid');
       }
 
-      // Validate contact number -- drivers only. It is a driver's login ID, so
-      // it stays required for them; passengers no longer see the field at all,
-      // and validating a hidden empty box would block every signup.
-      if (role === 'driver') {
+      // Validate contact number -- both roles (a driver's login ID; a
+      // passenger's mobile number, one per account).
+      {
         if (!contactNumber) {
           document.querySelector('#contact-error').textContent = 'Contact number is required';
           if (contactInput) contactInput.classList.add('input-error');
@@ -7468,17 +7458,17 @@ function setupAuthForm() {
         if (licenseFile) formData.append('licenseDocument', licenseFile);
         fetchOptions = { method: 'POST', body: formData };
       } else {
-        // student_number and contact_number are both nullable now and neither is
-        // collected from a passenger, so they go up as null rather than ''. An
-        // empty string would land in a UNIQUE column and make the SECOND
-        // passenger to register fail on a duplicate key.
+        // student_number is nullable and no longer collected, so it goes up as
+        // null rather than '' (an empty string would land in a UNIQUE column
+        // and make the SECOND passenger to register fail on a duplicate key).
+        // contact_number is required (validated above and on the server).
         const payload = {
           username: email,
           password: password,
           first_name: firstName,
           last_name: lastName,
           student_number: studentId || null,
-          contact_number: contactNumber || null
+          contact_number: contactNumber
         };
         fetchOptions = {
           method: 'POST',

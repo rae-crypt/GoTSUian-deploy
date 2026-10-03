@@ -133,11 +133,11 @@ exports.getStats = (req, res) => {
 // open right now (see getPresentPassengerIds in socket.js).
 exports.listPassengers = (req, res) => {
   const sql = `
-    SELECT s.account_id, CONCAT(s.first_name, ' ', s.last_name) AS name,
+    SELECT s.account_id, CONCAT(s.first_name, ' ', s.last_name) AS name, s.contact_number,
            s.is_online, MAX(r.created_at) AS last_booking, COUNT(r.ride_id) AS ride_count
     FROM student s
     LEFT JOIN rides r ON r.passenger_account_id = s.account_id
-    GROUP BY s.account_id, s.first_name, s.last_name, s.is_online
+    GROUP BY s.account_id, s.first_name, s.last_name, s.contact_number, s.is_online
     ORDER BY last_booking IS NULL, last_booking DESC
   `;
   db.query(sql, (err, rows) => {

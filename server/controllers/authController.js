@@ -35,6 +35,17 @@ exports.registerStudent = async (req, res) => {
     return res.status(400).json({ error: 'Missing required fields' });
   }
 
+  // Mobile number, required since 2026-10-04 (IT expert review): a Gmail
+  // account is free to make, a registered SIM is not (SIM Registration Act),
+  // so one number per passenger account makes dummy/fake-booking accounts
+  // harder to mass-produce and stops a suspended passenger from simply
+  // signing up again. Only the admin and the passenger see it; drivers
+  // never do (they use the in-app chat).
+  const mobile = String(contact_number || '').trim();
+  if (!/^09[0-9]{9}$/.test(mobile)) {
+    return res.status(400).json({ error: 'Enter an 11-digit mobile number starting with 09' });
+  }
+
   const email = username.trim().toLowerCase();
 
   // A passenger's email must have gone through /api/otp/send + /api/otp/verify
@@ -47,6 +58,15 @@ exports.registerStudent = async (req, res) => {
       if (err) return res.status(500).json({ error: err.message });
       if (!otpRows.length) {
         return res.status(400).json({ error: 'Please verify your email first' });
+      }
+
+      const mobileTaken = await new Promise((resolve) => {
+        db.query(`SELECT 1 FROM student WHERE contact_number = ? LIMIT 1`, [mobile], (dupErr, dupRows) => {
+          resolve(!dupErr && dupRows.length > 0);
+        });
+      });
+      if (mobileTaken) {
+        return res.status(409).json({ error: 'This mobile number is already registered to another passenger account.' });
       }
 
       try {
@@ -87,7 +107,7 @@ exports.registerStudent = async (req, res) => {
                 INSERT INTO student (account_id, student_number, first_name, middle_name, last_name, birth_date, age, sex, contact_number, current_address, is_online)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE)
               `;
-              connection.query(studentSql, [accountId, studentNumber, first_name, middle_name || null, last_name, birth_date || null, age || null, sex || null, contact_number || null, current_address || null], (err, studentResult) => {
+              connection.query(studentSql, [accountId, studentNumber, first_name, middle_name || null, last_name, birth_date || null, age || null, sex || null, mobile, current_address || null], (err, studentResult) => {
                 if (err) {
                   return connection.rollback(() => {
                     connection.release();
