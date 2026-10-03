@@ -2866,6 +2866,15 @@ async function renderAdminComplaints() {
     const data = await res.json();
     const complaints = data.complaints || [];
 
+    // Header pill, like "N eligible" on Loyalty Certificates: red while any
+    // complaint is still waiting for the admin's review.
+    const countBadge = document.querySelector('#admin-complaints-count');
+    if (countBadge) {
+      const pendingCount = complaints.filter(c => c.status === 'Pending').length;
+      countBadge.textContent = `${pendingCount} pending`;
+      countBadge.classList.toggle('is-alert', pendingCount > 0);
+    }
+
     if (!complaints.length) {
       tbody.innerHTML = '<tr><td colspan="7">No complaints filed yet.</td></tr>';
       if (mobileList) mobileList.innerHTML = '<p class="admin-mcard-empty">No complaints filed yet.</p>';
@@ -7720,6 +7729,10 @@ function manageRealtimeConnection() {
 
   // Sent to admins only, whenever a passenger opens the app or has been
   // gone past the grace period — keeps the Active/Offline pills current.
+  realtimeSocket.on('complaint:filed', function() {
+    renderAdminComplaints();
+  });
+
   realtimeSocket.on('passengers:presence-changed', function() {
     renderAdminPassengerManagement();
   });

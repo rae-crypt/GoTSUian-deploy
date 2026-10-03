@@ -1,5 +1,5 @@
 const db = require('../config/db');
-const { emitComplaintUpdated, emitViolationIssued, emitAccountSuspended, emitAvailabilityChanged, emitNewPendingRide } = require('../socket');
+const { emitComplaintUpdated, emitComplaintFiled, emitViolationIssued, emitAccountSuspended, emitAvailabilityChanged, emitNewPendingRide } = require('../socket');
 const { suspendAccount, SUSPENDED_MESSAGE } = require('../suspension');
 
 // Categories mirror rules.html's Code of Conduct — passengers report the
@@ -30,6 +30,7 @@ exports.createComplaint = (req, res) => {
     (err) => {
       if (err) return res.status(500).json({ error: err.message });
       res.status(201).json({ message: 'Complaint submitted' });
+      emitComplaintFiled();
     }
   );
 };

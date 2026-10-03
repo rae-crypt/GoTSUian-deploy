@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link href="https://api.fontshare.com/v2/css?f[]=clash-display@500,600,700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="../css/admin.css?v=20260930b">
+  <link rel="stylesheet" href="../css/admin.css?v=20261004a">
   <link rel="stylesheet" href="../css/theme.css?v=20261003f">
 </head>
 <body data-page="admin" class="admin-portal">
@@ -281,6 +281,7 @@
             <h2>Complaints</h2>
             <p>Reports filed by passengers and drivers against each other. Review and resolve, optionally issuing a warning or violation.</p>
           </div>
+          <span class="admin-panel-count" id="admin-complaints-count">0 pending</span>
           <button type="button" class="admin-panel-toggle" aria-expanded="false" aria-label="Expand this section">
             <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7.5L10 12.5L15 7.5"/></svg>
           </button>
@@ -356,6 +357,6 @@
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="../js/app.js?v=20261004a"></script>
+  <script src="../js/app.js?v=20261004b"></script>
 </body>
 </html>

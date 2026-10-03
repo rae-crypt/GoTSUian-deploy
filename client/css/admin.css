@@ -2660,3 +2660,11 @@ table.admin-table tbody tr:hover { background: var(--light); }
 body {
   overflow-x: hidden;
 }
+
+/* Complaints header pill (2026-10-04): turns red while any complaint is
+   still Pending, so it stands out like a notification. */
+.admin-panel-count.is-alert {
+  background: #dc2626;
+  color: #fff;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
+}

@@ -169,6 +169,13 @@ function emitViolationIssued(accountId) {
   io.to(accountRoom(accountId)).emit('violation:issued');
 }
 
+// A new complaint was filed: the admin page refreshes its Complaints list
+// and the red "N pending" pill on the panel header.
+function emitComplaintFiled() {
+  if (!io) return;
+  io.to('admins').emit('complaint:filed');
+}
+
 // A Violation suspends the account (see suspension.js): every tab it has
 // open logs out right away with the reason, instead of waiting for its
 // next API call to be refused.
@@ -206,6 +213,7 @@ module.exports = {
   emitComplaintUpdated,
   emitViolationIssued,
   emitAccountSuspended,
+  emitComplaintFiled,
   emitLoyaltyGranted,
   emitNoDriversLeft
 };
