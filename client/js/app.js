@@ -5480,6 +5480,40 @@ function openChatModal(rideId, otherPartyName) {
   activeChatLoadMessages = loadMessages;
 }
 
+// Driver Ride history's Today/All chips. The dashboard's "Today's trips" and
+// "Earnings today" cards link here with ?show=today, "Completed" with
+// ?show=all.
+let rideHistoryFilter = new URLSearchParams(location.search).get('show') === 'today' ? 'today' : 'all';
+
+function setupRideHistoryFilter() {
+  const chips = document.querySelectorAll('#ride-filter .ride-filter-chip');
+  if (!chips.length) return;
+  const sync = () => chips.forEach(chip => {
+    const on = chip.getAttribute('data-show') === rideHistoryFilter;
+    chip.classList.toggle('is-active', on);
+    chip.setAttribute('aria-pressed', String(on));
+  });
+  sync();
+  chips.forEach(chip => chip.addEventListener('click', () => {
+    if (chip.getAttribute('data-show') === rideHistoryFilter) return;
+    rideHistoryFilter = chip.getAttribute('data-show');
+    sync();
+    renderBookingsList();
+  }));
+}
+
+function renderRideFilterSummary(summary, isToday) {
+  const el = document.querySelector('#ride-filter-summary');
+  if (!el) return;
+  if (!summary) {
+    el.innerHTML = '';
+    return;
+  }
+  const tripWord = summary.trips === 1 ? 'trip' : 'trips';
+  el.innerHTML = `<span><strong>${summary.trips}</strong> ${tripWord}${isToday ? ' today' : ''}</span>`
+    + `<span><strong>₱${summary.earnings.toFixed(0)}</strong> earned</span>`;
+}
+
 async function renderBookingsList() {
   const loading = document.querySelector('#bookings-loading');
   const emptyState = document.querySelector('#bookings-empty');
@@ -5490,18 +5524,29 @@ async function renderBookingsList() {
   if (!isAuthenticated() || (user.role !== 'passenger' && user.role !== 'driver')) return;
 
   const isDriver = user.role === 'driver';
-  const rides = await (isDriver ? fetchDriverRides() : fetchMyRides());
+  const allRides = await (isDriver ? fetchDriverRides() : fetchMyRides());
   loading.style.display = 'none';
 
-  if (!rides.length) {
+  if (!allRides.length) {
     emptyState.style.display = 'flex';
     list.style.display = 'none';
     list.innerHTML = '';
+    renderRideFilterSummary(null);
     return;
   }
 
+  // Only driver-bookings.html has the Today/All chips; everywhere else this
+  // stays the full list.
+  const showToday = isDriver && rideHistoryFilter === 'today' && document.querySelector('#ride-filter');
+  const rides = showToday ? allRides.filter(isDriverRideToday) : allRides;
+  if (isDriver) renderRideFilterSummary(summarizeDriverRides(rides), showToday);
+
   emptyState.style.display = 'none';
   list.style.display = 'flex';
+  if (!rides.length) {
+    list.innerHTML = '<div class="ride-filter-empty">No trips today yet.</div>';
+    return;
+  }
   list.innerHTML = rides.map(ride => {
     const statusConfig = getRideStatusConfig(ride.status);
     const fareText = ride.fare != null ? formatFareWithDistance(ride.fare, ride.distance_km) : 'Calculating';
@@ -5972,15 +6017,42 @@ async function renderDriverDashboardStats() {
   if (!user.accountId) return;
 
   const [driverRides, pendingGroups] = await Promise.all([fetchDriverRides(), fetchPendingRides()]);
-  const activeRides = driverRides.filter(r => ['Accepted', 'Picked Up', 'In Progress'].includes(r.status));
   const completedRides = driverRides.filter(r => r.status === 'Completed');
   const pendingRideCount = pendingGroups.reduce((sum, g) => sum + (g.type === 'shared' ? g.riders.length : 1), 0);
-  const earnings = completedRides.reduce((sum, r) => sum + Number(r.fare || 0), 0);
+  const todaySummary = summarizeDriverRides(driverRides.filter(isDriverRideToday));
+  const allEarnings = sumRideFares(completedRides);
+  const earningsAll = document.querySelector('#driver-earnings-all');
 
-  if (todayCount) todayCount.textContent = String(activeRides.length + completedRides.length);
+  // "Today's trips" used to count every ride ever completed plus the active
+  // ones, with no date filter at all — it's now only today's.
+  if (todayCount) todayCount.textContent = String(todaySummary.trips);
   if (pendingCount) pendingCount.textContent = String(pendingRideCount);
-  if (earningsBox) earningsBox.textContent = `₱${earnings.toFixed(0)}`;
+  if (earningsBox) earningsBox.textContent = `₱${todaySummary.earnings.toFixed(0)}`;
+  if (earningsAll) earningsAll.textContent = `₱${allEarnings.toFixed(0)} all time`;
   if (completedCount) completedCount.textContent = String(completedRides.length);
+}
+
+// "Today" for a driver's stats and Ride history: a completed ride counts on
+// the day it was completed (its updated_at — nothing changes a ride once
+// it's Completed), anything else on the day it was booked.
+function isDriverRideToday(ride) {
+  const stamp = ride.status === 'Completed' ? (ride.updated_at || ride.created_at) : ride.created_at;
+  return new Date(stamp).toDateString() === new Date().toDateString();
+}
+
+function sumRideFares(rides) {
+  return rides.reduce((sum, r) => sum + Number(r.fare || 0), 0);
+}
+
+// A trip is a ride the driver actually took on (active or finished);
+// earnings only come from finished ones, since the fare is paid in cash
+// at drop-off.
+function summarizeDriverRides(rides) {
+  const trips = rides.filter(r => ['Accepted', 'Picked Up', 'In Progress', 'Completed'].includes(r.status));
+  return {
+    trips: trips.length,
+    earnings: sumRideFares(trips.filter(r => r.status === 'Completed'))
+  };
 }
  
 // Logout confirmation popup — same overlay mechanics as the other dynamic
@@ -7640,6 +7712,7 @@ document.addEventListener('DOMContentLoaded', function() {
   refreshAuthState();
   setupLoginNavLink();
   setupViolationModal();
+  setupRideHistoryFilter();
   setupLicenseModal();
   setupAdminFareSettings();
   setupAdminPanelCollapse();

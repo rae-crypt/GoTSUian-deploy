@@ -3788,3 +3788,24 @@ body .loyalty-message {
   text-align: center;
   text-wrap: balance;
 }
+
+/* Driver stats + Ride history filter (2026-10-03). "Earnings today" gets a
+   small all-time line under its number (a span, not a <p>, to stay clear
+   of the ".dashboard-card p" landmine). Ride history gets Today/All chips
+   with a trips + earnings line, which the stat cards link to. */
+body[data-page="driver"] .dashboard-grid .stat-card-sub {
+  display: block; margin-top: 2px; font-size: 11.5px; font-weight: 600; color: var(--gt-muted);
+}
+body[data-page="driver"] .ride-filter { display: flex; gap: 8px; margin: 0 0 12px; }
+body[data-page="driver"] .ride-filter-chip {
+  font-family: inherit; font-size: 13px; font-weight: 700; padding: 7px 16px; border-radius: 999px;
+  border: 1px solid #f1d9d9; background: var(--white); color: var(--gt-muted); cursor: pointer;
+}
+body[data-page="driver"] .ride-filter-chip.is-active { background: var(--primary); border-color: var(--primary); color: #fff8f6; }
+body[data-page="driver"] .ride-filter-summary { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 0 0 14px; font-size: 13px; color: var(--gt-muted); }
+body[data-page="driver"] .ride-filter-summary:empty { display: none; }
+body[data-page="driver"] .ride-filter-summary strong { color: var(--text); font-size: 15px; }
+body[data-page="driver"] .ride-filter-empty {
+  padding: 18px 16px; border: 1px dashed #f1d9d9; border-radius: 14px;
+  font-size: 13px; font-weight: 500; color: var(--gt-muted); text-align: center;
+}
