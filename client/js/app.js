@@ -2218,6 +2218,14 @@ function suspendedPill(account) {
   return account.suspended_at ? pillHtml('danger', 'Suspended') : '';
 }
 
+// A suspended account can't be warned again (it's already at the top of the
+// ladder), so its row shows "Lift suspension" in place of "Issue Warning".
+function issueWarningButton(account, safeName, label = 'Issue Warning') {
+  return account.suspended_at
+    ? ''
+    : `<button type="button" class="admin-btn" data-action="issue-warning" data-account-id="${account.account_id}" data-target-name="${safeName}">${label}</button>`;
+}
+
 function liftSuspensionButton(account, safeName) {
   return account.suspended_at
     ? `<button type="button" class="admin-btn tone-danger" data-action="lift-suspension" data-account-id="${account.account_id}" data-target-name="${safeName}">Lift suspension</button>`
@@ -2247,7 +2255,7 @@ function renderDriverRow(driver) {
       <td>${escapeHtml(driver.contact_number || '—')}</td>
       <td>${licenseCell}</td>
       <td><div class="admin-pill-stack">${pillHtml(statusPillTone(driver.account_status), driverStatusLabel(driver.account_status))}${suspendedPill(driver)}${driverPresencePill(driver)}</div></td>
-      <td><div class="admin-actions">${approvalActions}${liftSuspensionButton(driver, driverName)}<button type="button" class="admin-btn" data-action="reset-driver-password" data-driver-id="${driver.driver_id}" data-target-name="${driverName}">Reset password</button><button type="button" class="admin-btn" data-action="issue-warning" data-account-id="${driver.account_id}" data-target-name="${driverName}">Issue Warning</button></div></td>
+      <td><div class="admin-actions">${approvalActions}${liftSuspensionButton(driver, driverName)}<button type="button" class="admin-btn" data-action="reset-driver-password" data-driver-id="${driver.driver_id}" data-target-name="${driverName}">Reset password</button>${issueWarningButton(driver, driverName)}</div></td>
     </tr>
   `;
 }
@@ -2279,7 +2287,7 @@ function renderDriverCard(driver) {
         ${actions}
         ${liftSuspensionButton(driver, driverName)}
         <button class="admin-btn" data-action="reset-driver-password" data-driver-id="${driver.driver_id}" data-target-name="${driverName}">Reset password</button>
-        <button class="admin-btn" data-action="issue-warning" data-account-id="${driver.account_id}" data-target-name="${driverName}">Warn</button>
+        ${issueWarningButton(driver, driverName, 'Warn')}
       </div>
     </div>
   `;
@@ -2532,7 +2540,7 @@ function renderPassengerRow(p) {
       <td>${p.ride_count}</td>
       <td>${escapeHtml(lastBooking)}</td>
       <td><div class="admin-pill-stack">${suspendedPill(p)}${pillHtml(isOnline ? 'success' : 'neutral', isOnline ? 'Online' : 'Offline')}</div></td>
-      <td><div class="admin-actions">${liftSuspensionButton(p, passengerName)}<button type="button" class="admin-btn" data-action="issue-warning" data-account-id="${p.account_id}" data-target-name="${passengerName}">Issue Warning</button></div></td>
+      <td><div class="admin-actions">${liftSuspensionButton(p, passengerName)}${issueWarningButton(p, passengerName)}</div></td>
     </tr>
   `;
 }
@@ -2553,7 +2561,7 @@ function renderPassengerCard(p) {
       </div>
       <div class="admin-mcard-actions">
         ${liftSuspensionButton(p, passengerName)}
-        <button type="button" class="admin-btn" data-action="issue-warning" data-account-id="${p.account_id}" data-target-name="${passengerName}">Issue Warning</button>
+        ${issueWarningButton(p, passengerName)}
       </div>
     </div>
   `;

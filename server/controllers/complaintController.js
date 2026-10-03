@@ -1,6 +1,6 @@
 const db = require('../config/db');
 const { emitComplaintUpdated, emitComplaintFiled, emitViolationIssued, emitAccountSuspended, emitAvailabilityChanged, emitNewPendingRide } = require('../socket');
-const { suspendAccount, SUSPENDED_MESSAGE } = require('../suspension');
+const { suspendAccount, getSuspension, SUSPENDED_MESSAGE } = require('../suspension');
 
 // Categories mirror rules.html's Code of Conduct — passengers report the
 // "For Drivers" violations, drivers report the "For Students / Passengers"
@@ -196,32 +196,44 @@ exports.issueViolation = (req, res) => {
   if (!reason || !reason.trim()) return res.status(400).json({ error: 'A reason is required.' });
   const trimmedReason = reason.trim();
 
-  if (severity === 'Violation') {
-    return insertViolationRow(res, {
-      account_id, issued_by_admin_id, complaint_id, severity: 'Violation',
-      reason: trimmedReason, escalated: false, message: 'Violation issued'
-    });
-  }
+  // An account that's already suspended is at the top of the ladder; the
+  // admin lifts the suspension first (the Complaints list can still show
+  // an Issue Warning button for it, so this is checked here too).
+  getSuspension(account_id, (suspErr, suspension) => {
+    if (!suspErr && suspension) {
+      return res.status(409).json({ error: 'This account is already suspended. Lift the suspension first if you need to issue another warning.' });
+    }
+    issueOnActiveAccount();
+  });
 
-  db.query(
-    `SELECT COUNT(*) AS c FROM violations WHERE account_id = ? AND severity = 'Warning'`,
-    [account_id],
-    (err, rows) => {
-      if (err) return res.status(500).json({ error: err.message });
-      const priorWarnings = rows[0].c;
-
-      if (priorWarnings >= 1) {
-        return insertViolationRow(res, {
-          account_id, issued_by_admin_id, complaint_id, severity: 'Violation',
-          reason: trimmedReason, escalated: true,
-          message: 'This is their 2nd warning — automatically escalated to a Violation'
-        });
-      }
-
-      insertViolationRow(res, {
-        account_id, issued_by_admin_id, complaint_id, severity: 'Warning',
-        reason: trimmedReason, escalated: false, message: 'Warning issued'
+  function issueOnActiveAccount() {
+    if (severity === 'Violation') {
+      return insertViolationRow(res, {
+        account_id, issued_by_admin_id, complaint_id, severity: 'Violation',
+        reason: trimmedReason, escalated: false, message: 'Violation issued'
       });
     }
-  );
+
+    db.query(
+      `SELECT COUNT(*) AS c FROM violations WHERE account_id = ? AND severity = 'Warning'`,
+      [account_id],
+      (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        const priorWarnings = rows[0].c;
+
+        if (priorWarnings >= 1) {
+          return insertViolationRow(res, {
+            account_id, issued_by_admin_id, complaint_id, severity: 'Violation',
+            reason: trimmedReason, escalated: true,
+            message: 'This is their 2nd warning — automatically escalated to a Violation'
+          });
+        }
+
+        insertViolationRow(res, {
+          account_id, issued_by_admin_id, complaint_id, severity: 'Warning',
+          reason: trimmedReason, escalated: false, message: 'Warning issued'
+        });
+      }
+    );
+  }
 };
