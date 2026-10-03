@@ -5543,6 +5543,9 @@ async function renderBookingsList() {
   const isDriver = user.role === 'driver';
   const allRides = await (isDriver ? fetchDriverRides() : fetchMyRides());
   loading.style.display = 'none';
+  // Nothing to filter until there's at least one ride.
+  const filterEl = document.querySelector('#ride-filter');
+  if (filterEl) filterEl.style.display = allRides.length ? '' : 'none';
 
   if (!allRides.length) {
     emptyState.style.display = 'flex';

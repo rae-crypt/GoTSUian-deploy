@@ -267,3 +267,20 @@ body footer.footer.site-shell .footer-bottom {
    avatar menu already has the link, so it stays out of the nav bar. */
 .nav-links a.nav-row-history { display: none; }
 .nav-links.open a.nav-row-history:not(.hidden) { display: flex; }
+
+/* History empty state ("You haven't accepted any rides yet." / "You haven't
+   booked a ride yet."): driver.css's .btn-secondary has no padding or
+   radius, so its button rendered as a bare boxed link. One pill button for
+   both history pages. */
+.bookings-empty { padding: 28px 16px 12px; gap: 12px; }
+.bookings-empty a.btn-secondary {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 10px 22px; min-width: 0; border-radius: 999px;
+  border: 1px solid var(--primary); background: var(--white); color: var(--primary);
+  font-family: inherit; font-size: 13.5px; font-weight: 700; text-decoration: none;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+.bookings-empty a.btn-secondary:hover,
+.bookings-empty a.btn-secondary:focus-visible {
+  background: var(--primary); color: #fff8f6; transform: none; box-shadow: none; filter: none;
+}
