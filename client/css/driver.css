@@ -3859,3 +3859,30 @@ body[data-page="driver"] #ride-history-section .booking-top { width: 100%; justi
 .failed-form-reason input[type="radio"] { width: 18px; height: 18px; min-width: 18px; flex: none; padding: 0; box-shadow: none; }
 .failed-form-reason span { flex: 1; }
 .failed-form-reasons { gap: 6px; }
+
+/* Desktop only: a lone pending request used half the row and left the other
+   half empty. It now spans the row, with the trip details on the left and
+   the "Pick up this passenger" box (or, without one, the Accept/Decline
+   buttons) on the right. Two or more requests keep the two-column grid;
+   phones are unchanged. */
+@media (min-width: 901px) {
+  body[data-page="driver"] #driver-ride-requests > .driver-card:only-child:has([data-action="accept-ride"]) {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    column-gap: 28px;
+    align-items: start;
+  }
+  body[data-page="driver"] #driver-ride-requests > .driver-card:only-child:has([data-action="accept-ride"]) > .driver-card-header { grid-column: 1; grid-row: 1; }
+  body[data-page="driver"] #driver-ride-requests > .driver-card:only-child:has([data-action="accept-ride"]) > .driver-card-meta { grid-column: 1; grid-row: 2; }
+  body[data-page="driver"] #driver-ride-requests > .driver-card:only-child:has([data-action="accept-ride"]) > .booked-for-card { grid-column: 2; grid-row: 1 / span 3; margin: 0; }
+  body[data-page="driver"] #driver-ride-requests > .driver-card:only-child:has([data-action="accept-ride"]) > .driver-card-actions { grid-column: 1; grid-row: 3; align-self: end; }
+
+  /* No booked-for box: buttons take the right-hand column instead. */
+  body[data-page="driver"] #driver-ride-requests > .driver-card:only-child:has([data-action="accept-ride"]):not(:has(.booked-for-card)) {
+    grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
+  }
+  body[data-page="driver"] #driver-ride-requests > .driver-card:only-child:has([data-action="accept-ride"]):not(:has(.booked-for-card)) > .driver-card-actions {
+    grid-column: 2; grid-row: 1 / span 2; align-self: center;
+  }
+}

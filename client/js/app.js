@@ -3538,7 +3538,7 @@ async function alertDriverOfNewRides(newGroups) {
     tone: 'info',
     icon: '<img src="../images/tricycle.png" alt="" style="width:100%;height:100%;border-radius:50%">',
     title: 'New ride request',
-    message: `${ride.pickup_location} → ${ride.dropoff_location}. Estimated fare ${formatFareWithDistance(ride.fare || 0, ride.distance_km)}${ride.booked_for_name ? `. Booked for ${ride.booked_for_name} (${formatPhMobile(ride.booked_for_contact)})` : ''}${more}.`,
+    message: `${ride.pickup_location} → ${ride.dropoff_location}. Estimated fare ${formatFareWithDistance(ride.fare || 0, ride.distance_km)}${ride.booked_for_name ? `. Booked for ${ride.booked_for_name} (number shown once you accept)` : ''}${more}.`,
     primaryLabel: 'Accept',
     secondaryLabel: 'Later',
     onPrimary: () => {
@@ -4671,6 +4671,20 @@ function formatPhMobile(digits) {
 
 // Same rule as normalizePhMobile on the server: 09XXXXXXXXX, with spaces,
 // dashes or a +63 prefix allowed. Null if it isn't a PH mobile number.
+// Every phone box (sign-up, login, profile, book for someone else) takes
+// digits only, 11 at most: a PH mobile number is 09XXXXXXXXX. maxlength
+// alone still let letters and spaces in, and the booked-for box allowed 16.
+function setupPhoneInputs() {
+  document.querySelectorAll('input[type="tel"]').forEach((input) => {
+    input.setAttribute('maxlength', '11');
+    input.setAttribute('inputmode', 'numeric');
+    input.addEventListener('input', () => {
+      const digits = input.value.replace(/\D/g, '').slice(0, 11);
+      if (digits !== input.value) input.value = digits;
+    });
+  });
+}
+
 function normalizePhMobileClient(raw) {
   let digits = String(raw || '').replace(/\D/g, '');
   if (digits.startsWith('63')) digits = '0' + digits.slice(2);
@@ -8008,6 +8022,7 @@ document.addEventListener('DOMContentLoaded', function() {
   refreshAuthState();
   setupLoginNavLink();
   setupViolationModal();
+  setupPhoneInputs();
   showSuspendedNoticeIfAny();
   setupRideHistoryFilter();
   setupLicenseModal();
