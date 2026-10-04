@@ -3903,3 +3903,54 @@ body[data-page="driver"] #ride-history-section .booking-top { width: 100%; justi
 .failed-form-photo svg { width: 18px; height: 18px; flex: none; }
 .failed-form-photo-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .failed-form-photo-note { display: block; margin-top: 4px; font-size: 11.5px; color: #7a5c50; }
+
+/* Driver "Report a concern" form, desktop only: a tidy card instead of
+   loose fields. Category and photo side by side, the description across
+   the full width, and the same field look as the rest of the driver page.
+   JS shows the form with an inline display:block, so the grid needs
+   !important to win. Phones keep the old stacked form. */
+@media (min-width: 901px) {
+  body[data-page="driver"] .booking-actions .complaint-prompt { flex: 1 1 100%; }
+  body[data-page="driver"] .complaint-form:not([style*="none"]) {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px 12px;
+    align-items: start;
+    max-width: 640px;
+    margin-top: 12px;
+    padding: 16px;
+    background: #fffaf8;
+    border: 1px solid #f1d9d9;
+    border-radius: 14px;
+  }
+  body[data-page="driver"] .complaint-form .complaint-category,
+  body[data-page="driver"] .complaint-form .complaint-description {
+    box-sizing: border-box;
+    width: 100%;
+    margin: 0;
+    padding: 10px 12px;
+    font-family: inherit;
+    font-size: 14px;
+    color: var(--text);
+    background: #fff;
+    border: 1.5px solid #ecd9d3;
+    border-radius: 11px;
+  }
+  body[data-page="driver"] .complaint-form .complaint-category { grid-column: 1; height: 44px; }
+  body[data-page="driver"] .complaint-form .evidence-photo {
+    grid-column: 2;
+    grid-row: 1;
+    box-sizing: border-box;
+    height: 44px;
+    margin: 0;
+    background: #fff;
+  }
+  body[data-page="driver"] .complaint-form .complaint-description { grid-column: 1 / -1; min-height: 88px; resize: vertical; }
+  body[data-page="driver"] .complaint-form .complaint-category:focus,
+  body[data-page="driver"] .complaint-form .complaint-description:focus { outline: none; border-color: var(--primary); }
+  body[data-page="driver"] .complaint-form .evidence-photo-note { grid-column: 1 / -1; margin: 0; }
+  /* Keeps the driver page's usual pill button (driver.css .btn-primary). */
+  body[data-page="driver"] .complaint-form .complaint-submit { grid-column: 1; justify-self: start; }
+  body[data-page="driver"] .complaint-form .complaint-error { grid-column: 1 / -1; }
+  body[data-page="driver"] .complaint-form .complaint-error:empty { display: none; }
+}
