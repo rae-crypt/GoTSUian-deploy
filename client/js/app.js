@@ -224,15 +224,22 @@ function setupScrollReveal() {
     return;
   }
 
+  // A box shows once 16% of it is on screen, or once it fills 16% of the
+  // screen. The second rule is for very tall boxes (an opened admin panel
+  // with a long bookings list): 16% of a box over six screens tall never
+  // fits on screen, so it used to stay invisible and the page looked blank.
+  // The extra small thresholds make the browser report those tall boxes.
   const observer = new IntersectionObserver((entries, obs) => {
     entries.forEach(entry => {
-      if (entry.isIntersecting) {
+      const shown = entry.intersectionRatio >= 0.16
+        || entry.intersectionRect.height >= window.innerHeight * 0.16;
+      if (entry.isIntersecting && shown) {
         entry.target.classList.add('is-visible');
         obs.unobserve(entry.target);
       }
     });
   }, {
-    threshold: 0.16
+    threshold: [0, 0.01, 0.02, 0.05, 0.1, 0.16]
   });
  
   allReveal.forEach(item => observer.observe(item));
