@@ -1262,6 +1262,22 @@ async function updateProfileRemote(payload) {
   return data;
 }
 
+// A passenger's mobile number can't be changed once saved (the server
+// refuses it too). An account made before the number was required can add
+// one here once; then it locks like the driver's. Driver pages already have
+// the field read-only in their HTML, so this only touches the passenger page.
+function lockPassengerContact() {
+  const input = document.querySelector('#profile-contact');
+  const note = document.querySelector('#profile-contact-note');
+  if (!input || !note) return;
+  const hasNumber = input.value.trim() !== '';
+  input.readOnly = hasNumber;
+  input.setAttribute('aria-readonly', String(hasNumber));
+  note.textContent = hasNumber
+    ? 'This is your registered mobile number.'
+    : "Add your mobile number. It can't be changed after saving.";
+}
+
 async function renderProfile() {
   const loadingEl = document.querySelector('#profile-loading');
   const formEl = document.querySelector('#profile-form');
@@ -1277,6 +1293,7 @@ async function renderProfile() {
   document.querySelector('#profile-mname').value = profile.middle_name || '';
   document.querySelector('#profile-lname').value = profile.last_name || '';
   document.querySelector('#profile-contact').value = profile.contact_number || '';
+  lockPassengerContact();
   document.querySelector('#profile-birthdate').value = profile.birth_date ? profile.birth_date.slice(0, 10) : '';
   document.querySelector('#profile-age').value = profile.age || '';
   document.querySelector('#profile-sex').value = profile.sex || '';
@@ -1320,6 +1337,7 @@ function setupProfileForm() {
 
     try {
       await updateProfileRemote(payload);
+      lockPassengerContact();
       if (submitButton) {
         const originalText = submitButton.textContent;
         submitButton.textContent = 'Saved!';

@@ -52,14 +52,14 @@ exports.updateProfile = (req, res) => {
     return res.status(400).json({ error: 'Profile is only available for students and drivers' });
   }
 
-  // A driver's number can't be changed here: it's their login and the
-  // number passengers call, so it stays the one they registered with (the
-  // field is read-only on the driver's profile page too). Only a passenger's
-  // number is saved from this form.
-  const isDriver = table === 'tricycle_driver';
-  const save = () => db.query(
-    `UPDATE ${table} SET first_name = ?, middle_name = ?, last_name = ?, birth_date = ?, age = ?, sex = ?,${isDriver ? '' : ' contact_number = ?,'} current_address = ? WHERE account_id = ?`,
-    [first_name, middle_name || null, last_name, birth_date || null, age || null, sex || null, ...(isDriver ? [] : [contact_number || null]), current_address || null, accountId],
+  // Mobile numbers can't be changed from the profile, by anyone. A driver's
+  // is their login and the number passengers call; a passenger's is their
+  // one-account-per-number ID. So the number is only ever written once:
+  // a passenger whose account predates the required number (before
+  // 2026-10-04) may add one here, and after that it's read-only too.
+  const save = (newNumber) => db.query(
+    `UPDATE ${table} SET first_name = ?, middle_name = ?, last_name = ?, birth_date = ?, age = ?, sex = ?,${newNumber ? ' contact_number = ?,' : ''} current_address = ? WHERE account_id = ?`,
+    [first_name, middle_name || null, last_name, birth_date || null, age || null, sex || null, ...(newNumber ? [newNumber] : []), current_address || null, accountId],
     (err, result) => {
       if (err) return res.status(500).json({ error: err.message });
       if (result.affectedRows === 0) return res.status(404).json({ error: 'Profile not found' });
@@ -67,17 +67,22 @@ exports.updateProfile = (req, res) => {
     }
   );
 
-  // A passenger's mobile number follows the sign-up rules (see
-  // registerStudent): a valid 09XXXXXXXXX number, not used by any other
-  // passenger or driver.
-  // It can be left blank, since accounts made before 2026-10-04 have none.
   const mobile = String(contact_number || '').trim();
-  if (table !== 'student' || !mobile) return save();
-  if (!/^09[0-9]{9}$/.test(mobile)) {
-    return res.status(400).json({ error: 'Enter an 11-digit mobile number starting with 09' });
-  }
-  isMobileTaken(mobile, accountId).then((taken) => {
-    if (taken) return res.status(409).json({ error: MOBILE_TAKEN_MESSAGE });
-    save();
+  if (table !== 'student' || !mobile) return save(null);
+
+  db.query(`SELECT contact_number FROM student WHERE account_id = ?`, [accountId], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    const current = rows.length ? String(rows[0].contact_number || '').trim() : '';
+    if (current) return save(null); // already set: never changed
+
+    // Adding a first number follows the sign-up rules (see registerStudent):
+    // 09XXXXXXXXX and not used by any other passenger or driver.
+    if (!/^09[0-9]{9}$/.test(mobile)) {
+      return res.status(400).json({ error: 'Enter an 11-digit mobile number starting with 09' });
+    }
+    isMobileTaken(mobile, accountId).then((taken) => {
+      if (taken) return res.status(409).json({ error: MOBILE_TAKEN_MESSAGE });
+      save(mobile);
+    });
   });
 };
