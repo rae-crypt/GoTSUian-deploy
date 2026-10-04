@@ -297,3 +297,16 @@ body[data-page="driver"] .bookings-empty a.btn-secondary:focus-visible {
   margin-top: 8px; padding: 8px 12px; border-radius: 10px;
   background: #fef2f2; color: #7f1d1d; font-size: 12.5px; line-height: 1.5;
 }
+
+/* "Report a concern": optional proof photo (dashed pick-a-file button with
+   the real file input hidden inside, solid once a photo is chosen). */
+.evidence-photo {
+  display: flex; align-items: center; gap: 8px; margin: 8px 0 0; padding: 9px 12px;
+  border: 1.5px dashed #e3cfc4; border-radius: 12px; cursor: pointer;
+  font-size: 13px; font-weight: 600; color: var(--primary); position: relative;
+}
+.evidence-photo.has-file { border-style: solid; border-color: var(--primary); background: rgba(127, 29, 29, 0.05); }
+.evidence-photo input[type="file"] { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.evidence-photo svg { width: 18px; height: 18px; flex: none; }
+.evidence-photo-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.evidence-photo-note { display: block; margin: 4px 0 10px; font-size: 11.5px; color: #7a5c50; line-height: 1.4; }

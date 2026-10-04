@@ -18,6 +18,7 @@ const { ensureCertificateSeenColumn } = require('./certificateSeen');
 const { ensureBookedForColumns } = require('./bookedFor');
 const { ensureSuspensionColumns } = require('./suspension');
 const { ensureFailureColumns } = require('./rideFailures');
+const { ensureEvidenceColumn } = require('./complaintEvidence');
 const authRoutes = require('./routes/authRoutes');
 const rideRoutes = require('./routes/rideRoutes');
 const adminRoutes = require('./routes/adminRoutes');
@@ -132,4 +133,6 @@ server.listen(PORT, () => {
   ensureSuspensionColumns();
   // rides.failed_reason / failed_note (see rideFailures.js). Additions only.
   ensureFailureColumns();
+  // complaints.evidence_path (see complaintEvidence.js). Additions only.
+  ensureEvidenceColumn();
 });

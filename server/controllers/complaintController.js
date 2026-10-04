@@ -1,4 +1,7 @@
+const fs = require('fs');
+const path = require('path');
 const db = require('../config/db');
+const { hasEvidenceColumn } = require('../complaintEvidence');
 const { emitComplaintUpdated, emitComplaintFiled, emitViolationIssued, emitAccountSuspended, emitAvailabilityChanged, emitNewPendingRide } = require('../socket');
 const { suspendAccount, getSuspension, SUSPENDED_MESSAGE } = require('../suspension');
 const { hasFailureColumns } = require('../rideFailures');
@@ -28,9 +31,11 @@ exports.createComplaint = (req, res) => {
     `INSERT INTO complaints (filed_by_account_id, against_account_id, ride_id, category, description)
      VALUES (?, ?, ?, ?, ?)`,
     [filed_by_account_id, against_account_id || null, ride_id || null, category, description.trim()],
-    (err) => {
+    (err, result) => {
       if (err) return res.status(500).json({ error: err.message });
-      res.status(201).json({ message: 'Complaint submitted' });
+      // complaintId lets the reporter attach a photo right after (see
+      // uploadComplaintEvidence).
+      res.status(201).json({ message: 'Complaint submitted', complaintId: result.insertId });
       emitComplaintFiled();
     }
   );
@@ -83,6 +88,7 @@ exports.listComplaints = (req, res) => {
   db.query(
     `SELECT c.complaint_id, c.category, c.description, c.status, c.admin_notes,
             c.created_at, c.against_account_id, c.ride_id,
+            ${hasEvidenceColumn() ? 'c.evidence_path IS NOT NULL' : 'FALSE'} AS has_evidence,
             ${hasFailureColumns() ? 'r.failed_photo_path IS NOT NULL' : 'FALSE'} AS has_failed_photo,
             COALESCE(CONCAT(fs.first_name, ' ', fs.last_name), CONCAT(ftd.first_name, ' ', ftd.last_name)) AS filed_by_name,
             COALESCE(CONCAT(as_.first_name, ' ', as_.last_name), CONCAT(atd.first_name, ' ', atd.last_name)) AS against_name,
@@ -97,6 +103,71 @@ exports.listComplaints = (req, res) => {
     (err, rows) => {
       if (err) return res.status(500).json({ error: err.message });
       res.status(200).json({ complaints: rows });
+    }
+  );
+};
+
+// REPORTER attaches an optional photo to a report they just filed (sent
+// separately, after the report, so filing never waits on an upload). Only
+// the person who filed it; a new photo replaces the old one.
+exports.uploadComplaintEvidence = (req, res) => {
+  const { complaintId } = req.params;
+  const discard = () => { if (req.file) fs.unlink(req.file.path, () => {}); };
+  if (!req.file) return res.status(400).json({ error: 'Choose a photo to attach.' });
+  if (!hasEvidenceColumn()) {
+    discard();
+    return res.status(503).json({ error: 'Photos cannot be saved yet. Please try again in a minute.' });
+  }
+
+  db.query(`SELECT filed_by_account_id, evidence_path FROM complaints WHERE complaint_id = ?`, [complaintId], (err, rows) => {
+    if (err) { discard(); return res.status(500).json({ error: err.message }); }
+    const complaint = rows[0];
+    if (!complaint || String(complaint.filed_by_account_id) !== String(req.user.accountId)) {
+      discard();
+      return res.status(403).json({ error: 'You can only add a photo to your own report.' });
+    }
+    const relativePath = `uploads/complaints/${req.file.filename}`;
+    db.query(`UPDATE complaints SET evidence_path = ? WHERE complaint_id = ?`, [relativePath, complaintId], (err2) => {
+      if (err2) { discard(); return res.status(500).json({ error: err2.message }); }
+      if (complaint.evidence_path) fs.unlink(path.join(__dirname, '..', complaint.evidence_path), () => {});
+      res.status(200).json({ message: 'Photo attached' });
+    });
+  });
+};
+
+// ADMIN — the photo attached to a report.
+exports.getComplaintEvidence = (req, res) => {
+  const { complaintId } = req.params;
+  if (!hasEvidenceColumn()) return res.status(404).json({ error: 'No photo for this report' });
+
+  db.query(`SELECT evidence_path FROM complaints WHERE complaint_id = ?`, [complaintId], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!rows.length || !rows[0].evidence_path) return res.status(404).json({ error: 'No photo for this report' });
+    const filePath = path.join(__dirname, '..', rows[0].evidence_path);
+    if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'The photo is missing from the server' });
+    res.sendFile(filePath);
+  });
+};
+
+// ADMIN — a ride's in-app chat, read-only, to check a report against what
+// the passenger and driver actually wrote to each other. Disclosed in the
+// Privacy Policy (rules.html#privacy).
+exports.getRideChatForAdmin = (req, res) => {
+  const { rideId } = req.params;
+  db.query(
+    `SELECT m.message, m.created_at,
+            CASE WHEN m.sender_account_id = r.driver_account_id THEN 'Driver' ELSE 'Passenger' END AS sender_role,
+            COALESCE(CONCAT(s.first_name, ' ', s.last_name), CONCAT(td.first_name, ' ', td.last_name)) AS sender_name
+     FROM messages m
+     JOIN rides r ON r.ride_id = m.ride_id
+     LEFT JOIN student s ON s.account_id = m.sender_account_id
+     LEFT JOIN tricycle_driver td ON td.account_id = m.sender_account_id
+     WHERE m.ride_id = ?
+     ORDER BY m.created_at ASC, m.message_id ASC`,
+    [rideId],
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.status(200).json({ messages: rows });
     }
   );
 };

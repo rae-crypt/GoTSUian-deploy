@@ -2877,7 +2877,7 @@ function complaintTone(status) {
 function renderComplaintRow(c) {
   const route = c.pickup_location ? `${escapeHtml(c.pickup_location)} → ${escapeHtml(c.dropoff_location)}` : '—';
   const againstName = escapeHtml(c.against_name || '—');
-  const photoBtn = failedPhotoButton(c);
+  const photoBtn = failedPhotoButton(c) + complaintProofButtons(c);
   const actions = c.status === 'Resolved' ? (photoBtn || '—') : `
     ${photoBtn}
     <button type="button" class="admin-btn" data-action="mark-reviewed" data-complaint-id="${c.complaint_id}">Mark Reviewed</button>
@@ -2899,7 +2899,7 @@ function renderComplaintRow(c) {
 function renderComplaintCard(c) {
   const route = c.pickup_location ? `${escapeHtml(c.pickup_location)} → ${escapeHtml(c.dropoff_location)}` : '—';
   const againstName = escapeHtml(c.against_name || '—');
-  const photoBtn = failedPhotoButton(c);
+  const photoBtn = failedPhotoButton(c) + complaintProofButtons(c);
   const actions = c.status === 'Resolved' ? photoBtn : `
     ${photoBtn}
     <button type="button" class="admin-btn" data-action="mark-reviewed" data-complaint-id="${c.complaint_id}">Mark Reviewed</button>
@@ -2998,7 +2998,89 @@ function openFailedPhotoModal(rideId) {
     });
 }
 
+// Proof for the admin on any report: the photo the reporter attached, and
+// the ride's in-app chat (read-only), so a warning has a basis.
+function complaintProofButtons(c) {
+  return (c.has_evidence ? `<button type="button" class="admin-btn" data-action="view-evidence" data-complaint-id="${c.complaint_id}">View evidence</button>` : '')
+    + (c.ride_id ? `<button type="button" class="admin-btn" data-action="view-ride-chat" data-ride-id="${c.ride_id}">View chat</button>` : '');
+}
+
+// The reporter's photo, in the same viewer as the license and Failed-ride
+// photos (#license-modal).
+function openComplaintEvidenceModal(complaintId) {
+  const modal = document.querySelector('#license-modal');
+  if (!modal) return;
+  document.querySelector('#license-modal-name').textContent = 'Photo attached to the report';
+  const preview = document.querySelector('#license-modal-preview');
+  const errorEl = document.querySelector('#license-modal-error');
+  document.querySelector('#license-modal-actions').innerHTML = '';
+  errorEl.textContent = '';
+  preview.innerHTML = '<strong>Loading photo…</strong>';
+  modal.classList.remove('hidden');
+
+  fetch(`${COMPLAINTS_API_URL}/admin/${complaintId}/evidence`, { headers: getAuthHeaders() })
+    .then(async res => {
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Could not load the photo');
+      }
+      const url = URL.createObjectURL(await res.blob());
+      preview.innerHTML = `<img src="${url}" alt="Photo attached to the report">`;
+    })
+    .catch(error => {
+      preview.innerHTML = '<strong>Photo not available</strong>';
+      errorEl.textContent = error.message || 'Could not load the photo';
+    });
+}
+
+// Read-only copy of a ride's chat for the admin.
+async function openRideChatForAdmin(rideId) {
+  document.querySelectorAll('[data-admin-chat]').forEach(el => el.remove());
+  const overlay = document.createElement('div');
+  overlay.setAttribute('data-admin-chat', '');
+  overlay.className = 'ride-feedback-overlay';
+  overlay.innerHTML = `
+    <div class="ride-feedback-modal admin-chat-modal" role="dialog" aria-labelledby="admin-chat-title">
+      <h3 id="admin-chat-title">Ride chat</h3>
+      <p class="admin-chat-lead">What the passenger and driver wrote to each other on this ride (read-only).</p>
+      <div class="admin-chat-list"><p class="admin-chat-empty">Loading messages…</p></div>
+      <div class="action-popup-buttons"><button type="button" class="action-popup-secondary">Close</button></div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  const close = () => overlay.remove();
+  overlay.addEventListener('click', (event) => { if (event.target === overlay) close(); });
+  overlay.querySelector('.action-popup-secondary').addEventListener('click', close);
+
+  const list = overlay.querySelector('.admin-chat-list');
+  try {
+    const res = await fetch(`${COMPLAINTS_API_URL}/admin/rides/${rideId}/messages`, { headers: getAuthHeaders() });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Could not load the chat');
+    const messages = data.messages || [];
+    list.innerHTML = messages.length
+      ? messages.map(m => `
+          <div class="admin-chat-msg ${m.sender_role === 'Driver' ? 'is-driver' : 'is-passenger'}">
+            <span class="admin-chat-who">${escapeHtml(m.sender_name || m.sender_role)} · ${escapeHtml(m.sender_role)} · ${escapeHtml(new Date(m.created_at).toLocaleString())}</span>
+            <span class="admin-chat-text">${escapeHtml(m.message)}</span>
+          </div>`).join('')
+      : '<p class="admin-chat-empty">No messages were sent on this ride.</p>';
+  } catch (error) {
+    list.innerHTML = `<p class="admin-chat-empty">${escapeHtml(error.message || 'Could not load the chat')}</p>`;
+  }
+}
+
 function wireComplaintActions(container) {
+  container.querySelectorAll('[data-action="view-evidence"]').forEach(button => {
+    button.addEventListener('click', function() {
+      openComplaintEvidenceModal(this.getAttribute('data-complaint-id'));
+    });
+  });
+  container.querySelectorAll('[data-action="view-ride-chat"]').forEach(button => {
+    button.addEventListener('click', function() {
+      openRideChatForAdmin(this.getAttribute('data-ride-id'));
+    });
+  });
   container.querySelectorAll('[data-action="view-failed-photo"]').forEach(button => {
     button.addEventListener('click', function() {
       openFailedPhotoModal(this.getAttribute('data-ride-id'));
@@ -5857,6 +5939,12 @@ async function renderBookingsList() {
             ${complaintCategories.map(c => `<option value="${c}">${c}</option>`).join('')}
           </select>
           <textarea class="complaint-description" rows="2" placeholder="Describe what happened..."></textarea>
+          <label class="evidence-photo">
+            <input type="file" class="complaint-photo" accept="image/jpeg,image/png">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 6.5h3l1.5-2h4l1.5 2h3v9h-13z"/><circle cx="10" cy="11" r="2.8"/></svg>
+            <span class="evidence-photo-text">Attach a photo as proof (optional)</span>
+          </label>
+          <small class="evidence-photo-note">E.g. a screenshot or a photo of what happened. Only the TODA admin sees it. JPG or PNG, up to 5 MB.</small>
           <button type="button" class="btn-primary complaint-submit">Submit report</button>
           <small class="error-msg complaint-error"></small>
         </div>
@@ -5942,6 +6030,20 @@ function setupReviewPrompts(container) {
 
 // "Report a concern" — lets a passenger/driver file a complaint against the
 // other party on a given ride. Same toggle-a-hidden-form pattern as reviews.
+// Sends the optional proof photo for a report just filed. multipart, so only
+// the Authorization header (the browser sets the Content-Type).
+async function uploadComplaintEvidence(complaintId, file) {
+  const formData = new FormData();
+  formData.append('photo', file);
+  const headers = {};
+  const token = getStoredUser().token;
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const res = await fetch(`${COMPLAINTS_API_URL}/${complaintId}/evidence`, { method: 'POST', headers, body: formData });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'Unable to upload the photo');
+  return data;
+}
+
 function setupComplaintPrompts(container) {
   container.querySelectorAll('.complaint-prompt').forEach(prompt => {
     const rideId = prompt.getAttribute('data-ride-id');
@@ -5952,6 +6054,21 @@ function setupComplaintPrompts(container) {
     const descriptionEl = prompt.querySelector('.complaint-description');
     const submitBtn = prompt.querySelector('.complaint-submit');
     const errorEl = prompt.querySelector('.complaint-error');
+    const photoInput = prompt.querySelector('.complaint-photo');
+    const photoLabel = prompt.querySelector('.evidence-photo');
+    const resetPhoto = () => {
+      if (!photoInput) return;
+      photoInput.value = '';
+      photoLabel.classList.remove('has-file');
+      photoLabel.querySelector('.evidence-photo-text').textContent = 'Attach a photo as proof (optional)';
+    };
+    if (photoInput) {
+      photoInput.addEventListener('change', () => {
+        const file = photoInput.files[0];
+        photoLabel.classList.toggle('has-file', Boolean(file));
+        photoLabel.querySelector('.evidence-photo-text').textContent = file ? `Photo: ${file.name}` : 'Attach a photo as proof (optional)';
+      });
+    }
 
     toggleBtn.addEventListener('click', () => {
       form.style.display = form.style.display === 'none' ? 'block' : 'none';
@@ -5967,6 +6084,9 @@ function setupComplaintPrompts(container) {
         errorEl.textContent = 'Please describe what happened.';
         return;
       }
+      const photo = photoInput && photoInput.files[0] ? photoInput.files[0] : null;
+      if (photo && !['image/jpeg', 'image/png'].includes(photo.type)) { errorEl.textContent = 'The photo must be a JPG or PNG.'; return; }
+      if (photo && photo.size > 5 * 1024 * 1024) { errorEl.textContent = 'The photo must be 5 MB or smaller.'; return; }
       submitBtn.disabled = true;
       try {
         const res = await fetch(COMPLAINTS_API_URL, {
@@ -5981,11 +6101,26 @@ function setupComplaintPrompts(container) {
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Unable to submit report');
-        showRideFeedback('success', 'Report submitted', 'Our admin team will review this shortly.');
+        // The report is already filed here; the photo is extra proof, so a
+        // failed upload only gets a heads-up and never undoes the report.
+        let photoError = null;
+        if (photo && data.complaintId) {
+          try {
+            await uploadComplaintEvidence(data.complaintId, photo);
+          } catch (uploadError) {
+            photoError = uploadError.message || 'Please try again.';
+          }
+        }
+        if (photoError) {
+          showRideFeedback('error', 'Report sent, photo not sent', `Your report was submitted, but the photo couldn't be uploaded: ${photoError}`);
+        } else {
+          showRideFeedback('success', 'Report submitted', 'Our admin team will review this shortly.');
+        }
         toggleBtn.textContent = 'Report a concern';
         form.style.display = 'none';
         categoryEl.value = '';
         descriptionEl.value = '';
+        resetPhoto();
       } catch (error) {
         errorEl.textContent = error.message || 'Please try again.';
       } finally {

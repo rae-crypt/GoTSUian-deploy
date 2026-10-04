@@ -2690,3 +2690,15 @@ body {
 .admin-bookings-filter .ride-filter-chip { color: var(--muted); }
 .admin-bookings-filter .ride-filter-chip.is-active { color: #fff8f6; }
 .admin-bookings-filter .ride-filter-summary { color: var(--muted); margin-bottom: 4px; }
+
+/* Read-only ride chat for the admin (Complaints > View chat). */
+.admin-chat-modal { max-width: 520px; text-align: left; max-height: calc(100vh - 32px); display: flex; flex-direction: column; }
+.admin-chat-modal h3 { text-align: center; }
+.admin-chat-lead { font-size: 13px; color: var(--muted); text-align: center; margin: 4px 0 12px; }
+.admin-chat-list { overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 4px 2px; min-height: 60px; }
+.admin-chat-msg { display: flex; flex-direction: column; gap: 2px; max-width: 85%; padding: 8px 12px; border-radius: 12px; font-size: 13.5px; }
+.admin-chat-msg.is-passenger { align-self: flex-start; background: var(--light); }
+.admin-chat-msg.is-driver { align-self: flex-end; background: #fdf3e2; }
+.admin-chat-who { font-size: 11px; font-weight: 700; color: var(--muted); }
+.admin-chat-text { color: var(--text); white-space: pre-wrap; word-break: break-word; }
+.admin-chat-empty { font-size: 13px; color: var(--muted); text-align: center; margin: 12px 0; }

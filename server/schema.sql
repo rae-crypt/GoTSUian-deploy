@@ -359,3 +359,9 @@ ALTER TABLE rides
 -- (Complaints > View photo). Stored under server/uploads/failed-rides/.
 -- server/rideFailures.js adds it on startup if missing.
 ALTER TABLE rides ADD COLUMN failed_photo_path VARCHAR(255) NULL DEFAULT NULL;
+
+-- Proof on a report (2026-10-04, IT expert review): whoever files a
+-- complaint can attach one optional photo; only the admin can view it
+-- (Complaints > View evidence). Stored under server/uploads/complaints/.
+-- server/complaintEvidence.js adds it on startup if missing.
+ALTER TABLE complaints ADD COLUMN evidence_path VARCHAR(255) NULL DEFAULT NULL;
