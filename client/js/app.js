@@ -8271,7 +8271,7 @@ function showInstallBanner(mode) {
   banner.setAttribute('role', 'dialog');
   banner.setAttribute('aria-label', 'Install GoTSUian');
   banner.innerHTML = `
-    <img class="install-banner-icon" src="/images/icons/icon-192.png" alt="">
+    <img class="install-banner-icon" src="/images/icons/icon-192.png?v=2" alt="">
     <div class="install-banner-text">
       <strong>Install GoTSUian</strong>
       <span>${mode === 'ios'
