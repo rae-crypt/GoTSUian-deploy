@@ -4401,7 +4401,7 @@ function showRideConfirmModal({ pickupLocation, dropoffLocation, rideType, fareT
       <div class="chat-modal ride-confirm-modal">
         <div class="ride-confirm-head">
           <span class="ride-confirm-badge">
-            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="6.5"/><path d="M10 8.2V4M8.3 11.2L5 13.5M11.7 11.2L15 13.5"/></svg>
+            <img class="tricycle-icon" src="../images/tricycle.png" alt="">
           </span>
           <div class="ride-confirm-head-text">
             <h3>Confirm your ride</h3>

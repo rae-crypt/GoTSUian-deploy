@@ -332,3 +332,18 @@ header.admin-topbar .admin-logo img {
   object-fit: contain;
   border-radius: 0;
 }
+
+/* Tricycle icon (IT expert review, 2026-10-04): the colored GoTSUian
+   tricycle replaces the steering-wheel icon everywhere (My Rides menu row,
+   "Driver dashboard" feature lines, admin Registered drivers + Driver
+   management, the Confirm your ride badge). The picture has its own round
+   backdrop, so it sits a little larger than the line icon it replaced. */
+img.tricycle-icon { object-fit: contain; flex: none; }
+img.nav-row-icon.tricycle-icon { width: 24px; height: 24px; }
+.admin-stat-icon img.tricycle-icon { width: 28px; height: 28px; }
+.admin-panel-icon img.tricycle-icon { width: 30px; height: 30px; }
+.ride-confirm-badge img.tricycle-icon { width: 30px; height: 30px; }
+@media (max-width: 640px) {
+  .admin-stat-icon img.tricycle-icon { width: 24px; height: 24px; }
+  .admin-panel-icon img.tricycle-icon { width: 26px; height: 26px; }
+}
