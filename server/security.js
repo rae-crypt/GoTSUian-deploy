@@ -32,11 +32,11 @@ function accountOf(req) {
 // person's password is stopped while everyone else logs in normally.
 const perIpAndAccount = (req) => `${ipKeyGenerator(req.ip)}|${accountOf(req)}`;
 
-// Logins (passenger, driver, admin): 10 tries per account per 15 minutes.
+// Logins (passenger, driver, admin): 5 wrong tries per account per 15 minutes.
 // Successful logins don't count, so only wrong passwords use up tries.
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 10,
+  limit: 5,
   skipSuccessfulRequests: true,
   keyGenerator: perIpAndAccount,
   standardHeaders: 'draft-8',
