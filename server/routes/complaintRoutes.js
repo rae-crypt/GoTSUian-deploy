@@ -22,7 +22,7 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-router.post('/', authMiddleware, complaintController.createComplaint);
+router.post('/', authMiddleware, evidencePhotoUpload, complaintController.createComplaint);
 router.post('/:complaintId/evidence', authMiddleware, evidencePhotoUpload, complaintController.uploadComplaintEvidence);
 router.get('/mine', authMiddleware, complaintController.getMyComplaints);
 router.get('/my-violations', authMiddleware, complaintController.getMyViolations);

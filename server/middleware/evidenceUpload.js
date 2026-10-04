@@ -2,8 +2,9 @@ const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
 
-// Optional photo attached to a report ("Report a concern"). Same limits as
-// the Failed-ride photo (failedPhotoUpload.js), its own folder, images only.
+// Photo attached to a report ("Report a concern"), required as proof. Same
+// limits as the Failed-ride photo (failedPhotoUpload.js), its own folder,
+// images only.
 const complaintsDir = path.join(__dirname, '..', 'uploads', 'complaints');
 fs.mkdirSync(complaintsDir, { recursive: true });
 
@@ -11,7 +12,9 @@ const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, complaintsDir),
   filename: (req, file, cb) => {
     const safeExt = path.extname(file.originalname).toLowerCase();
-    cb(null, `complaint_${req.params.complaintId}_${Date.now()}${safeExt}`);
+    // A new report has no id yet when its photo arrives with it.
+    const id = req.params.complaintId || `new_${req.user ? req.user.accountId : 'x'}`;
+    cb(null, `complaint_${id}_${Date.now()}${safeExt}`);
   }
 });
 

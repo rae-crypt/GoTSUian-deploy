@@ -15,26 +15,39 @@ const CATEGORIES_AGAINST_PASSENGER = ['No-show', 'Rude behavior', 'Refused to pa
 // PASSENGER/DRIVER files a complaint, optionally against a specific person
 // and/or tied to a specific ride. Resolving it later (see updateComplaintStatus
 // / issueViolation) is entirely up to the admin.
+// A photo as proof is REQUIRED (IT expert review, 2026-10-04: no sanction on
+// "he said, she said"). It arrives in the same multipart request as the
+// report (evidencePhotoUpload in complaintRoutes.js), so a report is never
+// saved without its proof, and a rejected report never leaves a stray file.
 exports.createComplaint = (req, res) => {
   const filed_by_account_id = req.user.accountId;
   const { against_account_id, ride_id, category, description } = req.body;
   const validCategories = req.user.role === 'driver' ? CATEGORIES_AGAINST_PASSENGER : CATEGORIES_AGAINST_DRIVER;
+  const reject = (status, error) => {
+    if (req.file) fs.unlink(req.file.path, () => {});
+    return res.status(status).json({ error });
+  };
 
   if (!category || !validCategories.includes(category)) {
-    return res.status(400).json({ error: `Category must be one of: ${validCategories.join(', ')}` });
+    return reject(400, `Category must be one of: ${validCategories.join(', ')}`);
   }
   if (!description || !description.trim()) {
-    return res.status(400).json({ error: 'A description is required.' });
+    return reject(400, 'A description is required.');
+  }
+  if (!req.file) {
+    return reject(400, 'Attach a photo as proof (a screenshot or a photo of what happened).');
+  }
+  if (!hasEvidenceColumn()) {
+    return reject(503, 'Reports cannot be saved yet. Please try again in a minute.');
   }
 
   db.query(
-    `INSERT INTO complaints (filed_by_account_id, against_account_id, ride_id, category, description)
-     VALUES (?, ?, ?, ?, ?)`,
-    [filed_by_account_id, against_account_id || null, ride_id || null, category, description.trim()],
+    `INSERT INTO complaints (filed_by_account_id, against_account_id, ride_id, category, description, evidence_path)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [filed_by_account_id, against_account_id || null, ride_id || null, category, description.trim(),
+     `uploads/complaints/${req.file.filename}`],
     (err, result) => {
-      if (err) return res.status(500).json({ error: err.message });
-      // complaintId lets the reporter attach a photo right after (see
-      // uploadComplaintEvidence).
+      if (err) return reject(500, err.message);
       res.status(201).json({ message: 'Complaint submitted', complaintId: result.insertId });
       emitComplaintFiled();
     }

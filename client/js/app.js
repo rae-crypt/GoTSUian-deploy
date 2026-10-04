@@ -5948,9 +5948,9 @@ async function renderBookingsList() {
           <label class="evidence-photo">
             <input type="file" class="complaint-photo" accept="image/jpeg,image/png">
             <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 6.5h3l1.5-2h4l1.5 2h3v9h-13z"/><circle cx="10" cy="11" r="2.8"/></svg>
-            <span class="evidence-photo-text">Attach a photo as proof (optional)</span>
+            <span class="evidence-photo-text">Attach a photo as proof</span>
           </label>
-          <small class="evidence-photo-note">E.g. a screenshot or a photo of what happened. Only the TODA admin sees it. JPG or PNG, up to 5 MB.</small>
+          <small class="evidence-photo-note">Required: a screenshot or a photo of what happened. Only the TODA admin sees it. JPG or PNG, up to 5 MB.</small>
           <button type="button" class="btn-primary complaint-submit">Submit report</button>
           <small class="error-msg complaint-error"></small>
         </div>
@@ -6036,20 +6036,6 @@ function setupReviewPrompts(container) {
 
 // "Report a concern" — lets a passenger/driver file a complaint against the
 // other party on a given ride. Same toggle-a-hidden-form pattern as reviews.
-// Sends the optional proof photo for a report just filed. multipart, so only
-// the Authorization header (the browser sets the Content-Type).
-async function uploadComplaintEvidence(complaintId, file) {
-  const formData = new FormData();
-  formData.append('photo', file);
-  const headers = {};
-  const token = getStoredUser().token;
-  if (token) headers.Authorization = `Bearer ${token}`;
-  const res = await fetch(`${COMPLAINTS_API_URL}/${complaintId}/evidence`, { method: 'POST', headers, body: formData });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || 'Unable to upload the photo');
-  return data;
-}
-
 function setupComplaintPrompts(container) {
   container.querySelectorAll('.complaint-prompt').forEach(prompt => {
     const rideId = prompt.getAttribute('data-ride-id');
@@ -6066,13 +6052,13 @@ function setupComplaintPrompts(container) {
       if (!photoInput) return;
       photoInput.value = '';
       photoLabel.classList.remove('has-file');
-      photoLabel.querySelector('.evidence-photo-text').textContent = 'Attach a photo as proof (optional)';
+      photoLabel.querySelector('.evidence-photo-text').textContent = 'Attach a photo as proof';
     };
     if (photoInput) {
       photoInput.addEventListener('change', () => {
         const file = photoInput.files[0];
         photoLabel.classList.toggle('has-file', Boolean(file));
-        photoLabel.querySelector('.evidence-photo-text').textContent = file ? `Photo: ${file.name}` : 'Attach a photo as proof (optional)';
+        photoLabel.querySelector('.evidence-photo-text').textContent = file ? `Photo: ${file.name}` : 'Attach a photo as proof';
       });
     }
 
@@ -6090,38 +6076,29 @@ function setupComplaintPrompts(container) {
         errorEl.textContent = 'Please describe what happened.';
         return;
       }
+      // Proof is required (IT expert review): no photo, no report.
       const photo = photoInput && photoInput.files[0] ? photoInput.files[0] : null;
-      if (photo && !['image/jpeg', 'image/png'].includes(photo.type)) { errorEl.textContent = 'The photo must be a JPG or PNG.'; return; }
-      if (photo && photo.size > 5 * 1024 * 1024) { errorEl.textContent = 'The photo must be 5 MB or smaller.'; return; }
+      if (!photo) { errorEl.textContent = 'Attach a photo as proof (a screenshot or a photo of what happened).'; return; }
+      if (!['image/jpeg', 'image/png'].includes(photo.type)) { errorEl.textContent = 'The photo must be a JPG or PNG.'; return; }
+      if (photo.size > 5 * 1024 * 1024) { errorEl.textContent = 'The photo must be 5 MB or smaller.'; return; }
       submitBtn.disabled = true;
       try {
-        const res = await fetch(COMPLAINTS_API_URL, {
-          method: 'POST',
-          headers: getAuthHeaders(),
-          body: JSON.stringify({
-            ride_id: rideId,
-            against_account_id: againstAccountId,
-            category: categoryEl.value,
-            description: descriptionEl.value.trim()
-          })
-        });
-        const data = await res.json();
+        // Report and photo go up together (multipart), so the report is only
+        // saved with its proof. Only the Authorization header: the browser
+        // sets the multipart Content-Type itself.
+        const formData = new FormData();
+        formData.append('ride_id', rideId || '');
+        formData.append('against_account_id', againstAccountId || '');
+        formData.append('category', categoryEl.value);
+        formData.append('description', descriptionEl.value.trim());
+        formData.append('photo', photo);
+        const headers = {};
+        const token = getStoredUser().token;
+        if (token) headers.Authorization = `Bearer ${token}`;
+        const res = await fetch(COMPLAINTS_API_URL, { method: 'POST', headers, body: formData });
+        const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error || 'Unable to submit report');
-        // The report is already filed here; the photo is extra proof, so a
-        // failed upload only gets a heads-up and never undoes the report.
-        let photoError = null;
-        if (photo && data.complaintId) {
-          try {
-            await uploadComplaintEvidence(data.complaintId, photo);
-          } catch (uploadError) {
-            photoError = uploadError.message || 'Please try again.';
-          }
-        }
-        if (photoError) {
-          showRideFeedback('error', 'Report sent, photo not sent', `Your report was submitted, but the photo couldn't be uploaded: ${photoError}`);
-        } else {
-          showRideFeedback('success', 'Report submitted', 'Our admin team will review this shortly.');
-        }
+        showRideFeedback('success', 'Report submitted', 'Our admin team will review this shortly.');
         toggleBtn.textContent = 'Report a concern';
         form.style.display = 'none';
         categoryEl.value = '';
