@@ -2250,15 +2250,27 @@ display: none !important;
 }
 
 .pm-float-tag.pm-t1 {
-  top: 108px;
-  left: -34px;
+  top: 28px;
+  right: calc(100% - 22px);
+  white-space: nowrap;
   animation-delay: -1.5s;
 }
 
 .pm-float-tag.pm-t2 {
-  bottom: 80px;
-  right: -30px;
+  bottom: 110px;
+  right: calc(100% - 22px);
+  white-space: nowrap;
   animation-delay: -3s;
+}
+
+/* Narrower desktops: the left gap is too small for the fare tag, so it
+   sits in the empty map area at the bottom of the phone instead. */
+@media (min-width: 901px) and (max-width: 1180px) {
+  .pm-float-tag.pm-t2 {
+    right: auto;
+    left: 34px;
+    bottom: 44px;
+  }
 }
 
 @keyframes phone-float {
