@@ -2444,8 +2444,7 @@ function openLicenseModal(driverId) {
   if (!driver || !modal) return;
 
   document.querySelector('#license-modal-name').textContent = `${driver.first_name} ${driver.last_name}'s license`;
-  const licenseHint = document.querySelector('#license-modal-hint');
-  if (licenseHint) licenseHint.textContent = 'Uploaded at registration';
+  setLicenseModalSubtitle('Check the file matches the name and license number before approving.');
   const preview = document.querySelector('#license-modal-preview');
   const errorEl = document.querySelector('#license-modal-error');
   const actionsEl = document.querySelector('#license-modal-actions');
@@ -2960,6 +2959,13 @@ async function renderAdminComplaints() {
   }
 }
 
+// The license viewer popup is reused for report and Failed-ride photos, so
+// each use sets its own subtitle (the license one talks about approving).
+function setLicenseModalSubtitle(text) {
+  const el = document.querySelector('#license-modal-subtitle');
+  if (el) el.textContent = text;
+}
+
 // A "Ride failed" complaint whose driver attached a photo gets a View photo
 // button (see uploadFailedRidePhoto on the server).
 function failedPhotoButton(c) {
@@ -2974,8 +2980,7 @@ function openFailedPhotoModal(rideId) {
   const modal = document.querySelector('#license-modal');
   if (!modal) return;
   document.querySelector('#license-modal-name').textContent = 'Photo from the driver';
-  const hint = document.querySelector('#license-modal-hint');
-  if (hint) hint.textContent = 'Attached when the ride was ended as Failed';
+  setLicenseModalSubtitle('Attached by the driver when ending the ride as Failed.');
   const preview = document.querySelector('#license-modal-preview');
   const errorEl = document.querySelector('#license-modal-error');
   document.querySelector('#license-modal-actions').innerHTML = '';
@@ -3011,6 +3016,7 @@ function openComplaintEvidenceModal(complaintId) {
   const modal = document.querySelector('#license-modal');
   if (!modal) return;
   document.querySelector('#license-modal-name').textContent = 'Photo attached to the report';
+  setLicenseModalSubtitle('Attached by the person who filed this report, as proof.');
   const preview = document.querySelector('#license-modal-preview');
   const errorEl = document.querySelector('#license-modal-error');
   document.querySelector('#license-modal-actions').innerHTML = '';
