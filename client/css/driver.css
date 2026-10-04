@@ -3954,3 +3954,31 @@ body[data-page="driver"] #ride-history-section .booking-top { width: 100%; justi
   body[data-page="driver"] .complaint-form .complaint-error { grid-column: 1 / -1; }
   body[data-page="driver"] .complaint-form .complaint-error:empty { display: none; }
 }
+
+/* A lone ACTIVE trip on desktop (accepted, picked up, in progress) used to
+   sit in the left half of the row with the right half empty, the same
+   problem the lone pending request had. It now spans the row: trip details
+   on the left, the "Pick up this passenger" box (or, without one, the ETA
+   and status line) on the right, and the buttons across the bottom. Two or
+   more cards keep the grid; phones are unchanged. */
+@media (min-width: 901px) {
+  body[data-page="driver"] #driver-ride-requests > .driver-card:only-child:has([data-action="advance-status"]) {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    grid-template-rows: auto auto auto 1fr auto;
+    column-gap: 28px;
+    align-items: start;
+  }
+  body[data-page="driver"] #driver-ride-requests > .driver-card:only-child:has([data-action="advance-status"]) > * { grid-column: 1; }
+  body[data-page="driver"] #driver-ride-requests > .driver-card:only-child:has([data-action="advance-status"]) > .driver-card-header { grid-row: 1; }
+  body[data-page="driver"] #driver-ride-requests > .driver-card:only-child:has([data-action="advance-status"]) > .driver-card-meta { grid-row: 2; }
+  body[data-page="driver"] #driver-ride-requests > .driver-card:only-child:has([data-action="advance-status"]) > .ride-eta { grid-row: 3; }
+  body[data-page="driver"] #driver-ride-requests > .driver-card:only-child:has([data-action="advance-status"]) > .driver-card-description { grid-row: 4; }
+  body[data-page="driver"] #driver-ride-requests > .driver-card:only-child:has([data-action="advance-status"]) > .booked-for-card { grid-column: 2; grid-row: 1 / span 4; margin: 0; }
+  body[data-page="driver"] #driver-ride-requests > .driver-card:only-child:has([data-action="advance-status"]) > .driver-card-actions { grid-column: 1 / -1; grid-row: 5; margin-top: 6px; }
+
+  /* No booked-for box: the ETA and status line take the right column. */
+  body[data-page="driver"] #driver-ride-requests > .driver-card:only-child:has([data-action="advance-status"]):not(:has(.booked-for-card)) > .ride-eta { grid-column: 2; grid-row: 1; }
+  body[data-page="driver"] #driver-ride-requests > .driver-card:only-child:has([data-action="advance-status"]):not(:has(.booked-for-card)) > .driver-card-description { grid-column: 2; grid-row: 2; }
+}

@@ -1653,6 +1653,18 @@ const ETA_REFRESH_MS = 15 * 1000;
 const ETA_ACTIVE_STATUSES = ['Accepted', 'Picked Up', 'In Progress'];
 const rideEtaCache = {};
 
+// Which leg the ETA should be about for a ride's current status. A saved
+// ETA from the other leg is stale: right after "Picked Up" the card would
+// otherwise keep saying "to pickup" until the next refresh, and with no GPS
+// movement that refresh might not come for a while.
+function expectedEtaPhase(status) {
+  return status === 'Accepted' ? 'to_pickup' : 'to_dropoff';
+}
+
+function etaMatchesRide(eta, ride) {
+  return Boolean(eta) && (!eta.phase || eta.phase === expectedEtaPhase(ride.status));
+}
+
 // "1 hr 5 min" rather than "65 min".
 function formatEtaMinutes(minutes) {
   const total = Math.max(1, Math.round(Number(minutes) || 0));
@@ -1684,7 +1696,7 @@ function rideEtaText(eta, role) {
 function rideEtaRowHtml(ride, role) {
   if (!ride || !ETA_ACTIVE_STATUSES.includes(ride.status)) return '';
   const cached = rideEtaCache[ride.ride_id];
-  const eta = cached ? cached.eta : null;
+  const eta = cached && etaMatchesRide(cached.eta, ride) ? cached.eta : null;
   return `<p class="ride-eta${eta && eta.arriving ? ' is-arriving' : ''}" data-eta-ride="${ride.ride_id}" data-eta-role="${role}">${escapeHtml(rideEtaText(eta, role))}</p>`;
 }
 
@@ -1704,14 +1716,18 @@ function paintRideEta(rideId) {
 async function refreshRideEta(ride) {
   if (!ride || !ETA_ACTIVE_STATUSES.includes(ride.status)) return;
   const cached = rideEtaCache[ride.ride_id];
-  if (cached && (cached.loading || Date.now() - cached.at < ETA_REFRESH_MS)) return;
-  rideEtaCache[ride.ride_id] = { eta: cached ? cached.eta : null, at: cached ? cached.at : 0, loading: true };
+  const stale = cached && cached.eta && !etaMatchesRide(cached.eta, ride);
+  if (cached && (cached.loading || (!stale && Date.now() - cached.at < ETA_REFRESH_MS))) return;
+  // A stale leg is dropped right away, so the card says "Waiting…" for a
+  // moment instead of the old leg's time.
+  const keep = cached && !stale ? cached.eta : null;
+  rideEtaCache[ride.ride_id] = { eta: keep, at: cached ? cached.at : 0, loading: true };
   try {
     const res = await fetch(`${RIDES_API_URL}/${ride.ride_id}/eta`, { headers: getAuthHeaders() });
-    const eta = res.ok ? await res.json() : (cached ? cached.eta : null);
+    const eta = res.ok ? await res.json() : keep;
     rideEtaCache[ride.ride_id] = { eta, at: Date.now(), loading: false };
   } catch (error) {
-    rideEtaCache[ride.ride_id] = { eta: cached ? cached.eta : null, at: Date.now(), loading: false };
+    rideEtaCache[ride.ride_id] = { eta: keep, at: Date.now(), loading: false };
   }
   paintRideEta(ride.ride_id);
 }
