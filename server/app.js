@@ -9,6 +9,7 @@ const path = require('path');
 const express = require('express');
 const http = require('http');
 const cors = require('cors');
+const { securityHeaders } = require('./security');
 const db = require('./config/db');
 const { initSocket } = require('./socket');
 const rideController = require('./controllers/rideController');
@@ -36,6 +37,14 @@ const PORT = process.env.PORT || 3000;
 // — harmless, and keeps things working if the client is ever opened from
 // a separate origin again (e.g. Live Server) during development.
 app.use(cors());
+
+// Railway puts one proxy in front of the app, so the visitor's real IP is
+// in X-Forwarded-For. Trusting that one hop lets the login/sign-up limits
+// (see security.js) count each visitor, not the proxy.
+app.set('trust proxy', 1);
+
+// Standard security headers (see security.js for the two relaxed ones).
+app.use(securityHeaders);
 
 // Middleware para ma-parse yung JSON na papasok sa requests
 app.use(express.json());
