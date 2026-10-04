@@ -407,3 +407,14 @@ html body .reveal-item.reveal-instant { transition: none; }
     transition: none;
   }
 }
+
+/* "📞 Call driver / Call passenger" on an active ride: a tel: link that
+   looks like the Chat button beside it. */
+html body a.call-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  text-decoration: none;
+  box-sizing: border-box;
+}

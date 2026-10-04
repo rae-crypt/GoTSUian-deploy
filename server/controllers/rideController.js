@@ -810,6 +810,10 @@ exports.getMyRides = (req, res) => {
   const sql = `
     SELECT r.*, CONCAT(td.first_name, ' ', td.last_name) AS driver_name,
            td.plate_number AS driver_plate,
+           -- The driver's number only while the trip is on (Accepted to In
+           -- Progress), for the Call driver button; never on history rows.
+           CASE WHEN r.status IN ('Accepted', 'Picked Up', 'In Progress')
+                THEN td.contact_number END AS driver_contact,
            rv.review_id IS NOT NULL AS has_review, rv.rating AS my_rating,
            rp.status AS pool_status,
            (SELECT COUNT(*) FROM messages m WHERE m.ride_id = r.ride_id
@@ -834,6 +838,10 @@ exports.getDriverRides = (req, res) => {
   const accountId = req.user.accountId;
   const sql = `
     SELECT r.*, CONCAT(s.first_name, ' ', s.last_name) AS passenger_name,
+           -- The passenger's number only while the trip is on, for the Call
+           -- passenger button; pending requests never reach this query.
+           CASE WHEN r.status IN ('Accepted', 'Picked Up', 'In Progress')
+                THEN s.contact_number END AS passenger_contact,
            rp.status AS pool_status,
            (SELECT COUNT(*) FROM messages m WHERE m.ride_id = r.ride_id
               AND m.sender_account_id != ? AND m.is_read = 0) AS unread_message_count

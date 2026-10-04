@@ -4952,6 +4952,14 @@ function readBookedForFields() {
   return { name, contact };
 }
 
+// "📞 Call" button for an active ride. The server only sends the other
+// side's number while the trip is on (Accepted to In Progress), so on any
+// other ride there's no number and this returns nothing.
+function callButtonHtml(number, label) {
+  if (!number) return '';
+  return `<a class="btn-secondary-outline call-btn" href="tel:${escapeHtml(number)}" title="${escapeHtml(formatPhMobile(number))}">📞 ${escapeHtml(label)}</a>`;
+}
+
 // "Booked for" block on a driver's ride card, for a ride booked for
 // someone else. Empty for an ordinary booking. On a pending request the
 // server leaves the number out (Data Privacy Act), so the card says it
@@ -5524,6 +5532,7 @@ async function renderPassengerRideStatus() {
           💬 Chat with driver${activeRide.unread_message_count > 0 ? `<span class="chat-unread-badge">${activeRide.unread_message_count}</span>` : ''}
         </button>
       ` : ''}
+      ${callButtonHtml(activeRide.driver_contact, 'Call driver')}
       ${canConvertToSolo ? `<button type="button" class="btn-secondary-outline" data-action="convert-to-solo" data-ride-id="${activeRide.ride_id}">Book as Solo instead (₱60)</button>` : ''}
       ${canCancel ? `<button type="button" class="btn-secondary-outline" data-action="cancel-request" data-ride-id="${activeRide.ride_id}">Cancel request</button>` : ''}
     </div>
@@ -6238,6 +6247,7 @@ function renderActiveRideCard(group) {
       <button type="button" class="btn-secondary-outline" data-action="open-chat" data-ride-id="${r.ride_id}" data-other-name="${escapeHtml(r.passenger_name || 'Passenger')}">
         💬 Chat${group.riders.length > 1 ? ` (${escapeHtml(r.passenger_name || 'Passenger')})` : ''}${r.unread_message_count > 0 ? `<span class="chat-unread-badge">${r.unread_message_count}</span>` : ''}
       </button>
+      ${r.booked_for_name ? '' : callButtonHtml(r.passenger_contact, group.riders.length > 1 ? `Call ${r.passenger_name || 'passenger'}` : 'Call passenger')}
     `)
     .join('');
 
