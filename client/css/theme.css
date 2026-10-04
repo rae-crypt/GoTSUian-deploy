@@ -386,3 +386,24 @@ img.nav-row-icon.tricycle-icon { width: 24px; height: 24px; }
 }
 @keyframes install-banner-in { from { transform: translateY(-16px); opacity: 0; } to { transform: none; opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .install-banner { animation: none; } }
+
+/* Scroll reveal on the history, profile and admin pages (app.js
+   setupScrollReveal adds .reveal-item to their fixed boxes): the same fade +
+   rise as the other pages. "html body" keeps page CSS (hover transitions)
+   from overriding it, which is what broke the driver stat boxes before. */
+html body .reveal-item {
+  transition: opacity 0.5s ease, transform 0.5s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+}
+html body .reveal-item:not(.is-visible) {
+  opacity: 0;
+  transform: translateY(24px);
+}
+html body .reveal-item.reveal-instant { transition: none; }
+@media (prefers-reduced-motion: reduce) {
+  html body .reveal-item,
+  html body .reveal-item:not(.is-visible) {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}

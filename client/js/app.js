@@ -198,10 +198,32 @@ function highlightActiveNav() {
   });
 }
  
+// History, profile and admin pages (2026-10-04, she asked for the rise
+// everywhere): only their fixed boxes, which exist at load; rows added later
+// (ride items, table rows) are never hidden. Tagged as soon as app.js runs
+// (it loads at the end of <body>, before the first paint), and hidden with
+// no transition (.reveal-instant) so a box is never drawn, faded out, then
+// faded back in. Styles in theme.css. Pages that already had the reveal are
+// untouched.
+(function tagExtraRevealItems() {
+  if (!/-bookings\.html|-profile\.html|admin\.html/.test(location.pathname)) return;
+  const items = document.querySelectorAll('.section > .dashboard-card, #driver-ratings-details > .dashboard-card, .profile-panel, .admin-stat-card, .admin-panel');
+  items.forEach(item => item.classList.add('reveal-item', 'reveal-instant'));
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    items.forEach(item => item.classList.remove('reveal-instant'));
+  }));
+})();
+
 function setupScrollReveal() {
   const revealItems = document.querySelectorAll('.feature-card, .step-card, .support-card, .testimonial-card, .about-mv-card, .about-feature-card, .about-team-card, .how-step-card, .how-compare-card, .how-faq-item, .gs-check-card, .gs-step-card, .gs-faq-item, .auth-info-card, .auth-form-card, .availability-indicator, .passenger-sidebar .dashboard-card, #ride-status-panel, .dashboard-panel-link, #availability-toggle, .dashboard-grid .dashboard-card, .request-status-stack .dashboard-card, .rule-card, .term-card, .rules-note');
-  if (!revealItems.length || !('IntersectionObserver' in window)) return;
- 
+  // History, profile and admin boxes, tagged by tagExtraRevealItems() below.
+  const extraReveal = document.querySelectorAll('.reveal-item');
+  const allReveal = [...revealItems, ...extraReveal];
+  if (!allReveal.length || !('IntersectionObserver' in window)) {
+    allReveal.forEach(item => item.classList.add('is-visible'));
+    return;
+  }
+
   const observer = new IntersectionObserver((entries, obs) => {
     entries.forEach(entry => {
       if (entry.isIntersecting) {
@@ -213,7 +235,7 @@ function setupScrollReveal() {
     threshold: 0.16
   });
  
-  revealItems.forEach(item => observer.observe(item));
+  allReveal.forEach(item => observer.observe(item));
 }
  
 // Auth lives in sessionStorage only — isolated per tab, so testing
