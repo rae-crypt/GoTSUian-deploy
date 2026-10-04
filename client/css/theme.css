@@ -310,3 +310,25 @@ body[data-page="driver"] .bookings-empty a.btn-secondary:focus-visible {
 .evidence-photo svg { width: 18px; height: 18px; flex: none; }
 .evidence-photo-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .evidence-photo-note { display: block; margin: 4px 0 10px; font-size: 11.5px; color: #7a5c50; line-height: 1.4; }
+
+/* Bigger tricycle logo in the header (IT expert review, 2026-10-04: at 32px
+   people couldn't tell it's a tricycle). Only the picture grows; the
+   "GoTSUian" text stays the same. */
+header .brand .brand-icon {
+  width: 52px;
+  height: 52px;
+  object-fit: contain;
+}
+@media (max-width: 720px) {
+  header .brand .brand-icon {
+    width: 44px;
+    height: 44px;
+  }
+}
+/* Admin page has its own top bar (admin.css .admin-logo, 24px): same idea. */
+header.admin-topbar .admin-logo img {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+  border-radius: 0;
+}

@@ -8222,6 +8222,16 @@ function refreshAuthState() {
   renderDriverMapTracking();
 }
 
+// Lets phones install GoTSUian to the home screen like an app (IT expert
+// review, 2026-10-04). sw.js caches nothing, so this changes no behaviour.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('/sw.js').catch(function(err) {
+      console.warn('Service worker not registered', err);
+    });
+  });
+}
+
 document.addEventListener('DOMContentLoaded', function() {
   // Must run before refreshAuthState() below -- setupPassengerMap()/
   // setupDriverMap() are what actually create passengerMapInstance/
