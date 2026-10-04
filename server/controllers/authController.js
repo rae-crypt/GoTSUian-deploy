@@ -5,6 +5,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { emitAvailabilityChanged } = require('../socket');
 const { getSuspension, SUSPENDED_MESSAGE } = require('../suspension');
+const { isMobileTaken, MOBILE_TAKEN_MESSAGE } = require('../mobileNumbers');
 
 // True when an admin-issued Violation has suspended this account (see
 // suspension.js). Checked after the password, so a wrong password never
@@ -60,13 +61,9 @@ exports.registerStudent = async (req, res) => {
         return res.status(400).json({ error: 'Please verify your email first' });
       }
 
-      const mobileTaken = await new Promise((resolve) => {
-        db.query(`SELECT 1 FROM student WHERE contact_number = ? LIMIT 1`, [mobile], (dupErr, dupRows) => {
-          resolve(!dupErr && dupRows.length > 0);
-        });
-      });
-      if (mobileTaken) {
-        return res.status(409).json({ error: 'This mobile number is already registered to another passenger account.' });
+      // Checked against drivers too, not just other passengers.
+      if (await isMobileTaken(mobile)) {
+        return res.status(409).json({ error: MOBILE_TAKEN_MESSAGE });
       }
 
       try {
@@ -357,6 +354,21 @@ exports.registerDriver = async (req, res) => {
   // gives us) so it stays valid regardless of which machine runs the server.
   const licenseDocumentPath = path.join('uploads', 'licenses', req.file.filename);
 
+  // The driver's number is their login and what passengers call, so it
+  // follows the passenger rules: 09XXXXXXXXX, and not already used by any
+  // passenger or driver. The uploaded license is removed if it's refused.
+  const mobile = String(contact_number).trim();
+  const refuse = (status, error) => {
+    fs.unlink(req.file.path, () => {});
+    return res.status(status).json({ error });
+  };
+  if (!/^09[0-9]{9}$/.test(mobile)) {
+    return refuse(400, 'Enter an 11-digit mobile number starting with 09');
+  }
+  if (await isMobileTaken(mobile)) {
+    return refuse(409, MOBILE_TAKEN_MESSAGE);
+  }
+
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -370,7 +382,7 @@ exports.registerDriver = async (req, res) => {
         }
 
         const accountSql = `INSERT INTO user_account (username, password, role) VALUES (?, ?, 'driver')`;
-        connection.query(accountSql, [contact_number, hashedPassword], (err, accountResult) => {
+        connection.query(accountSql, [mobile, hashedPassword], (err, accountResult) => {
           if (err) {
             return connection.rollback(() => {
               connection.release();
@@ -384,7 +396,7 @@ exports.registerDriver = async (req, res) => {
             INSERT INTO tricycle_driver (account_id, first_name, middle_name, last_name, driver_license_no, plate_number, body_number, license_document_path, account_status, is_online, birth_date, age, sex, contact_number, current_address)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Pending', TRUE, ?, ?, ?, ?, ?)
           `;
-          connection.query(driverSql, [accountId, first_name, middle_name || null, last_name, normalizedLicenseNo, normalizedPlateNumber, body_number.trim(), licenseDocumentPath, birth_date || null, age || null, sex || null, contact_number || null, current_address || null], (err, driverResult) => {
+          connection.query(driverSql, [accountId, first_name, middle_name || null, last_name, normalizedLicenseNo, normalizedPlateNumber, body_number.trim(), licenseDocumentPath, birth_date || null, age || null, sex || null, mobile, current_address || null], (err, driverResult) => {
             if (err) {
               return connection.rollback(() => {
                 connection.release();

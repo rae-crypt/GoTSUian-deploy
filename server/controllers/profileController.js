@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { isMobileTaken, MOBILE_TAKEN_MESSAGE } = require('../mobileNumbers');
 
 // GET the logged-in user's profile — branches by role since students and
 // drivers live in different tables with different fields.
@@ -51,9 +52,14 @@ exports.updateProfile = (req, res) => {
     return res.status(400).json({ error: 'Profile is only available for students and drivers' });
   }
 
+  // A driver's number can't be changed here: it's their login and the
+  // number passengers call, so it stays the one they registered with (the
+  // field is read-only on the driver's profile page too). Only a passenger's
+  // number is saved from this form.
+  const isDriver = table === 'tricycle_driver';
   const save = () => db.query(
-    `UPDATE ${table} SET first_name = ?, middle_name = ?, last_name = ?, birth_date = ?, age = ?, sex = ?, contact_number = ?, current_address = ? WHERE account_id = ?`,
-    [first_name, middle_name || null, last_name, birth_date || null, age || null, sex || null, contact_number || null, current_address || null, accountId],
+    `UPDATE ${table} SET first_name = ?, middle_name = ?, last_name = ?, birth_date = ?, age = ?, sex = ?,${isDriver ? '' : ' contact_number = ?,'} current_address = ? WHERE account_id = ?`,
+    [first_name, middle_name || null, last_name, birth_date || null, age || null, sex || null, ...(isDriver ? [] : [contact_number || null]), current_address || null, accountId],
     (err, result) => {
       if (err) return res.status(500).json({ error: err.message });
       if (result.affectedRows === 0) return res.status(404).json({ error: 'Profile not found' });
@@ -62,20 +68,16 @@ exports.updateProfile = (req, res) => {
   );
 
   // A passenger's mobile number follows the sign-up rules (see
-  // registerStudent): a valid 09XXXXXXXXX number, one per passenger account.
+  // registerStudent): a valid 09XXXXXXXXX number, not used by any other
+  // passenger or driver.
   // It can be left blank, since accounts made before 2026-10-04 have none.
   const mobile = String(contact_number || '').trim();
   if (table !== 'student' || !mobile) return save();
   if (!/^09[0-9]{9}$/.test(mobile)) {
     return res.status(400).json({ error: 'Enter an 11-digit mobile number starting with 09' });
   }
-  db.query(
-    `SELECT 1 FROM student WHERE contact_number = ? AND account_id <> ? LIMIT 1`,
-    [mobile, accountId],
-    (err, rows) => {
-      if (err) return res.status(500).json({ error: err.message });
-      if (rows.length) return res.status(409).json({ error: 'This mobile number is already registered to another passenger account.' });
-      save();
-    }
-  );
+  isMobileTaken(mobile, accountId).then((taken) => {
+    if (taken) return res.status(409).json({ error: MOBILE_TAKEN_MESSAGE });
+    save();
+  });
 };

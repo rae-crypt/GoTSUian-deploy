@@ -418,3 +418,10 @@ html body a.call-btn {
   text-decoration: none;
   box-sizing: border-box;
 }
+
+/* Driver profile: the contact number is their login, so it is read-only. */
+html body #profile-contact[readonly] {
+  background: #f6efee;
+  color: #8a6f6a;
+  cursor: not-allowed;
+}
