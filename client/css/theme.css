@@ -349,13 +349,14 @@ img.nav-row-icon.tricycle-icon { width: 24px; height: 24px; }
 }
 
 /* "Install GoTSUian" banner (app.js showInstallBanner): shown on every visit
-   until the app is installed. Bottom card, full width on phones, a small
-   card bottom-left on desktop (the back-to-top button lives bottom-right). */
+   until the app is installed. At the top (she asked): full width on phones,
+   like Chrome's own install popup; on desktop a small card top-right, just
+   under the header so the Sign in button stays visible. */
 .install-banner {
   position: fixed;
   left: 12px;
   right: 12px;
-  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  top: calc(10px + env(safe-area-inset-top, 0px));
   z-index: 900;
   display: flex;
   align-items: center;
@@ -380,8 +381,8 @@ img.nav-row-icon.tricycle-icon { width: 24px; height: 24px; }
 .install-banner-install { border: none; background: var(--primary, #7f1d1d); color: #fff8f6; }
 .install-banner-later { border: 1px solid #f1d9d9; background: transparent; color: var(--primary, #7f1d1d); }
 @media (min-width: 721px) {
-  .install-banner { left: 24px; right: auto; bottom: 24px; max-width: 420px; }
+  .install-banner { left: auto; right: 24px; top: 88px; max-width: 420px; }
   .install-banner-actions { flex-direction: row; }
 }
-@keyframes install-banner-in { from { transform: translateY(16px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes install-banner-in { from { transform: translateY(-16px); opacity: 0; } to { transform: none; opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .install-banner { animation: none; } }
