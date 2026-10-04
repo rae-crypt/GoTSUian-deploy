@@ -8232,6 +8232,90 @@ if ('serviceWorker' in navigator) {
   });
 }
 
+// "Install GoTSUian" banner, shown on every visit until the app is
+// installed. Chrome's own install popup hides itself for months once someone
+// dismisses it, so we keep the event (beforeinstallprompt) and open the same
+// install window from our own button instead. iPhones have no install
+// button in Safari, so they get the Share → Add to Home Screen steps.
+// "Not now" hides it for this visit only (sessionStorage), never for good.
+let deferredInstallPrompt = null;
+const INSTALL_DISMISSED_KEY = 'installBannerDismissed';
+
+function isRunningAsInstalledApp() {
+  return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+}
+
+function isIosSafari() {
+  const ua = navigator.userAgent;
+  const isIos = /iphone|ipad|ipod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  return isIos && /safari/i.test(ua) && !/crios|fxios|edgios|fbav|fban|instagram|line\//i.test(ua);
+}
+
+function installBannerAllowed() {
+  if (isRunningAsInstalledApp()) return false;
+  if (document.body && document.body.dataset.page === 'admin') return false;
+  try { if (sessionStorage.getItem(INSTALL_DISMISSED_KEY)) return false; } catch (e) {}
+  return true;
+}
+
+function hideInstallBanner() {
+  const banner = document.querySelector('[data-install-banner]');
+  if (banner) banner.remove();
+}
+
+function showInstallBanner(mode) {
+  if (!installBannerAllowed() || document.querySelector('[data-install-banner]')) return;
+  const banner = document.createElement('div');
+  banner.setAttribute('data-install-banner', '');
+  banner.className = 'install-banner';
+  banner.setAttribute('role', 'dialog');
+  banner.setAttribute('aria-label', 'Install GoTSUian');
+  banner.innerHTML = `
+    <img class="install-banner-icon" src="/images/icons/icon-192.png" alt="">
+    <div class="install-banner-text">
+      <strong>Install GoTSUian</strong>
+      <span>${mode === 'ios'
+        ? 'Tap the Share button, then <b>Add to Home Screen</b>, to open GoTSUian like an app.'
+        : 'Add it to your home screen and open it like an app. It is free.'}</span>
+    </div>
+    <div class="install-banner-actions">
+      ${mode === 'ios' ? '' : '<button type="button" class="install-banner-install">Install</button>'}
+      <button type="button" class="install-banner-later">${mode === 'ios' ? 'Got it' : 'Not now'}</button>
+    </div>
+  `;
+  document.body.appendChild(banner);
+  banner.querySelector('.install-banner-later').addEventListener('click', () => {
+    try { sessionStorage.setItem(INSTALL_DISMISSED_KEY, '1'); } catch (e) {}
+    hideInstallBanner();
+  });
+  const installBtn = banner.querySelector('.install-banner-install');
+  if (installBtn) {
+    installBtn.addEventListener('click', async () => {
+      if (!deferredInstallPrompt) return;
+      deferredInstallPrompt.prompt();
+      try { await deferredInstallPrompt.userChoice; } catch (e) {}
+      deferredInstallPrompt = null;
+      hideInstallBanner();
+    });
+  }
+}
+
+window.addEventListener('beforeinstallprompt', (event) => {
+  event.preventDefault();
+  deferredInstallPrompt = event;
+  if (document.body) showInstallBanner('prompt');
+  else document.addEventListener('DOMContentLoaded', () => showInstallBanner('prompt'));
+});
+
+window.addEventListener('appinstalled', () => {
+  deferredInstallPrompt = null;
+  hideInstallBanner();
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+  if (isIosSafari()) showInstallBanner('ios');
+});
+
 document.addEventListener('DOMContentLoaded', function() {
   // Must run before refreshAuthState() below -- setupPassengerMap()/
   // setupDriverMap() are what actually create passengerMapInstance/

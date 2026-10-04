@@ -347,3 +347,41 @@ img.nav-row-icon.tricycle-icon { width: 24px; height: 24px; }
   .admin-stat-icon img.tricycle-icon { width: 24px; height: 24px; }
   .admin-panel-icon img.tricycle-icon { width: 26px; height: 26px; }
 }
+
+/* "Install GoTSUian" banner (app.js showInstallBanner): shown on every visit
+   until the app is installed. Bottom card, full width on phones, a small
+   card bottom-left on desktop (the back-to-top button lives bottom-right). */
+.install-banner {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  z-index: 900;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--white, #ffffff);
+  color: var(--text, #3d1414);
+  border: 1px solid #f1d9d9;
+  border-radius: 16px;
+  box-shadow: 0 14px 36px rgba(60, 12, 12, 0.22);
+  font-family: inherit;
+  animation: install-banner-in 0.25s ease-out;
+}
+.install-banner-icon { width: 44px; height: 44px; border-radius: 11px; flex: none; }
+.install-banner-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; font-size: 12.5px; line-height: 1.4; color: #7a5c50; }
+.install-banner-text strong { font-size: 14.5px; color: var(--text, #3d1414); }
+.install-banner-text b { color: var(--text, #3d1414); }
+.install-banner-actions { display: flex; flex-direction: column; gap: 6px; flex: none; }
+.install-banner-actions button {
+  font-family: inherit; font-size: 13px; font-weight: 700; padding: 8px 14px; border-radius: 999px; cursor: pointer; white-space: nowrap;
+}
+.install-banner-install { border: none; background: var(--primary, #7f1d1d); color: #fff8f6; }
+.install-banner-later { border: 1px solid #f1d9d9; background: transparent; color: var(--primary, #7f1d1d); }
+@media (min-width: 721px) {
+  .install-banner { left: 24px; right: auto; bottom: 24px; max-width: 420px; }
+  .install-banner-actions { flex-direction: row; }
+}
+@keyframes install-banner-in { from { transform: translateY(16px); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .install-banner { animation: none; } }
