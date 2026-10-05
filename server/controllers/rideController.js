@@ -152,17 +152,60 @@ function normalizePhMobile(raw) {
 // Only a known point counts as outside; no coordinates is handled elsewhere.
 const GPS_OUTSIDE_AREA_MESSAGE = 'GoTSUian only serves Tarlac, and your current location is outside the service area. To book for someone in Tarlac, tap "Change pickup".';
 
-function isOutsideServiceArea(lat, lng) {
+// The box above is a rectangle, and its corners spill into the provinces
+// around Tarlac: Mabalacat and Clark (Pampanga) sit inside it, and an IT
+// expert booked a drop-off at Pampanga Technopark, Mabalacat, which went
+// through (2026-10-06). So a point inside the box is also checked against
+// the real province, which Nominatim reports as ISO code "PH-TAR". Points
+// outside the box never need the lookup. If Nominatim is slow or down, the
+// box alone decides, so booking never breaks because of it.
+const DROPOFF_OUTSIDE_AREA_MESSAGE = 'GoTSUian only serves Tarlac, and that drop-off is outside the service area. Choose a drop-off within Tarlac.';
+const provinceCache = new Map();
+
+function isTarlacAddress(address) {
+  if (!address) return false;
+  return address['ISO3166-2-lvl4'] === 'PH-TAR' || address.state === 'Tarlac';
+}
+
+// true / false from Nominatim, or null when it couldn't be asked.
+async function isTarlacProvincePoint(point) {
+  const key = point.map(n => n.toFixed(3)).join(',');
+  if (provinceCache.has(key)) return provinceCache.get(key);
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?format=json&addressdetails=1&zoom=10&lat=${point[0]}&lon=${point[1]}`;
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'GoTSUian/1.0 (capstone project, TSU San Isidro)' },
+      signal: AbortSignal.timeout(5000)
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data || !data.address) return null;
+    const inTarlac = isTarlacAddress(data.address);
+    if (provinceCache.size > 2000) provinceCache.clear();
+    provinceCache.set(key, inTarlac);
+    return inTarlac;
+  } catch (error) {
+    return null;
+  }
+}
+
+async function isInTarlacProvince(point) {
+  if (!point || !isInsideTarlac(point)) return false;
+  const answer = await isTarlacProvincePoint(point);
+  return answer === null ? true : answer;
+}
+
+async function isOutsideServiceArea(lat, lng) {
   const point = normalizePoint({ lat, lng });
-  return !!point && !isInsideTarlac(point);
+  return !!point && !(await isInTarlacProvince(point));
 }
 
 // Checks a "someone else" pickup. Returns { error } or the cleaned values.
-function checkBookedFor({ pickupPoint, name, contact }) {
+async function checkBookedFor({ pickupPoint, name, contact }) {
   if (!pickupPoint) {
     return { error: 'Pick the pickup place from the suggestions so the driver gets the exact spot.' };
   }
-  if (!isInsideTarlac(pickupPoint)) {
+  if (!(await isInTarlacProvince(pickupPoint))) {
     return { error: 'Pickups must be within Tarlac.' };
   }
   const cleanName = String(name || '').trim().replace(/\s+/g, ' ');
@@ -183,13 +226,15 @@ async function geocodeAddress(text) {
   // city suffix fought the province-wide box above: "Concepcion" became
   // "Concepcion, Tarlac City", a contradiction that pushed the real town
   // down the results in favour of anything inside the city limits.
-  const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&viewbox=${TARLAC_VIEWBOX}&bounded=1&q=${encodeURIComponent(text + ', Tarlac, Philippines')}`;
+  const url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=5&viewbox=${TARLAC_VIEWBOX}&bounded=1&q=${encodeURIComponent(text + ', Tarlac, Philippines')}`;
   const res = await fetch(url, {
     headers: { 'User-Agent': 'GoTSUian/1.0 (capstone project, TSU San Isidro)' },
     signal: AbortSignal.timeout(6000)
   });
   if (!res.ok) throw new Error('Location lookup failed');
-  const results = await res.json();
+  // The box reaches into Pampanga and the other neighbours, so only a
+  // result that is really in Tarlac province counts (see isInTarlacProvince).
+  const results = (await res.json()).filter(r => isTarlacAddress(r.address));
   if (!results.length) throw new Error('LOCATION_NOT_FOUND');
   return [parseFloat(results[0].lat), parseFloat(results[0].lon)];
 }
@@ -283,7 +328,9 @@ exports.searchPlaces = async (req, res) => {
       signal: AbortSignal.timeout(6000)
     });
     if (!response.ok) throw new Error('Place search failed');
-    const results = await response.json();
+    // Same box-corner problem: drop suggestions outside Tarlac province
+    // (e.g. Pampanga Technopark, Mabalacat).
+    const results = (await response.json()).filter(r => isTarlacAddress(r.address));
 
     res.status(200).json({
       places: results.map((result) => ({
@@ -348,6 +395,7 @@ async function computeOthersFare(pickupLocation, dropoffText, dropoffCoords) {
       throw new Error('Could not find that location. Please try a more specific address.');
     }
   }
+  if (!(await isInTarlacProvince(point))) throw new Error(DROPOFF_OUTSIDE_AREA_MESSAGE);
 
   const normalEndpoint = getNormalEndpoint(pickupLocation);
   const straightLineKm = haversineKm(normalEndpoint, point);
@@ -403,6 +451,7 @@ async function resolveCustomPickupDropoff(pickupPoint, dropoffText, dropoffCoord
       throw new Error('Could not find that drop-off location. Please pick it from the suggestions.');
     }
   }
+  if (!(await isInTarlacProvince(point))) throw new Error(DROPOFF_OUTSIDE_AREA_MESSAGE);
   const { fare, distanceKm } = await quoteDistanceFare(pickupPoint, point);
   return { fare, distanceKm, extraKm: null, lat: point[0], lng: point[1] };
 }
@@ -434,10 +483,10 @@ exports.quoteOthersDropoff = async (req, res) => {
   if (!pickup_location || !dropoff_text) {
     return res.status(400).json({ error: 'Pickup location and drop-off text are required' });
   }
-  if (pickup_from_search && !isInsideTarlac(normalizePoint({ lat: pickup_lat, lng: pickup_lng }))) {
+  if (pickup_from_search && !(await isInTarlacProvince(normalizePoint({ lat: pickup_lat, lng: pickup_lng })))) {
     return res.status(400).json({ error: 'Pickups must be within Tarlac.' });
   }
-  if (pickup_is_custom && !pickup_from_search && isOutsideServiceArea(pickup_lat, pickup_lng)) {
+  if (pickup_is_custom && !pickup_from_search && await isOutsideServiceArea(pickup_lat, pickup_lng)) {
     return res.status(400).json({ error: GPS_OUTSIDE_AREA_MESSAGE });
   }
   const dropoffCoords = { lat: dropoff_lat, lng: dropoff_lng };
@@ -499,14 +548,14 @@ exports.createRide = async (req, res) => {
     if (ride_type !== 'Solo') {
       return res.status(400).json({ error: 'Booking for someone else is only available for Solo rides.' });
     }
-    const checked = checkBookedFor({
+    const checked = await checkBookedFor({
       pickupPoint: normalizePoint({ lat: pickup_lat, lng: pickup_lng }),
       name: booked_for_name,
       contact: booked_for_contact
     });
     if (checked.error) return res.status(400).json({ error: checked.error });
     bookedFor = checked;
-  } else if (pickup_is_custom && isOutsideServiceArea(pickup_lat, pickup_lng)) {
+  } else if (pickup_is_custom && await isOutsideServiceArea(pickup_lat, pickup_lng)) {
     return res.status(400).json({ error: GPS_OUTSIDE_AREA_MESSAGE });
   }
 

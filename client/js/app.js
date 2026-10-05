@@ -5150,7 +5150,7 @@ function setupPlaceSuggestions(side) {
       // finds nothing, "robinsons" does), not that the place isn't there.
       const fallback = narrowPlaces(lastPlaces, query);
       if (fallback.length) renderSuggestions(fallback);
-      else showStatus('No results yet. Try typing the full name (e.g. "Robinsons", not "Rob").');
+      else showStatus('No place found in Tarlac. GoTSUian only serves pickups and drop-offs within Tarlac. Check the spelling or type the full name (e.g. "Robinsons", not "Rob").');
     }, 350);
   });
 
