@@ -883,6 +883,10 @@ exports.getMyRides = (req, res) => {
   const sql = `
     SELECT r.*, CONCAT(td.first_name, ' ', td.last_name) AS driver_name,
            td.plate_number AS driver_plate,
+           -- "Report a concern" closes 24 hours after a ride ends (IT expert
+           -- review, 2026-10-06); an active ride can always be reported.
+           (r.status NOT IN ('Completed', 'Cancelled', 'Failed', 'Declined')
+              OR r.updated_at > NOW() - INTERVAL 24 HOUR) AS report_open,
            -- The driver's number only while the trip is on (Accepted to In
            -- Progress), for the Call driver button; never on history rows.
            CASE WHEN r.status IN ('Accepted', 'Picked Up', 'In Progress')
@@ -911,6 +915,10 @@ exports.getDriverRides = (req, res) => {
   const accountId = req.user.accountId;
   const sql = `
     SELECT r.*, CONCAT(s.first_name, ' ', s.last_name) AS passenger_name,
+           -- "Report a concern" closes 24 hours after a ride ends (IT expert
+           -- review, 2026-10-06); an active ride can always be reported.
+           (r.status NOT IN ('Completed', 'Cancelled', 'Failed', 'Declined')
+              OR r.updated_at > NOW() - INTERVAL 24 HOUR) AS report_open,
            -- The passenger's number only while the trip is on, for the Call
            -- passenger button; pending requests never reach this query.
            CASE WHEN r.status IN ('Accepted', 'Picked Up', 'In Progress')

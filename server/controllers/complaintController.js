@@ -41,7 +41,7 @@ exports.createComplaint = (req, res) => {
     return reject(503, 'Reports cannot be saved yet. Please try again in a minute.');
   }
 
-  db.query(
+  const save = () => db.query(
     `INSERT INTO complaints (filed_by_account_id, against_account_id, ride_id, category, description, evidence_path)
      VALUES (?, ?, ?, ?, ?, ?)`,
     [filed_by_account_id, against_account_id || null, ride_id || null, category, description.trim(),
@@ -50,6 +50,31 @@ exports.createComplaint = (req, res) => {
       if (err) return reject(500, err.message);
       res.status(201).json({ message: 'Complaint submitted', complaintId: result.insertId });
       emitComplaintFiled();
+    }
+  );
+
+  // A report about a ride: only by someone on that ride, and only until 24
+  // hours after the ride ended (IT expert review, 2026-10-06). The same
+  // window hides the button on both history pages (report_open).
+  if (!ride_id) return save();
+  db.query(
+    `SELECT passenger_account_id, driver_account_id,
+            (status NOT IN ('Completed', 'Cancelled', 'Failed', 'Declined')
+               OR updated_at > NOW() - INTERVAL 24 HOUR) AS report_open
+     FROM rides WHERE ride_id = ?`,
+    [ride_id],
+    (err, rows) => {
+      if (err) return reject(500, err.message);
+      const ride = rows[0];
+      if (!ride) return reject(404, 'Ride not found.');
+      const me = String(filed_by_account_id);
+      if (me !== String(ride.passenger_account_id) && me !== String(ride.driver_account_id)) {
+        return reject(403, 'You can only report a ride you were part of.');
+      }
+      if (!Number(ride.report_open)) {
+        return reject(400, 'Reports for a ride can only be filed within 24 hours after it ends.');
+      }
+      save();
     }
   );
 };

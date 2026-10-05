@@ -6043,7 +6043,10 @@ async function renderBookingsList() {
     // a Failed ride (its form is the report), a cancellation (it asked why),
     // or one reported before. Passengers keep it as before.
     const driverDone = isDriver && (ride.status === 'Completed' || ride.status === 'Failed' || Number(ride.has_my_report) > 0);
-    const complaintBlock = !otherPartyAccountId || driverDone ? '' : `
+    // Both sides: reporting closes 24 hours after the ride ends (the server
+    // works out report_open and refuses a late report too).
+    const reportClosed = ride.report_open !== undefined && !Number(ride.report_open);
+    const complaintBlock = !otherPartyAccountId || driverDone || reportClosed ? '' : `
       <div class="complaint-prompt" data-ride-id="${ride.ride_id}" data-against-account-id="${otherPartyAccountId}">
         <button type="button" class="btn-secondary-outline complaint-toggle">Report a concern</button>
         <div class="complaint-form" style="display:none;">
