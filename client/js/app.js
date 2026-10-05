@@ -5601,16 +5601,8 @@ async function renderPassengerRideStatus() {
 
   const cancelButton = container.querySelector('[data-action="cancel-request"]');
   if (cancelButton) {
-    cancelButton.addEventListener('click', async function() {
-      try {
-        await updateRideStatusRemote(activeRide.ride_id, 'Cancelled');
-        showRideFeedback('info', 'Ride cancelled', 'Your ride request has been cancelled.');
-        renderPassengerRideStatus();
-        renderDriverRideRequests();
-        renderDriverDashboardStats();
-      } catch (error) {
-        showRideFeedback('error', 'Could not cancel', error.message || 'Please try again.');
-      }
+    cancelButton.addEventListener('click', function() {
+      openCancelRideForm({ rideIds: [activeRide.ride_id], role: 'passenger', hasDriver: Boolean(activeRide.driver_account_id) });
     });
   }
 
@@ -6434,17 +6426,9 @@ async function renderDriverRideRequests() {
   // Driver cancelling an active trip drops every rider sharing that pool,
   // not just one — see the comment on allRideIds in renderActiveRideCard.
   container.querySelectorAll('[data-action="cancel-pool"]').forEach(button => {
-    button.addEventListener('click', async function() {
+    button.addEventListener('click', function() {
       const rideIds = this.getAttribute('data-ride-ids').split(',').filter(Boolean);
-      try {
-        await Promise.all(rideIds.map(id => updateRideStatusRemote(id, 'Cancelled')));
-        showRideFeedback('info', 'Trip cancelled', 'The trip was cancelled and every rider was notified.');
-        renderPassengerRideStatus();
-        renderDriverRideRequests();
-        renderDriverDashboardStats();
-      } catch (error) {
-        showRideFeedback('error', 'Could not cancel', error.message || 'Please try again.');
-      }
+      openCancelRideForm({ rideIds, role: 'driver', hasDriver: true });
     });
   });
 
@@ -6512,6 +6496,79 @@ function notifyFailedRide(rides) {
 // pick a reason and explain what happened. The passenger sees both, and the
 // admin gets it in Complaints (see updateRideStatus in rideController.js).
 // Must match FAILED_REASONS in server/rideFailures.js.
+// Cancelling asks why first, and the ride is only cancelled once this is
+// answered (IT expert review, 2026-10-06). Same lists as the server's
+// rideCancels.js; a passenger still waiting for a driver gets only the
+// reasons that make sense before anyone has accepted.
+const CANCEL_REASONS = {
+  passengerWaiting: ['Waiting too long for a driver', 'Changed my plans', 'Booked by mistake', 'Other'],
+  passengerWithDriver: ['Driver is taking too long', 'Driver asked me to cancel', 'Driver is not responding', 'Changed my plans', 'Booked by mistake', 'Other'],
+  driver: ['Passenger not at the pickup point', 'Passenger is not responding', 'Passenger asked me to cancel', 'Tricycle problem', 'Other']
+};
+
+function openCancelRideForm({ rideIds, role, hasDriver }) {
+  document.querySelectorAll('[data-cancel-form]').forEach(el => el.remove());
+  const reasons = role === 'driver' ? CANCEL_REASONS.driver
+    : hasDriver ? CANCEL_REASONS.passengerWithDriver : CANCEL_REASONS.passengerWaiting;
+  const lead = role === 'driver'
+    ? 'The passenger is told the ride was cancelled, and the TODA admin reviews every cancelled trip.'
+    : hasDriver
+      ? 'Your driver is told the ride was cancelled, and the TODA admin reviews cancelled trips.'
+      : 'Tell us why before your request is cancelled.';
+  const overlay = document.createElement('div');
+  overlay.setAttribute('data-cancel-form', '');
+  overlay.className = 'ride-feedback-overlay';
+  overlay.innerHTML = `
+    <form class="ride-feedback-modal failed-form" role="dialog" aria-labelledby="cancel-form-title" novalidate>
+      <h3 id="cancel-form-title">Why are you cancelling?</h3>
+      <p class="failed-form-lead">${escapeHtml(lead)}</p>
+      <div class="failed-form-reasons" role="radiogroup" aria-label="Reason">
+        ${reasons.map(reason => `
+          <label class="failed-form-reason">
+            <input type="radio" name="cancel-reason" value="${escapeHtml(reason)}">
+            <span>${escapeHtml(reason)}</span>
+          </label>`).join('')}
+      </div>
+      <label class="failed-form-note-label" for="cancel-form-note">Explain briefly</label>
+      <textarea id="cancel-form-note" class="failed-form-note" rows="3" maxlength="255" placeholder="${role === 'driver' ? 'E.g. waited 10 minutes at the gate, passenger did not answer the call.' : 'E.g. I found another ride home.'}"></textarea>
+      <small class="error-msg failed-form-error"></small>
+      <div class="action-popup-buttons">
+        <button type="submit" class="action-popup-primary">Cancel ride</button>
+        <button type="button" class="action-popup-secondary cancel-form-back">Keep the ride</button>
+      </div>
+    </form>
+  `;
+  document.body.appendChild(overlay);
+
+  const close = () => overlay.remove();
+  overlay.addEventListener('click', (event) => { if (event.target === overlay) close(); });
+  overlay.querySelector('.cancel-form-back').addEventListener('click', close);
+  overlay.querySelector('form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const errorEl = overlay.querySelector('.failed-form-error');
+    const picked = overlay.querySelector('input[name="cancel-reason"]:checked');
+    const note = overlay.querySelector('#cancel-form-note').value.trim();
+    if (!picked) { errorEl.textContent = 'Choose a reason.'; return; }
+    if (!note) { errorEl.textContent = 'Explain briefly why you are cancelling.'; return; }
+    const submitBtn = overlay.querySelector('.action-popup-primary');
+    submitBtn.disabled = true;
+    try {
+      await Promise.all(rideIds.map(id => updateRideStatusRemote(id, 'Cancelled', { reason: picked.value, note })));
+      close();
+      showRideFeedback('info', 'Ride cancelled', role === 'driver'
+        ? 'The trip was cancelled and the passenger was notified.'
+        : 'Your ride request has been cancelled.');
+      renderPassengerRideStatus();
+      renderDriverRideRequests();
+      renderDriverDashboardStats();
+    } catch (error) {
+      // e.g. the driver marked "Picked Up" while this form was open.
+      errorEl.textContent = error.message || 'Please try again.';
+      submitBtn.disabled = false;
+    }
+  });
+}
+
 const FAILED_RIDE_REASONS = [
   'Tricycle breakdown',
   'Passenger asked to stop early',
@@ -8234,14 +8291,8 @@ function manageRealtimeConnection() {
       message: 'All available drivers have passed on this request. You can keep waiting for another driver to come online, or cancel it.',
       primaryLabel: 'Keep waiting',
       secondaryLabel: 'Cancel request',
-      onSecondary: async () => {
-        try {
-          await updateRideStatusRemote(rideId, 'Cancelled');
-          showRideFeedback('info', 'Ride cancelled', 'Your ride request has been cancelled.');
-        } catch (error) {
-          showRideFeedback('error', 'Could not cancel', error.message || 'Please try again.');
-        }
-        renderPassengerRideStatus();
+      onSecondary: () => {
+        openCancelRideForm({ rideIds: [rideId], role: 'passenger', hasDriver: false });
       }
     });
   });

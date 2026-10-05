@@ -4,6 +4,7 @@ const path = require('path');
 const db = require('../config/db');
 const { emitRideUpdated, emitNewPendingRide, emitDriverLocation, emitAvailabilityChanged, getPresentDriverIds, emitNoDriversLeft, emitComplaintFiled } = require('../socket');
 const { FAILED_REASONS, PASSENGER_REASONS, hasFailureColumns } = require('../rideFailures');
+const { PASSENGER_CANCEL_REASONS, DRIVER_CANCEL_REASONS, CANCEL_REASONS_AGAINST_OTHER } = require('../rideCancels');
 const { hasDeclinesTable } = require('../rideDeclines');
 const { hasCertificateSeenColumn } = require('../certificateSeen');
 const { hasBookedForColumns } = require('../bookedFor');
@@ -1520,6 +1521,20 @@ exports.updateRideStatus = (req, res) => {
       });
     }
 
+    // Cancelling needs a reason from that side's list and an explanation,
+    // answered before anything changes (see rideCancels.js).
+    const cancelReason = status === 'Cancelled' ? String(req.body.reason || '').trim() : null;
+    const cancelNote = status === 'Cancelled' ? String(req.body.note || '').trim().slice(0, 255) : null;
+    if (status === 'Cancelled') {
+      const reasons = isRideDriver ? DRIVER_CANCEL_REASONS : PASSENGER_CANCEL_REASONS;
+      if (!reasons.includes(cancelReason)) {
+        return res.status(400).json({ error: 'Choose why you are cancelling this ride.' });
+      }
+      if (!cancelNote) {
+        return res.status(400).json({ error: 'Explain briefly why you are cancelling.' });
+      }
+    }
+
     // 'Declined' behaves like 'Cancelled' for cascade purposes — it only
     // ever applies to a single still-Pending ride (or, for a Shared pool
     // decline, every rider's ride_id is targeted individually by the
@@ -1546,6 +1561,24 @@ exports.updateRideStatus = (req, res) => {
       // driver (red "N pending" badge), against the passenger only when the
       // reason points at them, so the admin can review it and warn whoever
       // was at fault.
+      // A ride cancelled after a driver was assigned reaches the admin the
+      // same way, filed by whoever cancelled, and against the other side only
+      // when the reason points at them (rideCancels.js).
+      if (status === 'Cancelled' && ride.driver_account_id) {
+        const filedBy = isRideDriver ? ride.driver_account_id : ride.passenger_account_id;
+        const otherSide = isRideDriver ? ride.passenger_account_id : ride.driver_account_id;
+        db.query(
+          `INSERT INTO complaints (filed_by_account_id, against_account_id, ride_id, category, description)
+           VALUES (?, ?, ?, ?, ?)`,
+          [filedBy, CANCEL_REASONS_AGAINST_OTHER.includes(cancelReason) ? otherSide : null, ride.ride_id,
+           `Ride cancelled: ${cancelReason}`.slice(0, 50), cancelNote],
+          (complaintErr) => {
+            if (complaintErr) return console.warn('Could not file the cancellation report', complaintErr.message);
+            emitComplaintFiled();
+          }
+        );
+      }
+
       if (status === 'Failed') {
         const againstPassenger = PASSENGER_REASONS.includes(failedReason);
         db.query(
