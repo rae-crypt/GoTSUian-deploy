@@ -318,9 +318,16 @@ async function reverseGeocodePoint(lat, lng) {
 // Failures deliberately return an empty list rather than an error status —
 // this fires while someone is typing, and a red message every few keystrokes
 // because a free geocoder hiccuped would be worse than no suggestions.
+// Names of places around Tarlac that people may try to book. Searching one
+// of them gets a clear "outside Tarlac" warning, even when nothing outside
+// Tarlac came back to be filtered (most of them lie outside the search box).
+const OUTSIDE_TARLAC_WORDS = ['pampanga', 'mabalacat', 'clark', 'angeles', 'nueva ecija', 'cabanatuan',
+  'pangasinan', 'dagupan', 'urdaneta', 'zambales', 'olongapo', 'bulacan', 'bataan', 'manila', 'quezon city', 'baguio'];
+
 exports.searchPlaces = async (req, res) => {
   const query = (req.body.q || '').trim();
   if (query.length < 2) return res.status(200).json({ places: [] });
+  const namesOutside = OUTSIDE_TARLAC_WORDS.some(word => query.toLowerCase().includes(word));
 
   try {
     const url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=6&viewbox=${TARLAC_VIEWBOX}&bounded=1&q=${encodeURIComponent(query + ', Tarlac, Philippines')}`;
@@ -331,9 +338,12 @@ exports.searchPlaces = async (req, res) => {
     if (!response.ok) throw new Error('Place search failed');
     // Same box-corner problem: drop suggestions outside Tarlac province
     // (e.g. Pampanga Technopark, Mabalacat).
-    const results = (await response.json()).filter(r => isTarlacAddress(r.address));
+    const allResults = await response.json();
+    const results = allResults.filter(r => isTarlacAddress(r.address));
 
     res.status(200).json({
+      // Tells the page to warn that places outside Tarlac can't be booked.
+      outsideTarlac: namesOutside || results.length < allResults.length,
       places: results.map((result) => ({
         label: formatPlaceLabel(result),
         lat: parseFloat(result.lat),
@@ -342,7 +352,7 @@ exports.searchPlaces = async (req, res) => {
     });
   } catch (error) {
     console.warn('Place search failed:', error.message);
-    res.status(200).json({ places: [] });
+    res.status(200).json({ places: [], outsideTarlac: namesOutside });
   }
 };
 

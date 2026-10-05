@@ -5038,8 +5038,12 @@ async function searchPlaces(query) {
     body: JSON.stringify({ q: query })
   });
   const data = await res.json();
-  return data.places || [];
+  // outsideTarlac: the search touched a place outside Tarlac (see searchPlaces
+  // on the server), so the list warns that those can't be booked.
+  return { places: data.places || [], outsideTarlac: Boolean(data.outsideTarlac) };
 }
+
+const OUTSIDE_TARLAC_SEARCH_MESSAGE = 'Places outside Tarlac are not allowed. GoTSUian only serves pickups and drop-offs within Tarlac.';
 
 // Type-ahead under the pickup and drop-off boxes. Picking a suggestion
 // stores its exact coordinates, so the server uses the place the passenger
@@ -5087,15 +5091,15 @@ function setupPlaceSuggestions(side) {
     return byName.length ? byName : places.filter((place) => matches(place.label));
   }
 
-  function showStatus(text) {
-    list.innerHTML = `<li class="place-suggest-status">${escapeHtml(text)}</li>`;
+  function showStatus(text, isWarning) {
+    list.innerHTML = `<li class="place-suggest-status${isWarning ? ' place-suggest-warning' : ''}">${escapeHtml(text)}</li>`;
     list.hidden = false;
   }
 
-  function renderSuggestions(places) {
+  function renderSuggestions(places, warning) {
     if (!places.length) return closeList();
 
-    list.innerHTML = places
+    list.innerHTML = (warning ? `<li class="place-suggest-status place-suggest-warning">${escapeHtml(warning)}</li>` : '') + places
       .map((place, index) => `<li><button type="button" class="place-suggest-item" data-index="${index}">${escapeHtml(place.label)}</button></li>`)
       .join('');
     list.hidden = false;
@@ -5135,16 +5139,20 @@ function setupPlaceSuggestions(side) {
     debounceTimer = setTimeout(async () => {
       const token = ++requestToken;
       let places = [];
+      let outsideTarlac = false;
       try {
-        places = await searchPlaces(query);
+        ({ places, outsideTarlac } = await searchPlaces(query));
       } catch (error) {
         places = [];
       }
       // A slower earlier request must not overwrite a newer one's results.
       if (token !== requestToken) return;
+      // e.g. "pampanga": Pampanga itself can't be booked, but Tarlac places
+      // with that word in their name still can, listed under the warning.
+      if (outsideTarlac && !places.length) return showStatus(OUTSIDE_TARLAC_SEARCH_MESSAGE, true);
       if (places.length) {
         lastPlaces = places;
-        return renderSuggestions(places);
+        return renderSuggestions(places, outsideTarlac ? OUTSIDE_TARLAC_SEARCH_MESSAGE : null);
       }
       // An empty answer usually means a word is still half-typed ("rob"
       // finds nothing, "robinsons" does), not that the place isn't there.

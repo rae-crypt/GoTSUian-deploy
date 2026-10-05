@@ -4732,3 +4732,13 @@ body .loyalty-message {
 .failed-form-reason input[type="radio"] { width: 18px; height: 18px; min-width: 18px; flex: none; padding: 0; box-shadow: none; }
 .failed-form-reason span { flex: 1; }
 .failed-form-reasons { gap: 6px; }
+
+/* "Places outside Tarlac are not allowed" line at the top of the pickup /
+   drop-off suggestions (setupPlaceSuggestions in app.js). */
+body[data-page="passenger"] .place-suggest-status.place-suggest-warning {
+  color: #b42318;
+  font-weight: 600;
+  background: #fef3f2;
+  font-style: normal;
+  border-radius: 8px;
+}
