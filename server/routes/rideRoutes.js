@@ -17,6 +17,7 @@ router.post('/', authMiddleware, rideController.createRide);
 router.post('/others-quote', authMiddleware, rideController.quoteOthersDropoff);
 // Public: How It Works shows the current fare rates to visitors too.
 router.get('/fare-settings', rideController.getFareSettings);
+router.get('/outside-places', rideController.getOutsidePlaces);
 router.post('/reverse-geocode', authMiddleware, rideController.reverseGeocode);
 router.post('/search-places', authMiddleware, rideController.searchPlaces);
 router.get('/pending', authMiddleware, rideController.listPendingRides);

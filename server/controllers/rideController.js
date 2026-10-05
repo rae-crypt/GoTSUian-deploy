@@ -5,6 +5,7 @@ const db = require('../config/db');
 const { emitRideUpdated, emitNewPendingRide, emitDriverLocation, emitAvailabilityChanged, getPresentDriverIds, emitNoDriversLeft, emitComplaintFiled } = require('../socket');
 const { FAILED_REASONS, PASSENGER_REASONS, hasFailureColumns } = require('../rideFailures');
 const { PASSENGER_CANCEL_REASONS, DRIVER_CANCEL_REASONS, CANCEL_REASONS_AGAINST_OTHER } = require('../rideCancels');
+const { OUTSIDE_PLACE_NAMES, namesPlaceOutsideTarlac } = require('../outsidePlaces');
 const { hasDeclinesTable } = require('../rideDeclines');
 const { hasCertificateSeenColumn } = require('../certificateSeen');
 const { hasBookedForColumns } = require('../bookedFor');
@@ -223,6 +224,11 @@ async function checkBookedFor({ pickupPoint, name, contact }) {
 // Nominatim (OpenStreetMap's free geocoder, no API key) — turns the
 // passenger's typed "Others" text into coordinates.
 async function geocodeAddress(text) {
+  // Typed (not picked) text naming an outside place, e.g. "pampanga": refused
+  // outright, rather than matched to a Tarlac shop that carries the name.
+  if (namesPlaceOutsideTarlac(text)) {
+    throw new Error('OUTSIDE_TARLAC');
+  }
   // Suffix is ", Tarlac" (the province), NOT ", Tarlac City". The old
   // city suffix fought the province-wide box above: "Concepcion" became
   // "Concepcion, Tarlac City", a contradiction that pushed the real town
@@ -318,16 +324,14 @@ async function reverseGeocodePoint(lat, lng) {
 // Failures deliberately return an empty list rather than an error status —
 // this fires while someone is typing, and a red message every few keystrokes
 // because a free geocoder hiccuped would be worse than no suggestions.
-// Names of places around Tarlac that people may try to book. Searching one
-// of them gets a clear "outside Tarlac" warning, even when nothing outside
-// Tarlac came back to be filtered (most of them lie outside the search box).
-const OUTSIDE_TARLAC_WORDS = ['pampanga', 'mabalacat', 'clark', 'angeles', 'nueva ecija', 'cabanatuan',
-  'pangasinan', 'dagupan', 'urdaneta', 'zambales', 'olongapo', 'bulacan', 'bataan', 'manila', 'quezon city', 'baguio'];
-
 exports.searchPlaces = async (req, res) => {
   const query = (req.body.q || '').trim();
   if (query.length < 2) return res.status(200).json({ places: [] });
-  const namesOutside = OUTSIDE_TARLAC_WORDS.some(word => query.toLowerCase().includes(word));
+  const namesOutside = namesPlaceOutsideTarlac(query);
+  // Searching an outside place gets no suggestions at all, only the warning,
+  // not even Tarlac places that happen to carry the name ("Pampanga
+  // Development Bank, Tarlac City") -- those read as if Pampanga were allowed.
+  if (namesOutside) return res.status(200).json({ places: [], outsideTarlac: true });
 
   try {
     const url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=6&viewbox=${TARLAC_VIEWBOX}&bounded=1&q=${encodeURIComponent(query + ', Tarlac, Philippines')}`;
@@ -342,8 +346,8 @@ exports.searchPlaces = async (req, res) => {
     const results = allResults.filter(r => isTarlacAddress(r.address));
 
     res.status(200).json({
-      // Tells the page to warn that places outside Tarlac can't be booked.
-      outsideTarlac: namesOutside || results.length < allResults.length,
+      // Anything outside Tarlac province is just left out of the list.
+      outsideTarlac: false,
       places: results.map((result) => ({
         label: formatPlaceLabel(result),
         lat: parseFloat(result.lat),
@@ -354,6 +358,12 @@ exports.searchPlaces = async (req, res) => {
     console.warn('Place search failed:', error.message);
     res.status(200).json({ places: [], outsideTarlac: namesOutside });
   }
+};
+
+// PUBLIC — the outside-Tarlac place names (outsidePlaces.js), so the booking
+// form can show the warning the moment one is typed.
+exports.getOutsidePlaces = (req, res) => {
+  res.status(200).json({ names: OUTSIDE_PLACE_NAMES });
 };
 
 // Used by the passenger booking form's "Use my current location" option.
@@ -403,6 +413,7 @@ async function computeOthersFare(pickupLocation, dropoffText, dropoffCoords) {
     try {
       point = await geocodeAddress(dropoffText);
     } catch (error) {
+      if (error.message === 'OUTSIDE_TARLAC') throw new Error(DROPOFF_OUTSIDE_AREA_MESSAGE);
       throw new Error('Could not find that location. Please try a more specific address.');
     }
   }
@@ -459,6 +470,7 @@ async function resolveCustomPickupDropoff(pickupPoint, dropoffText, dropoffCoord
     try {
       point = await geocodeAddress(dropoffText);
     } catch (error) {
+      if (error.message === 'OUTSIDE_TARLAC') throw new Error(DROPOFF_OUTSIDE_AREA_MESSAGE);
       throw new Error('Could not find that drop-off location. Please pick it from the suggestions.');
     }
   }

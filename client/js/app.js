@@ -5044,6 +5044,28 @@ async function searchPlaces(query) {
 }
 
 const OUTSIDE_TARLAC_SEARCH_MESSAGE = 'Places outside Tarlac are not allowed. GoTSUian only serves pickups and drop-offs within Tarlac.';
+const NO_TARLAC_PLACE_MESSAGE = 'No place found in Tarlac. Places outside Tarlac are not allowed. GoTSUian only serves pickups and drop-offs within Tarlac.';
+
+// Every province and city outside Tarlac (server/outsidePlaces.js), loaded
+// once, so the warning shows the moment one is typed, with no suggestions
+// on screen meanwhile. Until it loads, the server's answer still decides.
+let outsidePlacePattern = null;
+fetch(`${RIDES_API_URL}/outside-places`)
+  .then(res => (res.ok ? res.json() : null))
+  .then((data) => {
+    if (!data || !Array.isArray(data.names) || !data.names.length) return;
+    const escaped = data.names.map(name => name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    outsidePlacePattern = new RegExp(`(^|[^a-z0-9])(${escaped.join('|')})(?=$|[^a-z0-9])`);
+  })
+  .catch(() => {});
+
+function normalizePlaceText(text) {
+  return String(text || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim();
+}
+
+function namesPlaceOutsideTarlac(query) {
+  return Boolean(outsidePlacePattern && outsidePlacePattern.test(normalizePlaceText(query)));
+}
 
 // Type-ahead under the pickup and drop-off boxes. Picking a suggestion
 // stores its exact coordinates, so the server uses the place the passenger
@@ -5128,6 +5150,14 @@ function setupPlaceSuggestions(side) {
       return closeList();
     }
 
+    // An outside place (e.g. "pampanga"): only the warning, no suggestions,
+    // and no lookup.
+    if (namesPlaceOutsideTarlac(query)) {
+      lastPlaces = [];
+      requestToken++;
+      return showStatus(OUTSIDE_TARLAC_SEARCH_MESSAGE, true);
+    }
+
     // Answer straight away from what's already known, so the list reacts
     // on every keystroke instead of only once the lookup below returns.
     const narrowed = narrowPlaces(lastPlaces, query);
@@ -5149,16 +5179,16 @@ function setupPlaceSuggestions(side) {
       if (token !== requestToken) return;
       // e.g. "pampanga": Pampanga itself can't be booked, but Tarlac places
       // with that word in their name still can, listed under the warning.
-      if (outsideTarlac && !places.length) return showStatus(OUTSIDE_TARLAC_SEARCH_MESSAGE, true);
+      if (outsideTarlac) return showStatus(OUTSIDE_TARLAC_SEARCH_MESSAGE, true);
       if (places.length) {
         lastPlaces = places;
-        return renderSuggestions(places, outsideTarlac ? OUTSIDE_TARLAC_SEARCH_MESSAGE : null);
+        return renderSuggestions(places);
       }
       // An empty answer usually means a word is still half-typed ("rob"
       // finds nothing, "robinsons" does), not that the place isn't there.
       const fallback = narrowPlaces(lastPlaces, query);
       if (fallback.length) renderSuggestions(fallback);
-      else showStatus('No place found in Tarlac. GoTSUian only serves pickups and drop-offs within Tarlac. Check the spelling or type the full name (e.g. "Robinsons", not "Rob").');
+      else showStatus(NO_TARLAC_PLACE_MESSAGE, true);
     }, 350);
   });
 
