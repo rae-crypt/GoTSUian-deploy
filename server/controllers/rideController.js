@@ -159,6 +159,7 @@ const GPS_OUTSIDE_AREA_MESSAGE = 'GoTSUian only serves Tarlac, and your current 
 // the real province, which Nominatim reports as ISO code "PH-TAR". Points
 // outside the box never need the lookup. If Nominatim is slow or down, the
 // box alone decides, so booking never breaks because of it.
+const PICKUP_OUTSIDE_AREA_MESSAGE = 'GoTSUian only serves Tarlac, and that pickup is outside the service area. Choose a pickup within Tarlac.';
 const DROPOFF_OUTSIDE_AREA_MESSAGE = 'GoTSUian only serves Tarlac, and that drop-off is outside the service area. Choose a drop-off within Tarlac.';
 const provinceCache = new Map();
 
@@ -206,7 +207,7 @@ async function checkBookedFor({ pickupPoint, name, contact }) {
     return { error: 'Pick the pickup place from the suggestions so the driver gets the exact spot.' };
   }
   if (!(await isInTarlacProvince(pickupPoint))) {
-    return { error: 'Pickups must be within Tarlac.' };
+    return { error: PICKUP_OUTSIDE_AREA_MESSAGE };
   }
   const cleanName = String(name || '').trim().replace(/\s+/g, ' ');
   if (cleanName.length < 2 || cleanName.length > 100) {
@@ -484,7 +485,7 @@ exports.quoteOthersDropoff = async (req, res) => {
     return res.status(400).json({ error: 'Pickup location and drop-off text are required' });
   }
   if (pickup_from_search && !(await isInTarlacProvince(normalizePoint({ lat: pickup_lat, lng: pickup_lng })))) {
-    return res.status(400).json({ error: 'Pickups must be within Tarlac.' });
+    return res.status(400).json({ error: PICKUP_OUTSIDE_AREA_MESSAGE });
   }
   if (pickup_is_custom && !pickup_from_search && await isOutsideServiceArea(pickup_lat, pickup_lng)) {
     return res.status(400).json({ error: GPS_OUTSIDE_AREA_MESSAGE });
