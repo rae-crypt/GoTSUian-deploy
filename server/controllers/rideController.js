@@ -845,7 +845,12 @@ exports.getDriverRides = (req, res) => {
                 THEN s.contact_number END AS passenger_contact,
            rp.status AS pool_status,
            (SELECT COUNT(*) FROM messages m WHERE m.ride_id = r.ride_id
-              AND m.sender_account_id != ? AND m.is_read = 0) AS unread_message_count
+              AND m.sender_account_id != ? AND m.is_read = 0) AS unread_message_count,
+           -- Whether this driver already filed something about this ride
+           -- (a report, a Failed form, or a cancellation reason), so their
+           -- history stops offering "Report a concern" for it.
+           EXISTS (SELECT 1 FROM complaints c WHERE c.ride_id = r.ride_id
+              AND c.filed_by_account_id = r.driver_account_id) AS has_my_report
     FROM rides r
     JOIN student s ON s.account_id = r.passenger_account_id
     LEFT JOIN ride_pools rp ON rp.pool_id = r.pool_id

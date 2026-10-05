@@ -6000,7 +6000,12 @@ async function renderBookingsList() {
     const complaintCategories = isDriver
       ? ['No-show', 'Rude behavior', 'Refused to pay', 'Fake booking', 'Misuse of Shared ride', 'Other']
       : ['Reckless driving', 'Overcharging', 'Rude behavior', 'Refused service', 'Unsafe vehicle', 'Cancelled without reason', 'Other'];
-    const complaintBlock = !otherPartyAccountId ? '' : `
+    // Driver side (IT expert review, 2026-10-06): no "Report a concern" on a
+    // Completed ride, and none on a ride the driver already reported on --
+    // a Failed ride (its form is the report), a cancellation (it asked why),
+    // or one reported before. Passengers keep it as before.
+    const driverDone = isDriver && (ride.status === 'Completed' || ride.status === 'Failed' || Number(ride.has_my_report) > 0);
+    const complaintBlock = !otherPartyAccountId || driverDone ? '' : `
       <div class="complaint-prompt" data-ride-id="${ride.ride_id}" data-against-account-id="${otherPartyAccountId}">
         <button type="button" class="btn-secondary-outline complaint-toggle">Report a concern</button>
         <div class="complaint-form" style="display:none;">
@@ -6168,6 +6173,8 @@ function setupComplaintPrompts(container) {
         categoryEl.value = '';
         descriptionEl.value = '';
         resetPhoto();
+        // A driver reports a ride once; the button goes with the report.
+        if (getStoredUser().role === 'driver') prompt.remove();
       } catch (error) {
         errorEl.textContent = error.message || 'Please try again.';
       } finally {
