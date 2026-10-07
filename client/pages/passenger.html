@@ -87,8 +87,7 @@
                  out rather than deleted. The fixed San Isidro <-> Main Campus
                  route is expected back once the bridge is repaired, and the
                  booking logic still understands every one of these values, so
-                 restoring the old form means uncommenting these lines (and the
-                 Shared button further down). -->
+                 restoring the old form means uncommenting these lines. -->
             <!-- Pickup is always the passenger's current location: the box fills
                  itself from GPS when the page opens and can't be typed into.
                  Tapping it looks the location up again. The select stays,
@@ -153,10 +152,6 @@
                     <small id="solo-km"></small>
                   </span>
                 </button>
-                <!-- Shared hidden: pooling groups riders by an identical pickup
-                     and drop-off, which only ever holds for the two fixed campus
-                     points. With every booking now starting from a passenger's
-                     own GPS position, no two riders would ever match. -->
               </div>
               <div class="ride-card-foot">
                 <span id="ride-card-foot-label">Priced by road distance</span>
@@ -165,7 +160,6 @@
               <p class="fare-estimate" id="fare-estimate" aria-live="polite"></p>
               <select id="ride-type" name="rideType" class="ride-type-select-hidden" aria-hidden="true" tabindex="-1">
                 <option value="Solo">Solo</option>
-                <option value="Shared">Shared — ₱20-35</option>
               </select>
             </div>
 
@@ -325,6 +319,6 @@
   </footer>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="../js/app.js?v=20261006g"></script>
+  <script src="../js/app.js?v=20261007a"></script>
 </body>
 </html>

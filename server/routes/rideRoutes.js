@@ -35,7 +35,6 @@ router.get('/:rideId/eta', authMiddleware, rideController.getRideEta);
 router.put('/:rideId/pickup-location', authMiddleware, rideController.updateRidePickupLocation);
 router.put('/:rideId/accept', authMiddleware, rideController.acceptRide);
 router.put('/:rideId/decline', authMiddleware, rideController.declineRide);
-router.put('/:rideId/convert-to-solo', authMiddleware, rideController.convertRideToSolo);
 router.put('/:rideId/status', authMiddleware, rideController.updateRideStatus);
 router.post('/:rideId/failed-photo', authMiddleware, failedPhotoUpload, rideController.uploadFailedRidePhoto);
 router.get('/loyalty', authMiddleware, rideController.getLoyaltyStatus);

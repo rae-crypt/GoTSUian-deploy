@@ -10,7 +10,7 @@ const { hasFailureColumns } = require('../rideFailures');
 // "For Drivers" violations, drivers report the "For Students / Passengers"
 // ones, since each side can only actually witness the other's misconduct.
 const CATEGORIES_AGAINST_DRIVER = ['Reckless driving', 'Overcharging', 'Rude behavior', 'Refused service', 'Unsafe vehicle', 'Cancelled without reason', 'Other'];
-const CATEGORIES_AGAINST_PASSENGER = ['No-show', 'Rude behavior', 'Refused to pay', 'Fake booking', 'Misuse of Shared ride', 'Other'];
+const CATEGORIES_AGAINST_PASSENGER = ['No-show', 'Rude behavior', 'Refused to pay', 'Fake booking', 'Other'];
 
 // PASSENGER/DRIVER files a complaint, optionally against a specific person
 // and/or tied to a specific ride. Resolving it later (see updateComplaintStatus
