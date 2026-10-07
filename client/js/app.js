@@ -5186,6 +5186,7 @@ function setupPassengerRideRequestForm() {
     const rideTypeSelect = document.querySelector('#ride-type');
     // Every ride is Solo (Shared rides were removed from the system).
     const rideType = 'Solo';
+    const selectedRideTypeBtn = form.querySelector('.ride-type-btn.is-selected');
     // Keep the select in step so the confirmation modal's label below
     // (read from its selected <option>) describes the same ride type.
     rideTypeSelect.value = rideType;
