@@ -2906,7 +2906,7 @@ function drawAdminBookings() {
 
   if (!bookings.length) {
     const emptyText = adminBookingsCache.length ? 'No bookings today yet.' : 'No bookings yet.';
-    tbody.innerHTML = `<tr><td colspan="7">${emptyText}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6">${emptyText}</td></tr>`;
     if (mobileList) mobileList.innerHTML = `<p class="admin-mcard-empty">${emptyText}</p>`;
     return;
   }
