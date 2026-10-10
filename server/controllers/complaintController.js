@@ -5,7 +5,6 @@ const { hasEvidenceColumn } = require('../complaintEvidence');
 const { emitComplaintUpdated, emitComplaintFiled, emitViolationIssued, emitAccountSuspended, emitAvailabilityChanged, emitNewPendingRide } = require('../socket');
 const { suspendAccount, getSuspension, SUSPENDED_MESSAGE } = require('../suspension');
 const { hasFailureColumns } = require('../rideFailures');
-const { logAudit, actorFromRequest } = require('../auditLog');
 
 // Categories mirror rules.html's Code of Conduct — passengers report the
 // "For Drivers" violations, drivers report the "For Students / Passengers"
@@ -226,7 +225,6 @@ exports.updateComplaintStatus = (req, res) => {
     (err, result) => {
       if (err) return res.status(500).json({ error: err.message });
       if (result.affectedRows === 0) return res.status(404).json({ error: 'Complaint not found' });
-      logAudit(req, { ...actorFromRequest(req), action: 'complaint_status_updated', targetType: 'complaint', targetId: Number(complaintId), details: `Marked ${status}` });
       res.status(200).json({ message: `Complaint marked as ${status}` });
 
       db.query(`SELECT filed_by_account_id FROM complaints WHERE complaint_id = ?`, [complaintId], (err2, rows) => {
@@ -239,7 +237,7 @@ exports.updateComplaintStatus = (req, res) => {
 // Shared insert used by both the direct-Violation path and the
 // possibly-escalated-Warning path below — also resolves the linked
 // complaint (if any) the same way for both.
-function insertViolationRow(req, res, { account_id, issued_by_admin_id, complaint_id, severity, reason, escalated, message }) {
+function insertViolationRow(res, { account_id, issued_by_admin_id, complaint_id, severity, reason, escalated, message }) {
   db.query(
     `INSERT INTO violations (account_id, issued_by_admin_id, complaint_id, severity, reason, escalated)
      VALUES (?, ?, ?, ?, ?, ?)`,
@@ -249,12 +247,6 @@ function insertViolationRow(req, res, { account_id, issued_by_admin_id, complain
 
       const responseBody = { message, escalated, finalSeverity: severity, suspended: false };
       emitViolationIssued(account_id);
-      logAudit(req, {
-        ...actorFromRequest(req),
-        action: severity === 'Violation' ? 'violation_issued' : 'warning_issued',
-        targetType: 'account', targetId: Number(account_id),
-        details: `${escalated ? '2nd warning, escalated to a Violation (account suspended). ' : severity === 'Violation' ? 'Account suspended. ' : ''}${complaint_id ? `Complaint #${complaint_id}. ` : ''}Reason: ${reason}`
-      });
 
       // A Violation suspends the account straight away (see suspension.js).
       const afterSuspension = (next) => {
@@ -327,7 +319,7 @@ exports.issueViolation = (req, res) => {
 
   function issueOnActiveAccount() {
     if (severity === 'Violation') {
-      return insertViolationRow(req, res, {
+      return insertViolationRow(res, {
         account_id, issued_by_admin_id, complaint_id, severity: 'Violation',
         reason: trimmedReason, escalated: false, message: 'Violation issued'
       });
@@ -341,14 +333,14 @@ exports.issueViolation = (req, res) => {
         const priorWarnings = rows[0].c;
 
         if (priorWarnings >= 1) {
-          return insertViolationRow(req, res, {
+          return insertViolationRow(res, {
             account_id, issued_by_admin_id, complaint_id, severity: 'Violation',
             reason: trimmedReason, escalated: true,
             message: 'This is their 2nd warning — automatically escalated to a Violation'
           });
         }
 
-        insertViolationRow(req, res, {
+        insertViolationRow(res, {
           account_id, issued_by_admin_id, complaint_id, severity: 'Warning',
           reason: trimmedReason, escalated: false, message: 'Warning issued'
         });

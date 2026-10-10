@@ -7,7 +7,6 @@ const { emitDriverAccountStatus, emitLoyaltyGranted, getPresentPassengerIds, get
 const { getFareSettings, saveFareSettings } = require('../fareSettings');
 const { getSuspensionMap, liftSuspension } = require('../suspension');
 const { hasFailureColumns } = require('../rideFailures');
-const { logAudit, actorFromRequest, hasAuditTable } = require('../auditLog');
 
 // Adds suspended_at / suspension_reason (null when not suspended) to each
 // passenger/driver row, so the admin lists can flag suspended accounts.
@@ -27,7 +26,6 @@ exports.liftAccountSuspension = (req, res) => {
   liftSuspension(accountId, (err, lifted) => {
     if (err) return res.status(500).json({ error: err.message });
     if (!lifted) return res.status(404).json({ error: 'This account is not suspended.' });
-    logAudit(req, { ...actorFromRequest(req), action: 'suspension_lifted', targetType: 'account', targetId: Number(accountId) });
     res.status(200).json({ message: 'Suspension lifted. They can log in again.' });
   });
 };
@@ -62,7 +60,6 @@ exports.updateFareSettings = (req, res) => {
 
   saveFareSettings({ first_km_fare: firstKmFare, per_km_fare: perKmFare, basis }, (err, settings) => {
     if (err) return res.status(500).json({ error: err.message });
-    logAudit(req, { ...actorFromRequest(req), action: 'fare_settings_updated', details: `First km ₱${firstKmFare}, each additional km ₱${perKmFare}` });
     res.status(200).json(settings);
   });
 };
@@ -254,7 +251,6 @@ exports.grantLoyaltyCertificate = (req, res) => {
           [account_id, grantedByAdminId, nextThreshold],
           (err) => {
             if (err) return res.status(500).json({ error: err.message });
-            logAudit(req, { ...actorFromRequest(req), action: 'loyalty_granted', targetType: 'account', targetId: Number(account_id), details: `${nextThreshold}-ride milestone` });
             emitLoyaltyGranted(account_id);
             res.status(201).json({ message: 'Certificate granted', milestone: nextThreshold });
           }
@@ -317,7 +313,6 @@ exports.updateDriverStatus = (req, res) => {
   db.query(`UPDATE tricycle_driver SET account_status = ? WHERE driver_id = ?`, [status, driverId], (err, result) => {
     if (err) return res.status(500).json({ error: err.message });
     if (result.affectedRows === 0) return res.status(404).json({ error: 'Driver not found' });
-    logAudit(req, { ...actorFromRequest(req), action: status === 'Active' ? 'driver_approved' : 'driver_rejected', targetType: 'driver', targetId: Number(driverId) });
     res.status(200).json({ message: `Driver marked as ${status}` });
     db.query(`SELECT account_id FROM tricycle_driver WHERE driver_id = ?`, [driverId], (err2, rows) => {
       if (err2 || !rows.length) return;
@@ -333,36 +328,6 @@ exports.updateDriverStatus = (req, res) => {
 // the existing approve/reject flow); admin clicks this button and relays
 // the one-time temp password from the response. It's generated fresh here
 // and never stored or logged anywhere in plaintext after this response.
-// ACTIVITY LOG — the newest 300 audit_log rows (see auditLog.js), with the
-// name of who did it and of the account/driver it was done to. The page's
-// Today/All chips filter this list without another fetch.
-exports.listAuditLog = (req, res) => {
-  if (!hasAuditTable()) return res.status(200).json({ entries: [] });
-  const sql = `
-    SELECT al.log_id, al.role, al.username, al.action, al.target_type, al.target_id,
-           al.details, al.ip_address, al.created_at,
-           COALESCE(CONCAT(s.first_name, ' ', s.last_name), CONCAT(d.first_name, ' ', d.last_name),
-                    CONCAT(ap.first_name, ' ', ap.last_name)) AS actor_name,
-           CASE
-             WHEN al.target_type = 'driver' THEN (SELECT CONCAT(td.first_name, ' ', td.last_name) FROM tricycle_driver td WHERE td.driver_id = al.target_id)
-             WHEN al.target_type = 'account' THEN COALESCE(
-               (SELECT CONCAT(ts.first_name, ' ', ts.last_name) FROM student ts WHERE ts.account_id = al.target_id),
-               (SELECT CONCAT(tt.first_name, ' ', tt.last_name) FROM tricycle_driver tt WHERE tt.account_id = al.target_id))
-             ELSE NULL
-           END AS target_name
-    FROM audit_log al
-    LEFT JOIN student s ON s.account_id = al.account_id
-    LEFT JOIN tricycle_driver d ON d.account_id = al.account_id
-    LEFT JOIN administrator_profile ap ON ap.admin_id = al.admin_id
-    ORDER BY al.created_at DESC, al.log_id DESC
-    LIMIT 300
-  `;
-  db.query(sql, (err, rows) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.status(200).json({ entries: rows });
-  });
-};
-
 exports.resetDriverPassword = async (req, res) => {
   const { driverId } = req.params;
   const tempPassword = generateTempPassword();
@@ -378,7 +343,6 @@ exports.resetDriverPassword = async (req, res) => {
       (err, result) => {
         if (err) return res.status(500).json({ error: err.message });
         if (result.affectedRows === 0) return res.status(404).json({ error: 'Driver not found' });
-        logAudit(req, { ...actorFromRequest(req), action: 'driver_password_reset', targetType: 'driver', targetId: Number(driverId), details: 'Temporary password issued' });
         res.status(200).json({ message: 'Password reset successfully', tempPassword });
       }
     );

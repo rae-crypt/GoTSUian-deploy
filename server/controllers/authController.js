@@ -6,7 +6,6 @@ const jwt = require('jsonwebtoken');
 const { emitAvailabilityChanged } = require('../socket');
 const { getSuspension, SUSPENDED_MESSAGE } = require('../suspension');
 const { isMobileTaken, MOBILE_TAKEN_MESSAGE } = require('../mobileNumbers');
-const { logAudit, actorFromRequest } = require('../auditLog');
 
 // True when an admin-issued Violation has suspended this account (see
 // suspension.js). Checked after the password, so a wrong password never
@@ -124,7 +123,6 @@ exports.registerStudent = async (req, res) => {
                   // Consume the OTP so it can't be reused for a second registration —
                   // no longer needs the transaction's connection, run on the pool.
                   db.query(`DELETE FROM email_otp WHERE email = ?`, [email]);
-                  logAudit(req, { accountId, role: 'student', username: email, action: 'register', details: 'Passenger account created' });
                   const token = jwt.sign(
                     { accountId, role: 'student' },
                     process.env.JWT_SECRET,
@@ -167,7 +165,6 @@ exports.loginStudent = async (req, res) => {
     if (err) return res.status(500).json({ error: err.message });
 
     if (results.length === 0) {
-      logAudit(req, { role: 'student', username, action: 'login_failed', details: 'No passenger account with this email' });
       return res.status(401).json({ error: 'Invalid username or password' });
     }
 
@@ -175,14 +172,11 @@ exports.loginStudent = async (req, res) => {
     const passwordMatch = await bcrypt.compare(password, user.password);
 
     if (!passwordMatch) {
-      logAudit(req, { accountId: user.account_id, role: 'student', username, action: 'login_failed', details: 'Wrong password' });
       return res.status(401).json({ error: 'Invalid username or password' });
     }
     if (await isSuspended(user.account_id)) {
-      logAudit(req, { accountId: user.account_id, role: 'student', username, action: 'login_blocked', details: 'Account is suspended' });
       return res.status(403).json({ error: SUSPENDED_MESSAGE, code: 'ACCOUNT_SUSPENDED' });
     }
-    logAudit(req, { accountId: user.account_id, role: 'student', username, action: 'login' });
     const token = jwt.sign(
       { accountId: user.account_id, role: user.role },
       process.env.JWT_SECRET,
@@ -218,7 +212,6 @@ exports.logoutStudent = (req, res) => {
   const accountId = req.user.accountId;
   db.query(`UPDATE student SET is_online = FALSE WHERE account_id = ?`, [accountId], (err) => {
     if (err) return res.status(500).json({ error: err.message });
-    logAudit(req, { ...actorFromRequest(req), action: 'logout' });
     res.status(200).json({ message: 'Logged out' });
   });
 };
@@ -259,12 +252,6 @@ exports.resetPasswordStudent = async (req, res) => {
               return res.status(404).json({ error: 'No passenger account found with that email' });
             }
             db.query(`DELETE FROM email_otp WHERE email = ?`, [email]);
-            db.query(`SELECT account_id FROM user_account WHERE username = ? AND role = 'student'`, [email], (lookupErr, rows) => {
-              logAudit(req, {
-                accountId: !lookupErr && rows[0] ? rows[0].account_id : null,
-                role: 'student', username: email, action: 'password_reset', details: 'Reset through Forgot Password (email code)'
-              });
-            });
             res.status(200).json({ message: 'Password updated successfully' });
           }
         );
@@ -301,7 +288,6 @@ function changePassword(role) {
 
         const passwordMatch = await bcrypt.compare(currentPassword, rows[0].password);
         if (!passwordMatch) {
-          logAudit(req, { ...actorFromRequest(req), action: 'password_change_failed', details: 'Current password was wrong' });
           return res.status(401).json({ error: 'Current password is incorrect' });
         }
 
@@ -312,7 +298,6 @@ function changePassword(role) {
             [hashedPassword, accountId],
             (err) => {
               if (err) return res.status(500).json({ error: err.message });
-              logAudit(req, { ...actorFromRequest(req), action: 'password_changed', details: 'Changed from the Profile page' });
               res.status(200).json({ message: 'Password updated successfully' });
             }
           );
@@ -427,7 +412,6 @@ exports.registerDriver = async (req, res) => {
                 });
               }
               connection.release();
-              logAudit(req, { accountId, role: 'driver', username: mobile, action: 'register', targetType: 'driver', targetId: driverResult.insertId, details: 'Driver account created, waiting for approval' });
               // No token: a new driver can't log in until an admin has checked
               // their license and approved them (see loginDriver), so the
               // registration form tells them to wait instead of signing in.
@@ -526,7 +510,6 @@ exports.loginDriver = async (req, res) => {
     if (err) return res.status(500).json({ error: err.message });
 
     if (results.length === 0) {
-      logAudit(req, { role: 'driver', username, action: 'login_failed', details: 'No driver account with this number' });
       return res.status(401).json({ error: 'Invalid username or password' });
     }
 
@@ -534,7 +517,6 @@ exports.loginDriver = async (req, res) => {
     const passwordMatch = await bcrypt.compare(password, user.password);
 
     if (!passwordMatch) {
-      logAudit(req, { accountId: user.account_id, role: 'driver', username, action: 'login_failed', details: 'Wrong password' });
       return res.status(401).json({ error: 'Invalid username or password' });
     }
 
@@ -542,21 +524,17 @@ exports.loginDriver = async (req, res) => {
     // approved the account (KYC). Until then, and after a rejection, login
     // is refused with a reason the login form can show.
     if (user.account_status === 'Pending') {
-      logAudit(req, { accountId: user.account_id, role: 'driver', username, action: 'login_blocked', details: 'Account still waiting for approval' });
       return res.status(403).json({
         error: 'Your account is still waiting for verification by the TODA admin. You can log in once it has been approved.',
         accountStatus: 'Pending'
       });
     }
     if (user.account_status === 'Rejected') {
-      logAudit(req, { accountId: user.account_id, role: 'driver', username, action: 'login_blocked', details: 'Driver application was rejected' });
       return res.status(403).json({ error: 'Your driver application was not approved. Please contact the TODA admin.' });
     }
     if (await isSuspended(user.account_id)) {
-      logAudit(req, { accountId: user.account_id, role: 'driver', username, action: 'login_blocked', details: 'Account is suspended' });
       return res.status(403).json({ error: SUSPENDED_MESSAGE, code: 'ACCOUNT_SUSPENDED' });
     }
-    logAudit(req, { accountId: user.account_id, role: 'driver', username, action: 'login' });
 
         const token = jwt.sign(
       { accountId: user.account_id, role: user.role, accountStatus: user.account_status },
@@ -606,24 +584,20 @@ exports.loginAdmin = async (req, res) => {
     if (err) return res.status(500).json({ error: err.message });
 
     if (results.length === 0) {
-      logAudit(req, { role: 'admin', username, action: 'login_failed', details: 'No admin account with this username' });
       return res.status(401).json({ error: 'Invalid username or password' });
     }
 
     const admin = results[0];
 
     if (admin.account_status !== 'active') {
-      logAudit(req, { adminId: admin.admin_id, role: 'admin', username, action: 'login_blocked', details: 'Admin account is not active' });
       return res.status(403).json({ error: 'Admin account is not active' });
     }
 
     const passwordMatch = await bcrypt.compare(password, admin.password);
 
     if (!passwordMatch) {
-      logAudit(req, { adminId: admin.admin_id, role: 'admin', username, action: 'login_failed', details: 'Wrong password' });
       return res.status(401).json({ error: 'Invalid username or password' });
     }
-    logAudit(req, { adminId: admin.admin_id, role: 'admin', username, action: 'login' });
 
     const token = jwt.sign(
       { adminId: admin.admin_id, role: 'admin' },

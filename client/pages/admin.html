@@ -314,42 +314,6 @@
           </div>
         </div>
       </div>
-
-      <div class="admin-panel is-collapsed" id="activity-log-panel">
-        <div class="admin-panel-head">
-          <div class="admin-panel-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4h9a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V9"/><path d="M9 9h7M9 13h7M9 17h4"/><circle cx="5" cy="5" r="2.5"/></svg>
-          </div>
-          <div class="admin-panel-head-text">
-            <h2>Activity log</h2>
-            <p>Logins, failed logins, password changes and every admin action, newest first. Passwords and codes are never recorded.</p>
-          </div>
-          <button type="button" class="admin-panel-toggle" aria-expanded="false" aria-label="Expand this section">
-            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7.5L10 12.5L15 7.5"/></svg>
-          </button>
-        </div>
-
-        <div class="admin-panel-body">
-          <div class="admin-bookings-filter">
-            <div id="admin-audit-filter" class="ride-filter" role="group" aria-label="Show activity from">
-              <button type="button" class="ride-filter-chip" data-show="today" aria-pressed="false">Today</button>
-              <button type="button" class="ride-filter-chip is-active" data-show="all" aria-pressed="true">All</button>
-            </div>
-            <div id="admin-audit-summary" class="ride-filter-summary"></div>
-          </div>
-          <div class="admin-table-scroll">
-            <table class="admin-table">
-              <thead><tr><th>When</th><th>Who</th><th>Action</th><th>Details</th></tr></thead>
-              <tbody id="admin-audit-tbody">
-                <tr><td colspan="4">Loading activity...</td></tr>
-              </tbody>
-            </table>
-          </div>
-          <div class="admin-mobile-list" id="admin-audit-mobile">
-            <p class="admin-mcard-empty">Loading activity...</p>
-          </div>
-        </div>
-      </div>
     </section>
   </main>
 
@@ -406,6 +370,6 @@
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="../js/app.js?v=20261010a"></script>
+  <script src="../js/app.js?v=20261007c"></script>
 </body>
 </html>
