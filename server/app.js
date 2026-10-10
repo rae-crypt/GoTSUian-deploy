@@ -20,6 +20,7 @@ const { ensureBookedForColumns } = require('./bookedFor');
 const { ensureSuspensionColumns } = require('./suspension');
 const { ensureFailureColumns } = require('./rideFailures');
 const { ensureEvidenceColumn } = require('./complaintEvidence');
+const { ensureAuditLogTable } = require('./auditLog');
 const authRoutes = require('./routes/authRoutes');
 const rideRoutes = require('./routes/rideRoutes');
 const adminRoutes = require('./routes/adminRoutes');
@@ -144,4 +145,6 @@ server.listen(PORT, () => {
   ensureFailureColumns();
   // complaints.evidence_path (see complaintEvidence.js). Additions only.
   ensureEvidenceColumn();
+  // audit_log table (see auditLog.js). Additions only.
+  ensureAuditLogTable();
 });

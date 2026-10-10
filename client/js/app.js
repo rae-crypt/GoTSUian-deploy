@@ -2433,6 +2433,7 @@ function setupAdminPanelCollapse() {
       const collapsed = panel.classList.toggle('is-collapsed');
       btn.setAttribute('aria-expanded', String(!collapsed));
       btn.setAttribute('aria-label', collapsed ? 'Expand this section' : 'Collapse this section');
+      if (!collapsed && panel.id === 'activity-log-panel') renderAdminAuditLog();
     });
   });
 
@@ -2927,6 +2928,141 @@ async function renderAdminBookings() {
     drawAdminBookings();
   } catch (error) {
     console.warn('Unable to fetch bookings', error);
+  }
+}
+
+// ADMIN — Activity log (server/auditLog.js). Read-only; refreshed on page
+// load and each time the panel is opened. Today/All chips work like All
+// bookings: they re-filter the cached list without another fetch.
+const AUDIT_ACTIONS = {
+  login: { label: 'Logged in', tone: 'success' },
+  login_failed: { label: 'Failed login', tone: 'danger' },
+  login_blocked: { label: 'Login refused', tone: 'warning' },
+  logout: { label: 'Logged out', tone: 'neutral' },
+  register: { label: 'Registered', tone: 'info' },
+  password_reset: { label: 'Password reset', tone: 'info' },
+  password_changed: { label: 'Password changed', tone: 'info' },
+  password_change_failed: { label: 'Password change failed', tone: 'warning' },
+  driver_approved: { label: 'Driver approved', tone: 'success' },
+  driver_rejected: { label: 'Driver rejected', tone: 'danger' },
+  driver_password_reset: { label: 'Driver password reset', tone: 'info' },
+  fare_settings_updated: { label: 'Fare settings changed', tone: 'info' },
+  complaint_status_updated: { label: 'Complaint updated', tone: 'info' },
+  warning_issued: { label: 'Warning issued', tone: 'warning' },
+  violation_issued: { label: 'Violation issued', tone: 'danger' },
+  suspension_lifted: { label: 'Suspension lifted', tone: 'success' },
+  loyalty_granted: { label: 'Loyalty granted', tone: 'success' }
+};
+const AUDIT_ROLE_LABELS = { student: 'Passenger', driver: 'Driver', admin: 'Admin' };
+
+let adminAuditCache = [];
+let adminAuditFilter = 'all';
+
+function auditWho(e) {
+  const role = AUDIT_ROLE_LABELS[e.role] || 'Unknown';
+  const name = e.actor_name || e.username || 'Unknown account';
+  return { name, role };
+}
+
+function auditDetails(e) {
+  const parts = [];
+  if (e.target_type === 'complaint' && e.target_id) parts.push(`Complaint #${e.target_id}`);
+  else if (e.target_name) parts.push(e.target_name);
+  if (e.details) parts.push(e.details);
+  return parts.join(' — ') || '—';
+}
+
+function auditWhen(e) {
+  return new Date(e.created_at).toLocaleString([], { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+
+function renderAuditRow(e) {
+  const action = AUDIT_ACTIONS[e.action] || { label: e.action, tone: 'neutral' };
+  const who = auditWho(e);
+  return `
+    <tr>
+      <td>${escapeHtml(auditWhen(e))}</td>
+      <td>${escapeHtml(who.name)}<br><small>${escapeHtml(who.role)}</small></td>
+      <td>${pillHtml(action.tone, action.label)}</td>
+      <td>${escapeHtml(auditDetails(e))}</td>
+    </tr>
+  `;
+}
+
+function renderAuditCard(e) {
+  const action = AUDIT_ACTIONS[e.action] || { label: e.action, tone: 'neutral' };
+  const who = auditWho(e);
+  return `
+    <div class="admin-mcard">
+      <div class="admin-mcard-top">
+        <strong style="font-size:14px;">${escapeHtml(who.name)}</strong>
+        ${pillHtml(action.tone, action.label)}
+      </div>
+      <div class="admin-mcard-rows">
+        <div class="admin-mcard-row"><span>Role</span><span>${escapeHtml(who.role)}</span></div>
+        <div class="admin-mcard-row"><span>When</span><span>${escapeHtml(auditWhen(e))}</span></div>
+        <div class="admin-mcard-row"><span>Details</span><span>${escapeHtml(auditDetails(e))}</span></div>
+      </div>
+    </div>
+  `;
+}
+
+function setupAdminAuditFilter() {
+  const chips = document.querySelectorAll('#admin-audit-filter .ride-filter-chip');
+  chips.forEach(chip => chip.addEventListener('click', () => {
+    adminAuditFilter = chip.getAttribute('data-show');
+    chips.forEach(c => {
+      const on = c === chip;
+      c.classList.toggle('is-active', on);
+      c.setAttribute('aria-pressed', String(on));
+    });
+    drawAdminAuditLog();
+  }));
+}
+
+function drawAdminAuditLog() {
+  const tbody = document.querySelector('#admin-audit-tbody');
+  const mobileList = document.querySelector('#admin-audit-mobile');
+  const summaryEl = document.querySelector('#admin-audit-summary');
+  if (!tbody) return;
+
+  const showToday = adminAuditFilter === 'today';
+  const todayKey = new Date().toDateString();
+  const entries = showToday
+    ? adminAuditCache.filter(e => new Date(e.created_at).toDateString() === todayKey)
+    : adminAuditCache;
+
+  if (summaryEl) {
+    const failed = entries.filter(e => e.action === 'login_failed').length;
+    summaryEl.innerHTML = adminAuditCache.length
+      ? `<span><strong>${entries.length}</strong> entr${entries.length === 1 ? 'y' : 'ies'}${showToday ? ' today' : ''}</span>`
+        + `<span><strong>${failed}</strong> failed login${failed === 1 ? '' : 's'}</span>`
+      : '';
+  }
+
+  if (!entries.length) {
+    const emptyText = adminAuditCache.length ? 'No activity today yet.' : 'No activity recorded yet.';
+    tbody.innerHTML = `<tr><td colspan="4">${emptyText}</td></tr>`;
+    if (mobileList) mobileList.innerHTML = `<p class="admin-mcard-empty">${emptyText}</p>`;
+    return;
+  }
+
+  tbody.innerHTML = entries.map(renderAuditRow).join('');
+  if (mobileList) mobileList.innerHTML = entries.map(renderAuditCard).join('');
+}
+
+async function renderAdminAuditLog() {
+  const tbody = document.querySelector('#admin-audit-tbody');
+  if (!tbody) return;
+
+  try {
+    const res = await fetch(`${ADMIN_API_URL}/audit-log`, { headers: getAuthHeaders() });
+    if (!res.ok) return;
+    const data = await res.json();
+    adminAuditCache = data.entries || [];
+    drawAdminAuditLog();
+  } catch (error) {
+    console.warn('Unable to fetch the activity log', error);
   }
 }
 
@@ -8145,6 +8281,7 @@ function refreshAuthState() {
   renderAdminPassengerManagement();
   renderAdminBookings();
   renderAdminComplaints();
+  renderAdminAuditLog();
   renderAdminStats();
   renderAdminLoyaltyOverview();
   renderLoyaltyStatus();
@@ -8278,6 +8415,7 @@ document.addEventListener('DOMContentLoaded', function() {
   setupLicenseModal();
   setupAdminFareSettings();
   setupAdminBookingsFilter();
+  setupAdminAuditFilter();
   setupAdminPanelCollapse();
   setupLoyaltyHistoryToggle();
   setupLoyaltyRoleTabs();
