@@ -7,8 +7,7 @@
 //
 // Resend replaced SendGrid in October 2026: SendGrid's free plan is only a
 // 60-day trial, while Resend's free tier (3,000 emails/month, 100/day) is
-// permanent and needs no card. SendGrid stays as a fallback only while its
-// key is still set in Railway; once it's removed, that branch never runs.
+// permanent and needs no card.
 //
 // The "from" address is on gotsuian.com, a domain verified in Resend (DKIM
 // TXT record + SPF CNAME records added in Namecheap's DNS). Sending as
@@ -17,7 +16,6 @@
 // reported "Delivered" — no third party can properly authenticate mail
 // claiming to be from a gmail.com address.
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
-const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
 const FROM_EMAIL = 'noreply@gotsuian.com';
 const FROM_NAME = 'GoTSUian';
 
@@ -43,30 +41,6 @@ async function sendViaResend({ to, subject, text, html }) {
   }
 }
 
-async function sendViaSendGrid({ to, subject, text, html }) {
-  const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${SENDGRID_API_KEY}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      personalizations: [{ to: [{ email: to }] }],
-      from: { email: FROM_EMAIL, name: FROM_NAME },
-      subject,
-      content: [
-        { type: 'text/plain', value: text },
-        { type: 'text/html', value: html }
-      ]
-    })
-  });
-
-  if (!response.ok) {
-    const body = await response.text().catch(() => '');
-    throw new Error(`SendGrid error ${response.status}: ${body}`);
-  }
-}
-
 // Local development has no email key — the real one lives only in
 // Railway's dashboard variables, and copying it onto a laptop is one more
 // place for it to leak from. Without this, every OTP send fails locally and
@@ -80,9 +54,6 @@ async function sendViaSendGrid({ to, subject, text, html }) {
 async function sendMail({ to, subject, text, html }) {
   if (RESEND_API_KEY) {
     return sendViaResend({ to, subject, text, html });
-  }
-  if (SENDGRID_API_KEY) {
-    return sendViaSendGrid({ to, subject, text, html });
   }
 
   console.warn(
