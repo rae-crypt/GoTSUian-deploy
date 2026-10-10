@@ -53,7 +53,7 @@ async function emailCode(email, code, res) {
     });
     res.status(200).json({ message: 'Verification code sent' });
   } catch (mailError) {
-    console.error('SendGrid send failed:', mailError.message);
+    console.error('Email send failed:', mailError.message);
     res.status(502).json({ error: 'Could not send the verification email. Please try again.' });
   }
 }
