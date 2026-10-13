@@ -3342,7 +3342,7 @@ function escapeHtml(value) {
 }
 
 // Masks the local part of an email for display (e.g. in the OTP modal) —
-// "gavjvorzki@gmail.com" -> "g*********@gmail.com". Keeps the first
+// "juandelacruz@gmail.com" -> "j***********@gmail.com". Keeps the first
 // character so the user can still recognize their own address.
 function maskEmail(email) {
   const [local, domain] = String(email).split('@');
@@ -7470,8 +7470,8 @@ function setupAuthForm() {
 
       // One visible "Full name" box still has to fill student.first_name and
       // student.last_name, which are both NOT NULL. Splitting on the LAST space
-      // keeps multi-word first names intact ("Rica Mae Flores" -> "Rica Mae" +
-      // "Flores"), which is what Filipino names usually need.
+      // keeps multi-word first names intact ("Juan Carlo Reyes" -> "Juan Carlo" +
+      // "Reyes"), which is what Filipino names usually need.
       const fullNameRaw = fullNameInput ? fullNameInput.value.trim().replace(/\s+/g, ' ') : '';
       const lastSpace = fullNameRaw.lastIndexOf(' ');
       const firstNameRaw = lastSpace === -1 ? fullNameRaw : fullNameRaw.slice(0, lastSpace);
