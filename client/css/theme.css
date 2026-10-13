@@ -425,3 +425,28 @@ html body #profile-contact[readonly] {
   color: #8a6f6a;
   cursor: not-allowed;
 }
+
+
+/* Slim one-line footer for the signed-in passenger/driver pages (dashboard,
+   bookings, profile) — an app screen doesn't need the full marketing footer,
+   which stays on the public pages. Laptop: copyright left, links right.
+   Phone: centered, copyright over the links. */
+footer.site-shell.footer-slim {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 20px;
+  margin-top: 8px;
+  padding: 18px 20px 24px;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+  color: var(--muted);
+}
+footer.site-shell.footer-slim nav { display: flex; flex-wrap: wrap; gap: 6px 18px; }
+footer.site-shell.footer-slim a { color: var(--primary); font-weight: 600; text-decoration: none; }
+footer.site-shell.footer-slim a:hover { text-decoration: underline; }
+@media (max-width: 560px) {
+  footer.site-shell.footer-slim { flex-direction: column; justify-content: center; text-align: center; font-size: 12.5px; padding: 16px 16px 22px; }
+  footer.site-shell.footer-slim nav { justify-content: center; gap: 6px 14px; }
+}
