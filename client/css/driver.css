@@ -4028,3 +4028,9 @@ body[data-page="driver"] .shared-trip-btn:focus-visible { outline: 2px solid var
   body[data-page="driver"] .shared-trip-join { order: -1; }
   body[data-page="driver"] .shared-trip-status { display: none; }
 }
+/* A lone Shared trip card spans the whole row on desktop, like a lone Solo
+   card does (the Solo rule above skips Shared cards, which had left this one
+   squeezed into the left half with the right half empty). */
+@media (min-width: 901px) {
+  body[data-page="driver"] #driver-ride-requests > .shared-trip-card:only-child { grid-column: 1 / -1; }
+}
