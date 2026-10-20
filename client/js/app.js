@@ -492,10 +492,15 @@ function renderAuthStatus() {
     } else {
       headerLink.removeAttribute('href');
     }
-    headerLink.classList.toggle('has-chevron', isDriver);
+    // 2026-10-20: passengers now work like drivers — the name header (with
+    // its chevron) opens the profile, and the separate "My profile" item is
+    // hidden for everyone (she had asked for it to be removed before).
+    // TO SHOW IT AGAIN: change the 'none' below back to
+    // profileHref !== '#' && !isDriver ? '' : 'none'.
+    headerLink.classList.toggle('has-chevron', profileHref !== '#');
     const profileLink = menu.querySelector('.nav-user-dropdown-profile');
     profileLink.href = profileHref;
-    profileLink.style.display = profileHref !== '#' && !isDriver ? '' : 'none';
+    profileLink.style.display = 'none';
 
     // The dashboard link is back (2026-10-03). It was dropped on 2026-10-02
     // on the assumption the nav bar had it, but every page's CSS hides the
