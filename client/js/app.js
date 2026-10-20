@@ -509,9 +509,12 @@ function renderAuthStatus() {
     dashboardLink.href = dashboardHref;
     dashboardLink.textContent = user.role === 'driver' ? 'My Rides' : 'Booking';
     dashboardLink.style.display = dashboardHref !== '#' ? '' : 'none';
-    // Passengers only: a driver's ride history lives on My Rides itself,
-    // under the pending requests, so "My Rides" already covers it.
-    const historyHref = user.role === 'passenger' ? 'passenger-bookings.html' : '#';
+    // Hidden for everyone (2026-10-20, her call): passengers already have
+    // the "Booking History →" card on the Booking dashboard, and a driver's
+    // ride history lives on My Rides itself. The link is kept in the menu
+    // HTML, only hidden. TO SHOW IT AGAIN for passengers: change the '#'
+    // below back to user.role === 'passenger' ? 'passenger-bookings.html' : '#'.
+    const historyHref = '#';
     const historyLink = menu.querySelector('.nav-user-dropdown-history');
     historyLink.href = historyHref;
     historyLink.textContent = user.role === 'driver' ? 'Ride history' : 'Booking history';
@@ -4545,6 +4548,43 @@ function showRideConfirmModal({ pickupLocation, dropoffLocation, rideType, fareT
   });
 }
 
+// PASSENGER DASHBOARD, DESKTOP ONLY (2026-10-20): the "Request a ride" form
+// on the left is much taller than the map + Booking History on the right,
+// which left a big empty space under Booking History. On screens wider than
+// PASSENGER_DESKTOP_MIN_WIDTH, Account standing and My reports are moved
+// into the right column under Booking History; Loyalty Rewards stays below
+// at full width. Phones are NOT changed: under that width (and if the window
+// is resized down) both cards go back to their original place in the HTML,
+// right above Loyalty Rewards. The wrapper keeps the .request-status-stack
+// class so the cards keep their padding and scroll-in animation.
+// TO UNDO: delete this function and its call in the DOMContentLoaded list.
+const PASSENGER_DESKTOP_MIN_WIDTH = 901; // matches the 900px breakpoint in passenger.css
+function setupPassengerDesktopSideStack() {
+  if (document.body.dataset.page !== 'passenger') return;
+  const main = document.querySelector('.passenger-main');
+  const standing = document.querySelector('#standing-card');
+  const reports = document.querySelector('#reports-card');
+  const loyalty = document.querySelector('#loyalty-teaser-card');
+  if (!main || !standing || !reports || !loyalty || !window.matchMedia) return;
+
+  const sideStack = document.createElement('div');
+  sideStack.className = 'request-status-stack passenger-side-stack';
+  const desktop = window.matchMedia(`(min-width: ${PASSENGER_DESKTOP_MIN_WIDTH}px)`);
+
+  const place = () => {
+    if (desktop.matches) {
+      if (!sideStack.parentNode) main.appendChild(sideStack);
+      sideStack.append(standing, reports);
+    } else {
+      loyalty.before(standing, reports);
+      sideStack.remove();
+    }
+  };
+  place();
+  if (desktop.addEventListener) desktop.addEventListener('change', place);
+  else if (desktop.addListener) desktop.addListener(place);
+}
+
 // The redesigned "Ride type" control is two visible buttons instead of the
 // original <select> — kept in the DOM (visually hidden) since
 // setupPassengerRideRequestForm() below still reads its .value directly;
@@ -8537,6 +8577,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // doesn't exist yet. Calling refreshAuthState() first meant the route
   // line/markers never drew on initial load or refresh -- they only ever
   // appeared later once a socket event happened to trigger a redraw.
+  setupPassengerDesktopSideStack();
   setupPassengerMap();
   setupDriverMap();
   refreshAuthState();

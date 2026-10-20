@@ -4755,3 +4755,12 @@ body[data-page="passenger"] .place-suggest-status.place-suggest-warning {
   font-style: normal;
   border-radius: 8px;
 }
+
+/* ---- Desktop only (2026-10-20): Account standing + My reports in the right
+   column under Booking History (moved there by setupPassengerDesktopSideStack
+   in app.js, only above 900px). Same spacing as the gap above Booking
+   History; no bottom margin so the column ends with the last card. Phones
+   never get this wrapper, so nothing here applies to them. ---- */
+@media (min-width: 901px) {
+  body[data-page="passenger"] .passenger-side-stack { margin: 16px 0 0; gap: 16px; }
+}
