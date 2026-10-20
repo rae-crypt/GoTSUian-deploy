@@ -3073,15 +3073,37 @@ select {
   font-variant-numeric: tabular-nums;
 }
 
-/* Shared: small line under the fare ("Depends on how many students
-   join: 2 = ₱35, 3 = ₱25, 4 = ₱20."), so the big fare stays one line. */
+/* Shared: three equal boxes under the fare, one per headcount ("2 students"
+   over "₱35"), so no fare is split across lines on a phone. */
 .ride-confirm-fare-note {
-  margin: -10px 20px 16px;
-  font-size: 0.8rem;
-  line-height: 1.45;
-  color: #7a5c50;
-  text-align: right;
+  margin: -4px 20px 16px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
 }
+.ride-confirm-fare-note span {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 6px 4px;
+  border-radius: 10px;
+  background: #fbf3ef;
+  border: 1px solid rgba(127, 29, 29, 0.12);
+  text-align: center;
+}
+.ride-confirm-fare-note small {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #7a5c50;
+  white-space: nowrap;
+}
+.ride-confirm-fare-note b {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--primary);
+}
+.ride-confirm-fare-value { white-space: nowrap; }
 
 .ride-confirm-actions {
   display: flex;

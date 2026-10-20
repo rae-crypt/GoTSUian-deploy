@@ -4525,7 +4525,7 @@ function showRideConfirmModal({ pickupLocation, dropoffLocation, rideType, fareT
           <span class="ride-confirm-fare-label">Estimated fare</span>
           <span class="ride-confirm-fare-value">${escapeHtml(fareText)}</span>
         </div>
-        ${fareNote ? `<p class="ride-confirm-fare-note">${escapeHtml(fareNote)}</p>` : ''}
+        ${fareNote ? `<div class="ride-confirm-fare-note" aria-label="Fare per student">${fareNote.map(tier => `<span><small>${escapeHtml(tier.who)}</small><b>${escapeHtml(tier.fare)}</b></span>`).join('')}</div>` : ''}
 
         <div class="ride-confirm-actions">
           <button type="button" class="btn-secondary-outline confirm-cancel-btn">Cancel</button>
@@ -5430,9 +5430,11 @@ function setupPassengerRideRequestForm() {
       : othersQuote
         ? formatFareWithDistance(othersQuote.fare, othersQuote.distanceKm)
         : (cardFare ? cardFare.textContent : '');
+    // One small box per headcount ("2 students" over "₱35"), three in a
+    // row, instead of a sentence that wrapped mid-number on phones.
     const fareNote = isSharedQuote
-      ? `Depends on how many students join: ${Object.keys(SHARED_FARES).map(n => `${n} = ₱${SHARED_FARES[n]}`).join(', ')}.`
-      : '';
+      ? Object.keys(SHARED_FARES).map(n => ({ who: `${n} students`, fare: `₱${SHARED_FARES[n]}` }))
+      : null;
     const whenLabel = scheduleSelect && scheduleSelect.selectedOptions[0]
       ? scheduleSelect.selectedOptions[0].textContent
       : 'Leave now';
