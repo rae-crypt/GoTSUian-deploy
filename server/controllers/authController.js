@@ -386,7 +386,7 @@ exports.registerDriver = async (req, res) => {
           if (err) {
             return connection.rollback(() => {
               connection.release();
-              res.status(err.code === 'ER_DUP_ENTRY' ? 409 : 500).json({ error: err.code === 'ER_DUP_ENTRY' ? 'This contact number is already registered' : err.message });
+              res.status(err.code === 'ER_DUP_ENTRY' ? 409 : 500).json({ error: err.code === 'ER_DUP_ENTRY' ? 'This mobile number is already registered' : err.message });
             });
           }
 
@@ -446,7 +446,7 @@ exports.reuploadDriverLicense = (req, res) => {
 
   if (!username || !password) {
     discardUpload();
-    return res.status(400).json({ error: 'Contact number and password are required' });
+    return res.status(400).json({ error: 'Mobile number and password are required' });
   }
   if (!req.file) {
     return res.status(400).json({ error: "Please choose a photo or scan of your driver's license" });
@@ -466,7 +466,7 @@ exports.reuploadDriverLicense = (req, res) => {
     const driver = rows[0];
     if (!driver || !(await bcrypt.compare(password, driver.password))) {
       discardUpload();
-      return res.status(401).json({ error: 'Invalid contact number or password' });
+      return res.status(401).json({ error: 'Invalid mobile number or password' });
     }
     if (driver.account_status !== 'Pending') {
       discardUpload();

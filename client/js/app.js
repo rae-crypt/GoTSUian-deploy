@@ -2351,7 +2351,7 @@ function renderDriverCard(driver) {
       </div>
       <div class="admin-mcard-rows">
         ${driver.account_status === 'Active' ? `<div class="admin-mcard-row"><span>Right now</span><span>${driverPresencePill(driver)}</span></div>` : ''}
-        <div class="admin-mcard-row"><span>Contact</span><span>${escapeHtml(driver.contact_number || '—')}</span></div>
+        <div class="admin-mcard-row"><span>Mobile number</span><span>${escapeHtml(driver.contact_number || '—')}</span></div>
         ${licenseRow}
       </div>
       <div class="admin-mcard-actions">
@@ -2629,7 +2629,7 @@ function renderPassengerCard(p) {
         ${suspendedPill(p) || pillHtml(isOnline ? 'success' : 'neutral', isOnline ? 'Online' : 'Offline')}
       </div>
       <div class="admin-mcard-rows">
-        <div class="admin-mcard-row"><span>Contact</span><span>${escapeHtml(p.contact_number || '—')}</span></div>
+        <div class="admin-mcard-row"><span>Mobile number</span><span>${escapeHtml(p.contact_number || '—')}</span></div>
         <div class="admin-mcard-row"><span>Rides booked</span><span>${p.ride_count}</span></div>
         <div class="admin-mcard-row"><span>Last booking</span><span>${escapeHtml(lastBooking)}</span></div>
       </div>
@@ -7682,7 +7682,10 @@ function setupAuthForm() {
       if (contactRow) contactRow.classList.toggle('is-single-column', isDriver);
       if (regContact) regContact.setAttribute('required', 'required');
       const contactLabel = document.querySelector('label[for="reg-contact"]');
-      if (contactLabel) contactLabel.innerHTML = `${isDriver ? 'Contact number' : 'Mobile number'} <span class="required-star">*</span>`;
+      // One name for this field everywhere (2026-10-20, her call): "Mobile
+      // number" for passengers AND drivers, since it only accepts a
+      // 09XXXXXXXXX mobile number. For a driver it is also the login.
+      if (contactLabel) contactLabel.innerHTML = 'Mobile number <span class="required-star">*</span>';
     };
     const toggleStudentSection = toggleRoleFields;
  
@@ -7939,7 +7942,7 @@ function setupAuthForm() {
       // passenger's mobile number, one per account).
       {
         if (!contactNumber) {
-          document.querySelector('#contact-error').textContent = 'Contact number is required';
+          document.querySelector('#contact-error').textContent = 'Mobile number is required';
           if (contactInput) contactInput.classList.add('input-error');
           isValid = false;
         } else if (!isValidContactNumber(contactNumber)) {
@@ -8157,10 +8160,10 @@ function setupAuthForm() {
             if (studentIdInput) studentIdInput.classList.add('input-error');
             document.querySelector('#student-id-error').textContent = data.error;
             showAuthFeedback('error', 'Student ID Already Registered', data.error);
-          } else if (response.status === 409 && /contact number/i.test(data.error || '')) {
+          } else if (response.status === 409 && /contact number|mobile number/i.test(data.error || '')) {
             if (contactInput) contactInput.classList.add('input-error');
             document.querySelector('#contact-error').textContent = data.error;
-            showAuthFeedback('error', 'Contact Number Already Registered', 'This contact number is already being used. Try logging in instead!');
+            showAuthFeedback('error', 'Mobile Number Already Registered', 'This mobile number is already being used. Try logging in instead!');
           } else if (response.status === 409) {
             emailInput.classList.add('input-error');
             document.querySelector('#email-error').textContent = 'This email is already registered';
@@ -8341,7 +8344,7 @@ function setupAuthForm() {
 
       if (!identifier || !password) {
         if (errorEl) errorEl.textContent = isDriver
-          ? 'Please enter your contact number and password.'
+          ? 'Please enter your mobile number and password.'
           : 'Please enter email and password.';
         return;
       }
