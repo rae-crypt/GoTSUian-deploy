@@ -3962,7 +3962,7 @@ body[data-page="driver"] #ride-history-section .booking-top { width: 100%; justi
    and status line) on the right, and the buttons across the bottom. Two or
    more cards keep the grid; phones are unchanged. */
 @media (min-width: 901px) {
-  body[data-page="driver"] #driver-ride-requests > .driver-card:only-child:has([data-action="advance-status"]) {
+  body[data-page="driver"] #driver-ride-requests > .driver-card:only-child:not(.shared-trip-card):has([data-action="advance-status"]) {
     grid-column: 1 / -1;
     display: grid;
     grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
@@ -3970,15 +3970,61 @@ body[data-page="driver"] #ride-history-section .booking-top { width: 100%; justi
     column-gap: 28px;
     align-items: start;
   }
-  body[data-page="driver"] #driver-ride-requests > .driver-card:only-child:has([data-action="advance-status"]) > * { grid-column: 1; }
-  body[data-page="driver"] #driver-ride-requests > .driver-card:only-child:has([data-action="advance-status"]) > .driver-card-header { grid-row: 1; }
-  body[data-page="driver"] #driver-ride-requests > .driver-card:only-child:has([data-action="advance-status"]) > .driver-card-meta { grid-row: 2; }
-  body[data-page="driver"] #driver-ride-requests > .driver-card:only-child:has([data-action="advance-status"]) > .ride-eta { grid-row: 3; }
-  body[data-page="driver"] #driver-ride-requests > .driver-card:only-child:has([data-action="advance-status"]) > .driver-card-description { grid-row: 4; }
-  body[data-page="driver"] #driver-ride-requests > .driver-card:only-child:has([data-action="advance-status"]) > .booked-for-card { grid-column: 2; grid-row: 1 / span 4; margin: 0; }
-  body[data-page="driver"] #driver-ride-requests > .driver-card:only-child:has([data-action="advance-status"]) > .driver-card-actions { grid-column: 1 / -1; grid-row: 5; margin-top: 6px; }
+  body[data-page="driver"] #driver-ride-requests > .driver-card:only-child:not(.shared-trip-card):has([data-action="advance-status"]) > * { grid-column: 1; }
+  body[data-page="driver"] #driver-ride-requests > .driver-card:only-child:not(.shared-trip-card):has([data-action="advance-status"]) > .driver-card-header { grid-row: 1; }
+  body[data-page="driver"] #driver-ride-requests > .driver-card:only-child:not(.shared-trip-card):has([data-action="advance-status"]) > .driver-card-meta { grid-row: 2; }
+  body[data-page="driver"] #driver-ride-requests > .driver-card:only-child:not(.shared-trip-card):has([data-action="advance-status"]) > .ride-eta { grid-row: 3; }
+  body[data-page="driver"] #driver-ride-requests > .driver-card:only-child:not(.shared-trip-card):has([data-action="advance-status"]) > .driver-card-description { grid-row: 4; }
+  body[data-page="driver"] #driver-ride-requests > .driver-card:only-child:not(.shared-trip-card):has([data-action="advance-status"]) > .booked-for-card { grid-column: 2; grid-row: 1 / span 4; margin: 0; }
+  body[data-page="driver"] #driver-ride-requests > .driver-card:only-child:not(.shared-trip-card):has([data-action="advance-status"]) > .driver-card-actions { grid-column: 1 / -1; grid-row: 5; margin-top: 6px; }
 
   /* No booked-for box: the ETA and status line take the right column. */
-  body[data-page="driver"] #driver-ride-requests > .driver-card:only-child:has([data-action="advance-status"]):not(:has(.booked-for-card)) > .ride-eta { grid-column: 2; grid-row: 1; }
-  body[data-page="driver"] #driver-ride-requests > .driver-card:only-child:has([data-action="advance-status"]):not(:has(.booked-for-card)) > .driver-card-description { grid-column: 2; grid-row: 2; }
+  body[data-page="driver"] #driver-ride-requests > .driver-card:only-child:not(.shared-trip-card):has([data-action="advance-status"]):not(:has(.booked-for-card)) > .ride-eta { grid-column: 2; grid-row: 1; }
+  body[data-page="driver"] #driver-ride-requests > .driver-card:only-child:not(.shared-trip-card):has([data-action="advance-status"]):not(:has(.booked-for-card)) > .driver-card-description { grid-column: 2; grid-row: 2; }
+}
+
+/* ---- SHARED TRIP CARD (2026-10-20, from her approved mockup) ----
+   An accepted Shared trip with 2+ students (renderActiveRideCard in app.js):
+   one row per student with small round Chat / Call buttons, the trip buttons
+   side by side at the bottom. Desktop: rows left, ETA + notes right. The
+   Solo single-card desktop layout above skips this card
+   (:not(.shared-trip-card)), so Solo looks exactly as before. */
+body[data-page="driver"] .shared-trip-card { display: flex; flex-direction: column; gap: 16px; }
+body[data-page="driver"] .shared-trip-body { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+body[data-page="driver"] .shared-trip-main,
+body[data-page="driver"] .shared-trip-side { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+body[data-page="driver"] .shared-trip-side .ride-eta { margin: 0; }
+body[data-page="driver"] .shared-trip-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+body[data-page="driver"] .shared-trip-meta .fare-tier-row { margin: 0; }
+body[data-page="driver"] .shared-trip-total { font-weight: 700; font-size: 0.95rem; color: var(--text, #2b1714); }
+body[data-page="driver"] .shared-riders { border: 1px solid #f1d9d9; border-radius: 14px; overflow: hidden; }
+body[data-page="driver"] .shared-rider { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 10px 12px; }
+body[data-page="driver"] .shared-rider + .shared-rider { border-top: 1px solid #f1d9d9; }
+body[data-page="driver"] .shared-rider-text strong { display: block; font-size: 0.95rem; }
+body[data-page="driver"] .shared-rider-text small { display: block; color: #7a5c50; font-size: 0.82rem; overflow-wrap: anywhere; }
+body[data-page="driver"] .shared-rider-text small b { color: var(--primary); }
+body[data-page="driver"] .shared-rider-icons { display: flex; gap: 8px; }
+body[data-page="driver"] .shared-icon-btn {
+  position: relative; width: 38px; height: 38px; padding: 0; border-radius: 50%;
+  border: 1px solid #f1d9d9; background: #fff; color: var(--primary);
+  display: grid; place-items: center; cursor: pointer; text-decoration: none; flex: none;
+}
+body[data-page="driver"] .shared-icon-btn:hover { background: #fbefeb; }
+body[data-page="driver"] .shared-icon-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+body[data-page="driver"] .shared-icon-btn svg { width: 18px; height: 18px; }
+body[data-page="driver"] .shared-icon-btn .chat-unread-badge { position: absolute; top: -5px; right: -5px; margin: 0; }
+body[data-page="driver"] .shared-trip-note { margin: 0; font-size: 0.88rem; color: #7a5c50; }
+body[data-page="driver"] .shared-trip-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); gap: 10px; }
+body[data-page="driver"] .shared-trip-btn {
+  font: inherit; font-weight: 700; font-size: 0.95rem; padding: 12px; border-radius: 14px;
+  border: 1px solid #f1d9d9; background: #fff; color: var(--primary); cursor: pointer;
+}
+body[data-page="driver"] .shared-trip-btn.is-primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+body[data-page="driver"] .shared-trip-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+/* Phone / narrow: one column; "more students can join" above the ETA and
+   the status sentence left out, as in the mockup's phone frame. */
+@media (max-width: 900px) {
+  body[data-page="driver"] .shared-trip-body { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  body[data-page="driver"] .shared-trip-join { order: -1; }
+  body[data-page="driver"] .shared-trip-status { display: none; }
 }

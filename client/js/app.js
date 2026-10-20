@@ -6441,6 +6441,72 @@ function renderActiveRideCard(group) {
     ? `<p class="driver-card-description">More students can still join — ${group.riders.length}/${MAX_SHARED_RIDERS} so far, until you mark Picked Up.</p>`
     : '';
 
+  // SHARED TRIP CARD (2026-10-20, from her approved mockup artifact
+  // "Shared Trip Card"): one row per student with small round Chat and Call
+  // buttons, then the trip buttons (first one filled) at the bottom. On
+  // desktop the rows sit on the left and the ETA + notes on the right. Only
+  // for an accepted Shared trip with 2+ students; Solo cards are unchanged
+  // (they use the return further down). Styles: "SHARED TRIP CARD" in
+  // driver.css. The data-action attributes are the same as before, so the
+  // chat, call, Picked Up and Cancel handlers did not change.
+  if (anchor.ride_type === 'Shared' && group.riders.length > 1) {
+    const chatIcon = '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4.5h12a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H9l-4 3v-3H4a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1Z"/></svg>';
+    const callIcon = '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.5 3h2.2l1.2 3.3-1.6 1.1a9 9 0 0 0 5.3 5.3l1.1-1.6 3.3 1.2v2.2a1.5 1.5 0 0 1-1.6 1.5A13.5 13.5 0 0 1 4 4.6 1.5 1.5 0 0 1 5.5 3Z"/></svg>';
+    const riderRows = group.riders.map(r => {
+      const name = escapeHtml(r.passenger_name || 'Passenger');
+      const call = r.passenger_contact && !r.booked_for_name
+        ? `<a class="shared-icon-btn" href="tel:${escapeHtml(r.passenger_contact)}" title="${escapeHtml(formatPhMobile(r.passenger_contact))}" aria-label="Call ${name}">${callIcon}</a>`
+        : '';
+      return `
+        <div class="shared-rider">
+          <div class="shared-rider-text">
+            <strong>${name}</strong>
+            <small>${escapeHtml(r.pickup_location)} · <b>₱${Number(r.fare || 0).toFixed(0)}</b></small>
+          </div>
+          <div class="shared-rider-icons">
+            <button type="button" class="shared-icon-btn" data-action="open-chat" data-ride-id="${r.ride_id}" data-other-name="${name}" aria-label="Chat with ${name}">${chatIcon}${r.unread_message_count > 0 ? `<span class="chat-unread-badge">${r.unread_message_count}</span>` : ''}</button>
+            ${call}
+          </div>
+        </div>`;
+    }).join('');
+    // Same buttons and actions as before; the first one is filled, and
+    // "Cancelled" reads "Cancel" on this card, as in the mockup.
+    const tripButtons = getNextRideStatusOptions(anchor.status)
+      .map((nextStatus, i) => {
+        const cls = `shared-trip-btn${i === 0 ? ' is-primary' : ''}`;
+        return nextStatus === 'Cancelled'
+          ? `<button type="button" class="${cls}" data-action="cancel-pool" data-ride-ids="${allRideIds}" data-next-status="${nextStatus}">Cancel</button>`
+          : `<button type="button" class="${cls}" data-action="advance-status" data-ride-id="${anchor.ride_id}" data-next-status="${nextStatus}">${escapeHtml(nextStatus)}</button>`;
+      })
+      .join('');
+    return `
+    <article class="driver-card shared-trip-card">
+      <div class="driver-card-header">
+        <div>
+          <h3>Shared trip · ${group.riders.length} students</h3>
+          <p>${escapeHtml(anchor.pickup_location)} → ${escapeHtml(anchor.dropoff_location)}</p>
+        </div>
+        <span class="ride-badge tone-${statusConfig.tone}">${escapeHtml(statusConfig.label)}</span>
+      </div>
+      <div class="shared-trip-body">
+        <div class="shared-trip-main">
+          <div class="shared-trip-meta">
+            <span class="shared-trip-total">Total fare: ₱${poolTotal.toFixed(0)}</span>
+            ${fareTierRow}
+          </div>
+          <div class="shared-riders">${riderRows}</div>
+        </div>
+        <div class="shared-trip-side">
+          ${rideEtaRowHtml(anchor, 'driver')}
+          ${poolStillOpen ? `<p class="shared-trip-note shared-trip-join">More students can still join (${group.riders.length}/${MAX_SHARED_RIDERS}) until you tap Picked Up.</p>` : ''}
+          <p class="shared-trip-note shared-trip-status">${escapeHtml(statusConfig.description)}</p>
+        </div>
+      </div>
+      <div class="shared-trip-actions">${tripButtons}</div>
+    </article>
+  `;
+  }
+
   return `
     <article class="driver-card">
       <div class="driver-card-header">
