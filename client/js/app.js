@@ -8411,6 +8411,52 @@ let realtimeSocket = null;
 // handler refresh whichever thread is on screen without tracking rideId.
 let activeChatLoadMessages = null;
 
+// AUTO REFRESH (2026-10-20): everything that shows ride data, redrawn in
+// place (no page reload, so typing, open popups and scroll stay put). Each
+// function does nothing on pages where it doesn't apply. Called by:
+//   - the live 'ride:updated' signal from the server (main path),
+//   - reconnecting after the phone slept or lost signal,
+//   - coming back to the tab (setupAutoRefresh),
+//   - a quiet safety check every AUTO_REFRESH_MS while the page is visible.
+function refreshLiveRideViews() {
+  checkRideMilestones();
+  renderPassengerRideStatus();
+  renderDriverRideRequests();
+  renderDriverMapTracking();
+  syncDriverLocationSharing();
+  syncDriverSelfLocationSharing();
+  syncPassengerSelfLocationSharing();
+  renderBookingsList();
+  renderDriverDashboardStats();
+  renderAdminBookings();
+  renderAdminStats();
+}
+
+// TO CHANGE how often the safety check runs: AUTO_REFRESH_MS (20000 = 20 s).
+// It only runs for a logged-in user while the tab is visible, and skips a
+// tick while the user is busy (see busy below) so nothing jumps.
+const AUTO_REFRESH_MS = 20000;
+function setupAutoRefresh() {
+  if (!isAuthenticated()) return;
+  // Skips a tick while the user is typing in any box, has a chat / cancel /
+  // failed-ride popup open, or has a Report a concern form open, so the
+  // redraw never wipes what they are writing.
+  const busy = () => {
+    const el = document.activeElement;
+    if (el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) return true;
+    if (document.querySelector('.chat-overlay, [data-cancel-form], [data-failed-form]')) return true;
+    return Array.from(document.querySelectorAll('.complaint-form')).some(f => f.style.display !== 'none' && f.offsetParent !== null);
+  };
+  const tick = () => {
+    if (document.visibilityState !== 'visible' || !isAuthenticated() || busy()) return;
+    refreshLiveRideViews();
+  };
+  setInterval(tick, AUTO_REFRESH_MS);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') tick();
+  });
+}
+
 function manageRealtimeConnection() {
   if (!isAuthenticated()) {
     if (realtimeSocket) {
@@ -8435,22 +8481,19 @@ function manageRealtimeConnection() {
   // to call — each already no-ops via its own DOM/state check when it
   // doesn't apply to the current page or role, so one shared handler can
   // safely call all of them without re-deriving which page/role is active.
-  realtimeSocket.on('ride:updated', function() {
-    checkRideMilestones();
-    renderPassengerRideStatus();
-    renderDriverRideRequests();
-    renderDriverMapTracking();
-    syncDriverLocationSharing();
-    syncDriverSelfLocationSharing();
-    syncPassengerSelfLocationSharing();
-    // These render the booking history, the driver's own counters, and the
-    // admin dashboard. They were left out originally, so those screens only
-    // ever showed whatever was true at page load — a completed ride or a new
-    // booking wouldn't appear until someone manually refreshed.
-    renderBookingsList();
-    renderDriverDashboardStats();
-    renderAdminBookings();
-    renderAdminStats();
+  realtimeSocket.on('ride:updated', refreshLiveRideViews);
+
+  // AUTO REFRESH (2026-10-20): updates sent while the phone was asleep or
+  // offline are lost, so whenever the live connection comes back the page
+  // re-reads everything once by itself. (The very first connect is skipped;
+  // the page has just loaded its data.)
+  let realtimeConnectedBefore = false;
+  realtimeSocket.on('connect', function() {
+    if (realtimeConnectedBefore) {
+      refreshLiveRideViews();
+      renderAvailableDriversIndicator();
+    }
+    realtimeConnectedBefore = true;
   });
 
   realtimeSocket.on('driver:location', function() {
@@ -8730,6 +8773,7 @@ document.addEventListener('DOMContentLoaded', function() {
   setupAvailabilityIndicatorClick();
   setupAccountStandingToggle();
   setupRulesLegendFilter();
+  setupAutoRefresh();
   revealNavWhenReady();
 
   // Live updates for both roles now arrive via Socket.IO (see

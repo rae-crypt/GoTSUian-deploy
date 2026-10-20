@@ -1446,6 +1446,9 @@ function acceptRideInternal(rideId, driver_account_id, res) {
           res.status(200).json({ message: 'Ride accepted' });
           emitRideUpdated(ride.passenger_account_id, driver_account_id);
           emitAvailabilityChanged();
+          // LIVE LIST (2026-10-20): every other driver's pending list drops
+          // this request now, instead of offering an Accept that fails.
+          emitNewPendingRide();
         }
       );
       return;
@@ -1515,6 +1518,8 @@ function acceptRideInternal(rideId, driver_account_id, res) {
                   riderRows.forEach(r => emitRideUpdated(r.passenger_account_id, driver_account_id));
                 });
                 emitAvailabilityChanged();
+                // LIVE LIST: other drivers drop this Shared request now.
+                emitNewPendingRide();
               }
             );
           }
@@ -1558,6 +1563,8 @@ exports.convertRideToSolo = (req, res) => {
           if (result.affectedRows === 0) return res.status(409).json({ error: 'Could not convert this ride.' });
           res.status(200).json({ message: 'Switched to Solo', fare: soloFare });
           emitRideUpdated(passengerAccountId, null);
+          // LIVE LIST: drivers now see it as a Solo request.
+          emitNewPendingRide();
           resettlePoolFares(db, ride.pool_id, (err) => {
             if (err) console.warn('Could not close the empty Shared pool', err.message);
           });
@@ -1742,6 +1749,9 @@ exports.updateRideStatus = (req, res) => {
           emitRideUpdated(ride.passenger_account_id, ride.driver_account_id);
         }
         if (freesDriver) emitAvailabilityChanged();
+        // LIVE LIST (2026-10-20): a request that was still waiting (e.g. the
+        // passenger cancelled it) disappears from every driver's list now.
+        if (ride.status === 'Pending') emitNewPendingRide();
       };
 
       // A Shared pool accepted early (under 4 riders) stays open to new
