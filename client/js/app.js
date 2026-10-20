@@ -2840,6 +2840,7 @@ function renderBookingRow(b) {
       <td>${escapeHtml(b.passenger_name)}</td>
       <td>${escapeHtml(b.driver_name || '—')}</td>
       <td>${escapeHtml(b.pickup_location)} → ${escapeHtml(b.dropoff_location)}</td>
+      <td>${escapeHtml(b.ride_type)}</td>
       <td>${fareText}</td>
       <td>${pillHtml(statusConfig.tone, statusConfig.label)}</td>
       <td>${new Date(b.created_at).toLocaleDateString()}</td>
@@ -2859,6 +2860,7 @@ function renderBookingCard(b) {
       <div class="admin-mcard-rows">
         <div class="admin-mcard-row"><span>Driver</span><span>${escapeHtml(b.driver_name || '—')}</span></div>
         <div class="admin-mcard-row"><span>Route</span><span>${escapeHtml(b.pickup_location)} → ${escapeHtml(b.dropoff_location)}</span></div>
+        <div class="admin-mcard-row"><span>Type</span><span>${escapeHtml(b.ride_type)}</span></div>
         <div class="admin-mcard-row"><span>Fare</span><span>${fareText}</span></div>
         <div class="admin-mcard-row"><span>Requested</span><span>${new Date(b.created_at).toLocaleDateString()}</span></div>
       </div>
@@ -2906,7 +2908,7 @@ function drawAdminBookings() {
 
   if (!bookings.length) {
     const emptyText = adminBookingsCache.length ? 'No bookings today yet.' : 'No bookings yet.';
-    tbody.innerHTML = `<tr><td colspan="6">${emptyText}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7">${emptyText}</td></tr>`;
     if (mobileList) mobileList.innerHTML = `<p class="admin-mcard-empty">${emptyText}</p>`;
     return;
   }
@@ -3724,7 +3726,7 @@ async function alertDriverOfNewRides(newGroups) {
   }
 
   const group = newGroups[newGroups.length - 1];
-  const ride = group.ride;
+  const ride = group.type === 'solo' ? group.ride : group.riders[0];
   if (!ride || ride.ride_id === lastAlertedRideId) return;
   lastAlertedRideId = ride.ride_id;
 
@@ -3862,6 +3864,25 @@ function toMySQLDateTime(date) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
 }
 
+// Groups a flat list of ride rows by pool_id, so a shared trip with 2-4
+// riders renders as one card instead of one per passenger.
+function groupRidesByPool(rides) {
+  const pools = {};
+  const grouped = [];
+  rides.forEach(ride => {
+    if (!ride.pool_id) {
+      grouped.push({ poolId: null, riders: [ride] });
+      return;
+    }
+    if (!pools[ride.pool_id]) {
+      pools[ride.pool_id] = { poolId: ride.pool_id, riders: [] };
+      grouped.push(pools[ride.pool_id]);
+    }
+    pools[ride.pool_id].riders.push(ride);
+  });
+  return grouped;
+}
+
 async function fetchMyRides() {
   const user = getStoredUser();
   if (!user.accountId) return [];
@@ -3981,7 +4002,18 @@ let lastFareEstimateKey = null;
 // status while there's nothing to show yet, then the peso figure with the
 // distance under it. Only an error gets the line under the card, since it
 // needs a full sentence.
-function setFareEstimate(state, { main, sub = '', message = '' }) {
+// The Shared card gets the same state: "₱20–₱33" (the share with a full
+// tricycle up to the share with 2 riders, from the server's quote) and
+// "2–4 students" under it; the waiting/error text is the same as Solo's.
+function setFareEstimate(state, { main, sub = '', message = '', sharedMain = null, sharedSub = '' }) {
+  const sharedBox = document.querySelector('#shared-fare-box');
+  if (sharedBox) {
+    sharedBox.className = `ride-card-price is-${state}`;
+    const sharedMainEl = document.querySelector('#shared-fare');
+    const sharedSubEl = document.querySelector('#shared-km');
+    if (sharedMainEl) sharedMainEl.textContent = sharedMain != null ? sharedMain : main;
+    if (sharedSubEl) sharedSubEl.textContent = sharedMain != null ? sharedSub : sub;
+  }
   const box = document.querySelector('#solo-fare-box');
   const mainEl = document.querySelector('#solo-fare');
   const subEl = document.querySelector('#solo-km');
@@ -4048,9 +4080,14 @@ async function runFareEstimate(token, pickupInput, dropoffText, pickupCoords, dr
       dropoffCoords
     });
     if (token !== fareEstimateToken) return;
+    const sharedRange = quote.sharedFareMin != null
+      ? (quote.sharedFareMin === quote.sharedFareMax ? `₱${quote.sharedFareMin}` : `₱${quote.sharedFareMin}–₱${quote.sharedFareMax}`)
+      : null;
     setFareEstimate('ready', {
       main: `₱${Number(quote.fare).toFixed(0)}`,
-      sub: quote.distanceKm != null ? `${Number(quote.distanceKm).toFixed(1)} km` : ''
+      sub: quote.distanceKm != null ? `${Number(quote.distanceKm).toFixed(1)} km` : '',
+      sharedMain: sharedRange,
+      sharedSub: sharedRange ? '2–4 students' : ''
     });
   } catch (error) {
     if (token !== fareEstimateToken) return;
@@ -4397,6 +4434,16 @@ async function updateRideStatusRemote(rideId, status, extra = {}) {
   return data;
 }
 
+async function convertRideToSoloRemote(rideId) {
+  const res = await fetch(`${RIDES_API_URL}/${rideId}/convert-to-solo`, {
+    method: 'PUT',
+    headers: getAuthHeaders()
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Unable to convert this ride');
+  return data;
+}
+
 // Strips the repeated "(Tarlac State University)" suffix for display only
 // — both fixed campuses carry it in the dropdown's stored value, but it's
 // redundant clutter once the two stops are already shown side by side.
@@ -4463,8 +4510,8 @@ function showRideConfirmModal({ pickupLocation, dropoffLocation, rideType, fareT
         ${bookedForBlock}
 
         <!-- The Solo / "Leave now" chips were removed (IT expert review,
-             3 Oct 2026): every ride is Solo and leaves now while scheduling
-             is paused, so they told the passenger nothing. -->
+             3 Oct 2026): every ride is Solo and leaves now while Shared and
+             scheduling are paused, so they told the passenger nothing. -->
 
         <div class="ride-confirm-fare">
           <span class="ride-confirm-fare-label">Estimated fare</span>
@@ -4502,6 +4549,22 @@ function showRideConfirmModal({ pickupLocation, dropoffLocation, rideType, fareT
 // original <select> — kept in the DOM (visually hidden) since
 // setupPassengerRideRequestForm() below still reads its .value directly;
 // these buttons just drive that same hidden select instead of replacing it.
+// SHARED (restored 2026-10-20): how full a Shared tricycle is, as four seat
+// chips ("1 2 3 4", filled up to the riders so far). The old chips showed
+// fixed prices (2 · ₱35, 3 · ₱25, 4 · ₱20); since the fare is now split from
+// each rider's own distance (computeSharedFare in server/fareSettings.js),
+// the peso amount is shown separately and the chips only show the headcount.
+// To change the seats, change MAX_SHARED_RIDERS here AND MAX_POOL_SIZE in
+// server/controllers/rideController.js.
+const MAX_SHARED_RIDERS = 4;
+function sharedSeatChipsHtml(riderCount) {
+  const chips = [];
+  for (let seat = 1; seat <= MAX_SHARED_RIDERS; seat++) {
+    chips.push(`<span class="fare-tier-chip${riderCount >= seat ? ' is-active' : ''}">${seat}</span>`);
+  }
+  return `<div class="fare-tier-row" aria-label="${riderCount} of ${MAX_SHARED_RIDERS} students">${chips.join('')}<span class="fare-tier-chip">students</span></div>`;
+}
+
 function setupRideTypeToggle() {
   const buttons = document.querySelectorAll('.ride-type-btn');
   const hiddenSelect = document.querySelector('#ride-type');
@@ -4539,6 +4602,28 @@ async function reverseGeocodeCoords(lat, lng) {
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Reverse lookup failed');
   return data.label;
+}
+
+// SHARED (restored 2026-10-20): the server pools riders whose GPS pickups
+// and drop-offs are close together (findMatchingPool in rideController.js),
+// so Shared works with the passenger's own location. Only "book for someone
+// else" (pickupMode 'search') stays Solo: that person isn't the account
+// holder, so they can't be put in a tricycle with other students. In that
+// mode the Shared card is locked and Solo is selected.
+function syncRideTypeAvailability() {
+  const sharedBtn = document.querySelector('.ride-type-btn[data-ride-type="Shared"]');
+  const soloBtn = document.querySelector('.ride-type-btn[data-ride-type="Solo"]');
+  const hiddenSelect = document.querySelector('#ride-type');
+  if (!sharedBtn || !soloBtn) return;
+
+  const soloOnly = pickupMode === 'search';
+
+  sharedBtn.disabled = soloOnly;
+  if (soloOnly) {
+    soloBtn.classList.add('is-selected');
+    sharedBtn.classList.remove('is-selected');
+    if (hiddenSelect) hiddenSelect.value = 'Solo';
+  }
 }
 
 // The phone's first answer is usually a quick estimate from Wi-Fi or cell
@@ -4751,6 +4836,7 @@ function setupCustomLocationField(side) {
       input.focus();
     }
 
+    syncRideTypeAvailability();
   });
 
   // Typing over an auto-filled address means the captured point no longer
@@ -4875,6 +4961,7 @@ function setPickupMode(mode) {
   }
 
   resetFareEstimate();
+  syncRideTypeAvailability();
   if (searching) {
     input.focus();
   } else {
@@ -5184,9 +5271,21 @@ function setupPassengerRideRequestForm() {
       ? (dropoffOtherInput ? dropoffOtherInput.value.trim() : '')
       : dropoffSelectValue;
     const rideTypeSelect = document.querySelector('#ride-type');
-    // Every ride is Solo (Shared rides were removed from the system).
-    const rideType = 'Solo';
+    // The highlighted Solo/Shared BUTTON is the source of truth, not the
+    // hidden <select> that mirrors it. form.reset() (fired after every
+    // successful booking) reverts native inputs like that select back to
+    // "Solo", but not the plain <button>s — so reading the select could
+    // book a Solo ride while the screen still showed Shared selected.
+    // Reading what the passenger can actually see makes that mismatch
+    // impossible, regardless of reset timing or a stale cached script.
     const selectedRideTypeBtn = form.querySelector('.ride-type-btn.is-selected');
+    // SHARED (restored 2026-10-20): allowed with the passenger's own GPS
+    // pickup. Booking for someone else ("Change pickup") is always Solo (see
+    // syncRideTypeAvailability(), which locks the Shared card), and that is
+    // enforced here too since this is the value that creates the ride.
+    const rideType = pickupMode === 'search'
+      ? 'Solo'
+      : (selectedRideTypeBtn ? selectedRideTypeBtn.getAttribute('data-ride-type') : rideTypeSelect.value);
     // Keep the select in step so the confirmation modal's label below
     // (read from its selected <option>) describes the same ride type.
     rideTypeSelect.value = rideType;
@@ -5273,9 +5372,11 @@ function setupPassengerRideRequestForm() {
     // the same selected card used to read rideType above (its price figure),
     // not a separately-maintained number — one source of truth.
     const cardFare = selectedRideTypeBtn && selectedRideTypeBtn.querySelector('.ride-card-price b');
-    const fareText = othersQuote
-      ? formatFareWithDistance(othersQuote.fare, othersQuote.distanceKm)
-      : (cardFare ? cardFare.textContent : '');
+    const fareText = rideType === 'Shared' && othersQuote && othersQuote.sharedFareMin != null
+      ? `${othersQuote.sharedFareMin === othersQuote.sharedFareMax ? `₱${othersQuote.sharedFareMin}` : `₱${othersQuote.sharedFareMin}–₱${othersQuote.sharedFareMax}`} each, depending on how many students join`
+      : othersQuote
+        ? formatFareWithDistance(othersQuote.fare, othersQuote.distanceKm)
+        : (cardFare ? cardFare.textContent : '');
     const whenLabel = scheduleSelect && scheduleSelect.selectedOptions[0]
       ? scheduleSelect.selectedOptions[0].textContent
       : 'Leave now';
@@ -5332,6 +5433,16 @@ function setupPassengerRideRequestForm() {
       });
 
       form.reset();
+      // form.reset() only reverts native inputs, like the hidden #ride-type
+      // <select> it's paired with (back to its first option, "Solo") — the
+      // visible Solo/Shared toggle buttons are plain <button>s outside that
+      // scope, so they silently kept showing whichever one the passenger
+      // had clicked before this submission. After one Shared booking, the
+      // form still LOOKED like Shared was selected while the hidden select
+      // (and therefore the next submission's actual ride_type) had already
+      // reverted to Solo — a passenger who trusted the highlighted button
+      // and didn't re-click Shared got a real Solo ride with no warning.
+      form.querySelectorAll('.ride-type-btn').forEach(b => b.classList.toggle('is-selected', b.getAttribute('data-ride-type') === rideTypeSelect.value));
       // The custom pickup/drop-off fields are shown and hidden by script, so
       // form.reset() leaves them on screen with the selects already back on
       // their placeholder — and any captured coordinates would otherwise
@@ -5346,13 +5457,16 @@ function setupPassengerRideRequestForm() {
       // (this also ends "book for someone else" mode).
       resetFareEstimate();
       setPickupMode('gps');
+      syncRideTypeAvailability();
       renderPassengerRideStatus();
       renderDriverRideRequests();
       renderDriverDashboardStats();
       showRideFeedback(
         'success',
         'Ride requested',
-        'Your trip request is now waiting for a driver.'
+        rideType === 'Shared'
+          ? 'Your seat is booked. Your fare goes down as more students join, and is final once the driver picks you up.'
+          : 'Your trip request is now waiting for a driver.'
       );
 
       locationPromise.then((coords) => {
@@ -5459,7 +5573,31 @@ async function renderPassengerRideStatus() {
   // (not yet accepted) and Accepted (driver on the way, not arrived yet)
   // allow a cancel.
   const canCancel = ['Pending', 'Accepted'].includes(activeRide.status);
-  const fareText = formatFareWithDistance(activeRide.fare, activeRide.distance_km);
+  // A Shared pool stays "Open" to new joiners even after a driver has
+  // accepted it early (under 4 riders) — it only closes once full or once
+  // the driver actually departs (marked "Picked Up"). So "waiting for more
+  // students" can still be true for an already-Accepted ride, not just a
+  // Pending one.
+  const riderCountSoFar = activeRide.pool_rider_count || 1;
+  const poolStillOpen = activeRide.ride_type === 'Shared' && activeRide.pool_status === 'Open' && riderCountSoFar < MAX_SHARED_RIDERS;
+  // Two very different shapes of content share this one slot: a short
+  // figure ("₱35 so far") that belongs inline on the right, and a long
+  // sentence (below) that does not — it gets its own full-width note row
+  // instead, flagged for CSS with .is-calculating.
+  const fareIsCalculating = activeRide.fare == null;
+  const fareText = fareIsCalculating
+    ? 'Calculating — waiting for more students to join'
+    : activeRide.ride_type === 'Shared'
+      ? `₱${Number(activeRide.fare).toFixed(0)}${poolStillOpen ? ' so far' : ''}`
+      : formatFareWithDistance(activeRide.fare, activeRide.distance_km);
+  const fareTierRow = poolStillOpen ? sharedSeatChipsHtml(riderCountSoFar) : '';
+  // Been waiting alone for a while with no one else joining the pool yet —
+  // offer a way out instead of leaving them stuck indefinitely. Only makes
+  // sense before a driver has accepted (accepting already required 2+).
+  const waitedMs = Date.now() - new Date(activeRide.created_at).getTime();
+  // TO CHANGE how long a lone Shared rider waits before "Book as Solo
+  // instead" appears: the 5 below is minutes.
+  const canConvertToSolo = activeRide.status === 'Pending' && poolStillOpen && riderCountSoFar <= 1 && waitedMs > 5 * 60 * 1000;
   const scheduleText = activeRide.scheduled_at
     ? `Scheduled for ${new Date(activeRide.scheduled_at).toLocaleString()}`
     : 'Requested for now';
@@ -5489,10 +5627,11 @@ async function renderPassengerRideStatus() {
       <span class="ride-driver-avatar"><img src="../images/tricycle.png" alt="Tricycle"></span>
       <div>
         <strong>${escapeHtml(driverName)}</strong>
-        <small>${escapeHtml(activeRide.driver_plate || '')}</small>
+        <small>${[activeRide.driver_plate, activeRide.ride_type === 'Shared' ? 'Shared' : ''].filter(Boolean).map(escapeHtml).join(' · ')}</small>
       </div>
-      <span class="fare">${escapeHtml(fareText)}</span>
+      <span class="fare${fareIsCalculating ? ' is-calculating' : ''}">${escapeHtml(fareText)}</span>
     </div>
+    ${fareTierRow}
     ${activeRide.booked_for_name ? `<div class="ride-booked-for">Booked for <strong>${escapeHtml(activeRide.booked_for_name)}</strong> · ${escapeHtml(formatPhMobile(activeRide.booked_for_contact))}</div>` : ''}
     ${rideEtaRowHtml(activeRide, 'passenger')}
 
@@ -5503,9 +5642,27 @@ async function renderPassengerRideStatus() {
         </button>
       ` : ''}
       ${callButtonHtml(activeRide.driver_contact, 'Call driver')}
+      ${canConvertToSolo ? `<button type="button" class="btn-secondary-outline" data-action="convert-to-solo" data-ride-id="${activeRide.ride_id}">Book as Solo instead</button>` : ''}
       ${canCancel ? `<button type="button" class="btn-secondary-outline" data-action="cancel-request" data-ride-id="${activeRide.ride_id}">Cancel request</button>` : ''}
     </div>
   `;
+
+  const convertButton = container.querySelector('[data-action="convert-to-solo"]');
+  if (convertButton) {
+    convertButton.addEventListener('click', async function() {
+      try {
+        // The server answers with the rider's full Solo fare for their own
+        // distance (computeFare in server/fareSettings.js).
+        const converted = await convertRideToSoloRemote(activeRide.ride_id);
+        showRideFeedback('success', 'Switched to Solo', converted && converted.fare != null
+          ? `Your ride is now booked as Solo at ₱${Number(converted.fare).toFixed(0)}.`
+          : 'Your ride is now booked as Solo.');
+        renderPassengerRideStatus();
+      } catch (error) {
+        showRideFeedback('error', 'Could not switch', error.message || 'Please try again.');
+      }
+    });
+  }
 
   const chatButton = container.querySelector('[data-action="open-chat"]');
   if (chatButton) {
@@ -5913,7 +6070,7 @@ async function renderBookingsList() {
     // witness/report the passenger-side violations listed there, and vice
     // versa, so the dropdown must match whoever is filing the complaint.
     const complaintCategories = isDriver
-      ? ['No-show', 'Rude behavior', 'Refused to pay', 'Fake booking', 'Other']
+      ? ['No-show', 'Rude behavior', 'Refused to pay', 'Fake booking', 'Misuse of Shared ride', 'Other']
       : ['Reckless driving', 'Overcharging', 'Rude behavior', 'Refused service', 'Unsafe vehicle', 'Cancelled without reason', 'Other'];
     // Driver side (IT expert review, 2026-10-06): no "Report a concern" on a
     // Completed ride, and none on a ride the driver already reported on --
@@ -5954,6 +6111,7 @@ async function renderBookingsList() {
           <div class="booking-info">
             <p class="booking-route">${escapeHtml(shortLocationLabel(ride.pickup_location))} <span class="ride-route-arrow">→</span> ${escapeHtml(shortLocationLabel(ride.dropoff_location))}</p>
             <div class="booking-meta">
+              ${ride.ride_type === 'Shared' ? '<span>Shared</span>' : ''}
               <span>${escapeHtml(otherPartyLabel)}: ${escapeHtml(otherPartyName)}</span>
               <span>Requested ${escapeHtml(requestedAt)}</span>
             </div>
@@ -6111,59 +6269,142 @@ function scheduledBadgeHtml(scheduledAt) {
 }
 
 function renderPendingRideCard(group) {
-  const ride = group.ride;
+  if (group.type === 'solo') {
+    const ride = group.ride;
+    return `
+      <article class="driver-card">
+        <div class="driver-card-header">
+          <div>
+            <h3>${escapeHtml(ride.passenger_name || 'Passenger')}</h3>
+            <p>${escapeHtml(ride.pickup_location)} → ${escapeHtml(ride.dropoff_location)}</p>
+          </div>
+        </div>
+        <div class="driver-card-meta">
+          <span>Estimated fare: ${escapeHtml(formatFareWithDistance(ride.fare || 0, ride.distance_km))}</span>
+          <span>${new Date(ride.created_at).toLocaleString()}</span>
+          ${scheduledBadgeHtml(ride.scheduled_at)}
+        </div>
+        ${bookedForDriverHtml(ride)}
+        <div class="driver-card-actions">
+          <button type="button" class="btn-primary" data-action="accept-ride" data-ride-id="${ride.ride_id}">Accept</button>
+          <button type="button" class="btn-secondary-outline" data-action="decline-ride" data-ride-id="${ride.ride_id}">Decline</button>
+        </div>
+      </article>
+    `;
+  }
+
+  const riderCount = group.riders.length;
+  const names = group.riders.map(r => escapeHtml(r.passenger_name || 'Passenger')).join(', ');
+  const anchorRideId = group.riders[0].ride_id;
+  const allRideIds = group.riders.map(r => r.ride_id).join(',');
+  const canAccept = riderCount >= 2;
+
+  const fareTierRow = sharedSeatChipsHtml(riderCount);
+  // What the driver earns for the whole trip: every rider's share added up
+  // (each share is from that rider's own distance, so they can differ).
+  const poolTotal = group.riders.reduce((sum, r) => sum + Number(r.fare || 0), 0);
+
+  const description = !canAccept
+    ? `Needs ${2 - riderCount} more student${2 - riderCount === 1 ? '' : 's'} before this can be accepted.`
+    : riderCount < 4
+      ? 'Wait for more students, or accept now to depart with the current group.'
+      : 'Tricycle is full and ready to depart.';
+
+  const acceptButton = canAccept
+    ? `<button type="button" class="btn-primary" data-action="accept-ride" data-ride-id="${anchorRideId}">Accept${riderCount < 4 ? ' & depart now' : ''}</button>`
+    : `<button type="button" class="btn-secondary-outline" disabled>Waiting for more students</button>`;
+
   return `
     <article class="driver-card">
       <div class="driver-card-header">
         <div>
-          <h3>${escapeHtml(ride.passenger_name || 'Passenger')}</h3>
-          <p>${escapeHtml(ride.pickup_location)} → ${escapeHtml(ride.dropoff_location)}</p>
+          <h3>Shared ride (${riderCount}/4)</h3>
+          <p>${escapeHtml(group.pickup_location)} → ${escapeHtml(group.dropoff_location)}</p>
         </div>
+        <span class="ride-badge tone-warning">${riderCount}/4 joined</span>
       </div>
       <div class="driver-card-meta">
-        <span>Estimated fare: ${escapeHtml(formatFareWithDistance(ride.fare || 0, ride.distance_km))}</span>
-        <span>${new Date(ride.created_at).toLocaleString()}</span>
-        ${scheduledBadgeHtml(ride.scheduled_at)}
+        <span>${names}</span>
+        <span>Total fare: ₱${poolTotal.toFixed(0)}</span>
+        ${scheduledBadgeHtml(group.scheduled_at)}
       </div>
-      ${bookedForDriverHtml(ride)}
+      ${fareTierRow}
+      <p class="driver-card-description">${description}</p>
       <div class="driver-card-actions">
-        <button type="button" class="btn-primary" data-action="accept-ride" data-ride-id="${ride.ride_id}">Accept</button>
-        <button type="button" class="btn-secondary-outline" data-action="decline-ride" data-ride-id="${ride.ride_id}">Decline</button>
+        ${acceptButton}
+        <button type="button" class="btn-secondary-outline" data-action="decline-pool" data-ride-ids="${allRideIds}">Decline</button>
       </div>
     </article>
   `;
 }
 
-function renderActiveRideCard(ride) {
-  const statusConfig = getRideStatusConfig(ride.status);
-  const passengerName = ride.passenger_name || 'Passenger';
-  const nextStatusButtons = getNextRideStatusOptions(ride.status)
+function renderActiveRideCard(group) {
+  const anchor = group.riders[0];
+  const statusConfig = getRideStatusConfig(anchor.status);
+  const names = group.riders.map(r => escapeHtml(r.passenger_name || 'Passenger')).join(', ');
+  const allRideIds = group.riders.map(r => r.ride_id).join(',');
+  const nextStatusButtons = getNextRideStatusOptions(anchor.status)
     .map(nextStatus => nextStatus === 'Cancelled'
-      // Cancelling asks why first (see openCancelRideForm).
-      ? `<button type="button" class="btn-secondary-outline" data-action="cancel-trip" data-ride-id="${ride.ride_id}">${escapeHtml(nextStatus)}</button>`
-      : `<button type="button" class="btn-secondary-outline" data-action="advance-status" data-ride-id="${ride.ride_id}" data-next-status="${nextStatus}">${escapeHtml(nextStatus)}</button>`)
+      // Cancelling the whole trip must drop every rider in the pool, not just
+      // the anchor — the backend cascade deliberately excludes Cancelled (a
+      // passenger cancelling their own seat shouldn't cancel everyone else's),
+      // so when the DRIVER cancels the whole trip, every ride_id is targeted
+      // explicitly instead, same pattern as the "Decline" pool button.
+      ? `<button type="button" class="btn-secondary-outline" data-action="cancel-pool" data-ride-ids="${allRideIds}" data-next-status="${nextStatus}">${escapeHtml(nextStatus)}</button>`
+      : `<button type="button" class="btn-secondary-outline" data-action="advance-status" data-ride-id="${anchor.ride_id}" data-next-status="${nextStatus}">${escapeHtml(nextStatus)}</button>`)
     .join('');
+  // One chat entry point per rider — a Shared-pool card can hold several
+  // riders, each with their own ride_id and their own message thread.
+  const chatButtons = group.riders
+    .map(r => `
+      <button type="button" class="btn-secondary-outline" data-action="open-chat" data-ride-id="${r.ride_id}" data-other-name="${escapeHtml(r.passenger_name || 'Passenger')}">
+        💬 Chat${group.riders.length > 1 ? ` (${escapeHtml(r.passenger_name || 'Passenger')})` : ''}${r.unread_message_count > 0 ? `<span class="chat-unread-badge">${r.unread_message_count}</span>` : ''}
+      </button>
+      ${r.booked_for_name ? '' : callButtonHtml(r.passenger_contact, group.riders.length > 1 ? `Call ${r.passenger_name || 'passenger'}` : 'Call passenger')}
+    `)
+    .join('');
+
+  // Accepting a Shared pool early (under 4) doesn't close it — more
+  // students can still join this same trip, under this same driver, right
+  // up until it's full or the driver marks "Picked Up" (departs).
+  const poolStillOpen = anchor.ride_type === 'Shared' && anchor.pool_status === 'Open' && group.riders.length < MAX_SHARED_RIDERS;
+  const fareTierRow = poolStillOpen ? sharedSeatChipsHtml(group.riders.length) : '';
+  // Shared: each student's pickup and share, since pickups can be up to
+  // 300 m apart (SHARED_MATCH_RADIUS_METERS on the server). The map and ETA
+  // follow the first rider's pickup.
+  const sharedRiderList = anchor.ride_type === 'Shared' && group.riders.length > 1 ? `
+    <ul class="driver-card-description">
+      ${group.riders.map(r => `<li><strong>${escapeHtml(r.passenger_name || 'Passenger')}</strong> · ${escapeHtml(r.pickup_location)} · ₱${Number(r.fare || 0).toFixed(0)}</li>`).join('')}
+    </ul>
+  ` : '';
+  const poolTotal = group.riders.reduce((sum, r) => sum + Number(r.fare || 0), 0);
+  const waitingNote = poolStillOpen
+    ? `<p class="driver-card-description">More students can still join — ${group.riders.length}/${MAX_SHARED_RIDERS} so far, until you mark Picked Up.</p>`
+    : '';
 
   return `
     <article class="driver-card">
       <div class="driver-card-header">
         <div>
-          <h3>${escapeHtml(passengerName)}</h3>
-          <p>${escapeHtml(ride.pickup_location)} → ${escapeHtml(ride.dropoff_location)}</p>
+          <h3>${group.riders.length > 1 ? `Shared trip · ${group.riders.length} students` : escapeHtml(names)}</h3>
+          <p>${escapeHtml(anchor.pickup_location)} → ${escapeHtml(anchor.dropoff_location)}</p>
         </div>
         <span class="ride-badge tone-${statusConfig.tone}">${escapeHtml(statusConfig.label)}</span>
       </div>
       <div class="driver-card-meta">
-        <span>Estimated fare: ${escapeHtml(formatFareWithDistance(ride.fare || 0, ride.distance_km))}</span>
+        ${group.riders.length > 1 ? `<span>${names}</span>` : (anchor.ride_type === 'Shared' ? '<span>Shared</span>' : '')}
+        <span>${anchor.ride_type === 'Shared'
+          ? `Total fare: ₱${poolTotal.toFixed(0)} (${group.riders.length} student${group.riders.length === 1 ? '' : 's'})`
+          : `Estimated fare: ${escapeHtml(formatFareWithDistance(anchor.fare || 0, anchor.distance_km))}`}</span>
       </div>
-      ${bookedForDriverHtml(ride)}
-      ${rideEtaRowHtml(ride, 'driver')}
+      ${fareTierRow}
+      ${sharedRiderList}
+      ${waitingNote}
+      ${group.riders.length === 1 ? bookedForDriverHtml(anchor) : ''}
+      ${rideEtaRowHtml(anchor, 'driver')}
       <p class="driver-card-description">${escapeHtml(statusConfig.description)}</p>
       <div class="driver-card-actions">
-        <button type="button" class="btn-secondary-outline" data-action="open-chat" data-ride-id="${ride.ride_id}" data-other-name="${escapeHtml(passengerName)}">
-          💬 Chat${ride.unread_message_count > 0 ? `<span class="chat-unread-badge">${ride.unread_message_count}</span>` : ''}
-        </button>
-        ${ride.booked_for_name ? '' : callButtonHtml(ride.passenger_contact, 'Call passenger')}
+        ${chatButtons}
         ${nextStatusButtons}
       </div>
     </article>
@@ -6185,30 +6426,37 @@ async function renderDriverRideRequests() {
   }
 
   const [pendingGroups, myRides] = await Promise.all([fetchPendingRides(), fetchDriverRides()]);
-  const activeRides = myRides.filter(r => ['Accepted', 'Picked Up', 'In Progress'].includes(r.status));
+  const activeGroups = groupRidesByPool(myRides.filter(r => ['Accepted', 'Picked Up', 'In Progress'].includes(r.status)));
 
   // Anything pending now that wasn't in the last load is a new booking. The
   // first load only records what's there, so opening the page doesn't alert
   // for requests the driver can already see; a driver mid-trip isn't alerted.
+  const groupRideIds = (group) => (group.type === 'solo' ? [group.ride.ride_id] : group.riders.map(r => r.ride_id));
   const newGroups = knownPendingRideIds === null
     ? []
-    : pendingGroups.filter(group => !knownPendingRideIds.has(group.ride.ride_id));
-  knownPendingRideIds = new Set(pendingGroups.map(group => group.ride.ride_id));
-  if (newGroups.length && !activeRides.length) alertDriverOfNewRides(newGroups);
+    : pendingGroups.filter(group => groupRideIds(group).some(id => !knownPendingRideIds.has(id)));
+  knownPendingRideIds = new Set(pendingGroups.flatMap(groupRideIds));
+  if (newGroups.length && !activeGroups.length) alertDriverOfNewRides(newGroups);
 
-  if (!pendingGroups.length && !activeRides.length) {
+  if (!pendingGroups.length && !activeGroups.length) {
     container.innerHTML = '<article class="dashboard-card"><p>No active ride requests right now.</p></article>';
     return;
   }
 
-  container.innerHTML = pendingGroups.map(renderPendingRideCard).join('') + activeRides.map(renderActiveRideCard).join('');
+  container.innerHTML = pendingGroups.map(renderPendingRideCard).join('') + activeGroups.map(renderActiveRideCard).join('');
 
   container.querySelectorAll('[data-action="accept-ride"]').forEach(button => {
     button.addEventListener('click', async function() {
       const rideId = this.getAttribute('data-ride-id');
       try {
-        await acceptRideRemote(rideId);
-        showRideFeedback('success', 'Ride accepted', 'The trip is now assigned to you.');
+        const result = await acceptRideRemote(rideId);
+        // A Shared trip (riderCount is only sent for a pool) says whether
+        // more students can still join; each student's fare is on the card.
+        showRideFeedback('success', 'Ride accepted', result.riderCount
+          ? (result.poolStillOpen
+            ? `Shared trip assigned to you — ${result.riderCount} students so far, more may still join until you mark Picked Up.`
+            : `Shared trip assigned to you — ${result.riderCount} students, the tricycle is full.`)
+          : 'The trip is now assigned to you.');
         renderPassengerRideStatus();
         renderDriverRideRequests();
         renderDriverDashboardStats();
@@ -6238,15 +6486,35 @@ async function renderDriverRideRequests() {
     });
   });
 
+  // Declining a Shared pool declines it for every rider currently in it
+  // (not just one) — consistent with Accept, which assigns the whole group
+  // at once. Other drivers can still pick up the route fresh afterward.
+  container.querySelectorAll('[data-action="decline-pool"]').forEach(button => {
+    button.addEventListener('click', async function() {
+      const rideIds = this.getAttribute('data-ride-ids').split(',').filter(Boolean);
+      try {
+        await Promise.all(rideIds.map(id => declineRideRemote(id)));
+        showRideFeedback('info', 'Ride declined', 'Removed from your list. Other drivers can still accept it.');
+        renderDriverRideRequests();
+        renderDriverDashboardStats();
+      } catch (error) {
+        showRideFeedback('error', 'Could not decline', error.message || 'Please try again.');
+      }
+    });
+  });
+
   container.querySelectorAll('[data-action="open-chat"]').forEach(button => {
     button.addEventListener('click', function() {
       openChatModal(this.getAttribute('data-ride-id'), this.getAttribute('data-other-name'));
     });
   });
 
-  container.querySelectorAll('[data-action="cancel-trip"]').forEach(button => {
+  // Driver cancelling an active trip drops every rider sharing that pool,
+  // not just one — see the comment on allRideIds in renderActiveRideCard.
+  container.querySelectorAll('[data-action="cancel-pool"]').forEach(button => {
     button.addEventListener('click', function() {
-      openCancelRideForm({ rideIds: [this.getAttribute('data-ride-id')], role: 'driver', hasDriver: true });
+      const rideIds = this.getAttribute('data-ride-ids').split(',').filter(Boolean);
+      openCancelRideForm({ rideIds, role: 'driver', hasDriver: true });
     });
   });
 
@@ -6490,7 +6758,7 @@ async function renderDriverDashboardStats() {
 
   const [driverRides, pendingGroups] = await Promise.all([fetchDriverRides(), fetchPendingRides()]);
   const completedRides = driverRides.filter(r => r.status === 'Completed');
-  const pendingRideCount = pendingGroups.length;
+  const pendingRideCount = pendingGroups.reduce((sum, g) => sum + (g.type === 'shared' ? g.riders.length : 1), 0);
   const todaySummary = summarizeRides(driverRides.filter(isRideToday));
   const allEarnings = sumRideFares(completedRides);
   const earningsAll = document.querySelector('#driver-earnings-all');

@@ -87,7 +87,8 @@
                  out rather than deleted. The fixed San Isidro <-> Main Campus
                  route is expected back once the bridge is repaired, and the
                  booking logic still understands every one of these values, so
-                 restoring the old form means uncommenting these lines. -->
+                 restoring the old form means uncommenting these lines (and the
+                 Shared button further down). -->
             <!-- Pickup is always the passenger's current location: the box fills
                  itself from GPS when the page opens and can't be typed into.
                  Tapping it looks the location up again. The select stays,
@@ -134,7 +135,7 @@
             </div>
             <div class="form-field">
               <label>Your trip</label>
-              <!-- One card per ride type, only Solo for now. Each card is still a
+              <!-- One card per ride type: Solo and Shared. Each card is still a
                    .ride-type-btn with data-ride-type, which is what the booking
                    code reads, so a second card is all a new ride type needs.
                    The fare fills in by itself once a drop-off is chosen: the
@@ -152,6 +153,23 @@
                     <small id="solo-km"></small>
                   </span>
                 </button>
+                <!-- SHARED (restored 2026-10-20, TA's request): the server puts
+                     students whose pickups and drop-offs are within 300 m of each
+                     other in one tricycle (up to 4) and splits the fare
+                     (computeSharedFare in server/fareSettings.js). The price
+                     range fills in with the Solo fare (setFareEstimate in app.js).
+                     To hide Shared again: delete this button. -->
+                <button type="button" class="ride-type-btn ride-card" data-ride-type="Shared">
+                  <img class="ride-card-icon" src="../images/tricycle.png" alt="">
+                  <span class="ride-card-text">
+                    <span class="ride-card-name">Shared ride</span>
+                    <span class="ride-card-sub">Share with students going your way</span>
+                  </span>
+                  <span class="ride-card-price is-pending" id="shared-fare-box" aria-live="polite">
+                    <b id="shared-fare">Choose a drop-off</b>
+                    <small id="shared-km"></small>
+                  </span>
+                </button>
               </div>
               <div class="ride-card-foot">
                 <span id="ride-card-foot-label">Priced by road distance</span>
@@ -160,6 +178,7 @@
               <p class="fare-estimate" id="fare-estimate" aria-live="polite"></p>
               <select id="ride-type" name="rideType" class="ride-type-select-hidden" aria-hidden="true" tabindex="-1">
                 <option value="Solo">Solo</option>
+                <option value="Shared">Shared</option>
               </select>
             </div>
 
@@ -300,6 +319,6 @@
   </footer>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="../js/app.js?v=20261007c"></script>
+  <script src="../js/app.js?v=20261020a"></script>
 </body>
 </html>

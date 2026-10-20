@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const db = require('../config/db');
@@ -8,15 +9,36 @@ const { OUTSIDE_PLACE_NAMES, namesPlaceOutsideTarlac } = require('../outsidePlac
 const { hasDeclinesTable } = require('../rideDeclines');
 const { hasCertificateSeenColumn } = require('../certificateSeen');
 const { hasBookedForColumns } = require('../bookedFor');
-const { getFareSettings, computeFare, hasDistanceColumn } = require('../fareSettings');
+const { getFareSettings, computeFare, computeSharedFare, hasDistanceColumn } = require('../fareSettings');
 
-// Flat fare of a ride between the fixed campus points (rides are Solo only).
+// Flat fare of a ride between the fixed campus points (old campus route,
+// kept for when the bridge is repaired). Every GPS ride is priced by road
+// distance instead (fareSettings.js).
 const SOLO_FARE = 60;
+
+// ─── SHARED RIDES (restored 2026-10-20, TA's request) ──────────────────
+// A Shared ride ("pool") is one tricycle trip carrying 2 to MAX_POOL_SIZE
+// students. Each student books on their own; createRide puts them in the
+// same pool when BOTH their pickups and their drop-offs are within
+// SHARED_MATCH_RADIUS_METERS of every rider already in it, and they leave
+// at the same time. The fare per rider is computeSharedFare() in
+// fareSettings.js. Tables used: ride_pools (one row per trip) and
+// rides.pool_id (which trip a booking belongs to). No new columns.
+// TO CHANGE: how many students fit -> MAX_POOL_SIZE; how close riders must
+// be to share -> SHARED_MATCH_RADIUS_METERS (300 = about a 4-minute walk).
+const MAX_POOL_SIZE = 4;
+const SHARED_MATCH_RADIUS_METERS = 300;
 
 // How far ahead of a scheduled pickup time a ride becomes visible to
 // drivers — enough lead time to actually reach the pickup spot by the
 // requested time, instead of only starting the trip once it's already due.
 const SCHEDULE_LEAD_TIME_MINUTES = 10;
+
+// How close two "In X minutes" requests have to be to count as the same
+// departure slot for Shared pooling. Two students who both picked "In 15
+// minutes" a minute apart shouldn't end up in separate pools just because
+// their exact computed timestamps don't match to the second.
+const SCHEDULE_POOL_MATCH_TOLERANCE_MINUTES = 5;
 
 // A ride with a future scheduled_at is deliberately NOT broadcast to
 // drivers the moment it's created (see createRide below) — nothing should
@@ -507,6 +529,13 @@ exports.quoteOthersDropoff = async (req, res) => {
     const quote = pickup_is_custom
       ? await resolveCustomPickupDropoff(await resolvePickupPoint(pickup_location, pickup_lat, pickup_lng), dropoff_text, dropoffCoords)
       : await computeOthersFare(pickup_location, dropoff_text, dropoffCoords);
+    // Shared preview for the Shared card: the share with a full tricycle
+    // (lowest) up to the share with only 2 riders (highest). Same
+    // computeSharedFare() the booking uses.
+    if (quote.distanceKm != null) {
+      quote.sharedFareMin = computeSharedFare(quote.distanceKm, MAX_POOL_SIZE);
+      quote.sharedFareMax = computeSharedFare(quote.distanceKm, 2);
+    }
     res.status(200).json(quote);
   } catch (error) {
     res.status(400).json({ error: error.message });
@@ -541,16 +570,26 @@ exports.createRide = async (req, res) => {
     return res.status(400).json({ error: 'Pickup and drop-off must be different' });
   }
 
-  // Every ride is Solo; Shared rides were removed from the system.
-  if (ride_type !== 'Solo') {
-    return res.status(400).json({ error: 'Only solo rides are available.' });
+  if (ride_type !== 'Solo' && ride_type !== 'Shared') {
+    return res.status(400).json({ error: 'ride_type must be "Solo" or "Shared"' });
+  }
+
+  // SHARED needs a GPS pickup and a drop-off picked from the search, so
+  // both ends have exact points to compare with other riders (see
+  // findMatchingPool). The old campus-route Shared (matching by identical
+  // place names) is gone: since the bridge closed every pickup is GPS.
+  if (ride_type === 'Shared' && !(pickup_is_custom && dropoff_is_custom)) {
+    return res.status(400).json({ error: 'A Shared ride needs your current location as pickup and a drop-off picked from the list.' });
   }
 
   // Booking for someone else: a pickup chosen from the search instead of
-  // the passenger's own GPS. Only inside Tarlac, and with the name and
+  // the passenger's own GPS. Only Solo, inside Tarlac, and with the name and
   // number of the person being picked up.
   let bookedFor = null;
   if (pickup_from_search) {
+    if (ride_type !== 'Solo') {
+      return res.status(400).json({ error: 'Booking for someone else is only available for Solo rides.' });
+    }
     const checked = await checkBookedFor({
       pickupPoint: normalizePoint({ lat: pickup_lat, lng: pickup_lng }),
       name: booked_for_name,
@@ -603,42 +642,208 @@ exports.createRide = async (req, res) => {
         return res.status(409).json({ error: 'You already have an active ride request. Please wait for it to be accepted, declined, or completed before booking another.' });
       }
 
-      const soloFare = othersQuote ? othersQuote.fare : SOLO_FARE;
-      const dropoffLat = othersQuote ? othersQuote.lat : null;
-      const dropoffLng = othersQuote ? othersQuote.lng : null;
-      const extraKm = othersQuote ? othersQuote.extraKm : null;
-      const distanceKm = othersQuote && othersQuote.distanceKm != null ? othersQuote.distanceKm : null;
-      // distance_km only once fareSettings has confirmed the column exists.
-      const withDistance = hasDistanceColumn();
-      // booked_for_* only once bookedFor.js has confirmed the columns. If
-      // they're missing, a "someone else" booking is refused rather than
-      // saved without the details the driver needs.
-      const withBookedFor = hasBookedForColumns();
-      if (bookedFor && !withBookedFor) {
-        return res.status(503).json({ error: 'Booking for someone else is not available right now. Please try again in a minute.' });
-      }
-      const sql = `
-        INSERT INTO rides (passenger_account_id, pickup_location, dropoff_location, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, extra_km,${withDistance ? ' distance_km,' : ''}${withBookedFor ? ' booked_for_name, booked_for_contact,' : ''} ride_type, fare, status, scheduled_at, notes)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?,${withDistance ? ' ?,' : ''}${withBookedFor ? ' ?, ?,' : ''} 'Solo', ?, 'Pending', ?, ?)
-      `;
-      const values = [passenger_account_id, pickup_location, dropoff_location, pickupLatValue, pickupLngValue, dropoffLat, dropoffLng, extraKm];
-      if (withDistance) values.push(distanceKm);
-      if (withBookedFor) values.push(bookedFor ? bookedFor.name : null, bookedFor ? bookedFor.contact : null);
-      values.push(soloFare, scheduled_at || null, notes || null);
-      db.query(
-        sql,
-        values,
-        (err, result) => {
-          if (err) return res.status(500).json({ error: err.message });
-          res.status(201).json({ message: 'Ride requested', rideId: result.insertId, fare: soloFare, distanceKm });
-          emitPendingOrSchedule(scheduled_at);
+      if (ride_type === 'Solo') {
+        const soloFare = othersQuote ? othersQuote.fare : SOLO_FARE;
+        const dropoffLat = othersQuote ? othersQuote.lat : null;
+        const dropoffLng = othersQuote ? othersQuote.lng : null;
+        const extraKm = othersQuote ? othersQuote.extraKm : null;
+        const distanceKm = othersQuote && othersQuote.distanceKm != null ? othersQuote.distanceKm : null;
+        // distance_km only once fareSettings has confirmed the column exists.
+        const withDistance = hasDistanceColumn();
+        // booked_for_* only once bookedFor.js has confirmed the columns. If
+        // they're missing, a "someone else" booking is refused rather than
+        // saved without the details the driver needs.
+        const withBookedFor = hasBookedForColumns();
+        if (bookedFor && !withBookedFor) {
+          return res.status(503).json({ error: 'Booking for someone else is not available right now. Please try again in a minute.' });
         }
-      );
+        const sql = `
+          INSERT INTO rides (passenger_account_id, pickup_location, dropoff_location, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, extra_km,${withDistance ? ' distance_km,' : ''}${withBookedFor ? ' booked_for_name, booked_for_contact,' : ''} ride_type, fare, status, scheduled_at, notes)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?,${withDistance ? ' ?,' : ''}${withBookedFor ? ' ?, ?,' : ''} 'Solo', ?, 'Pending', ?, ?)
+        `;
+        const values = [passenger_account_id, pickup_location, dropoff_location, pickupLatValue, pickupLngValue, dropoffLat, dropoffLng, extraKm];
+        if (withDistance) values.push(distanceKm);
+        if (withBookedFor) values.push(bookedFor ? bookedFor.name : null, bookedFor ? bookedFor.contact : null);
+        values.push(soloFare, scheduled_at || null, notes || null);
+        db.query(
+          sql,
+          values,
+          (err, result) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.status(201).json({ message: 'Ride requested', rideId: result.insertId, fare: soloFare, distanceKm });
+            emitPendingOrSchedule(scheduled_at);
+          }
+        );
+        return;
+      }
+
+      // ── SHARED: join a matching pool, or open a new one ──────────────
+      // Every rider's own road distance is saved (distance_km), because
+      // their share is re-priced from it each time the headcount changes.
+      if (!hasDistanceColumn()) {
+        return res.status(503).json({ error: 'Shared rides are not available right now. Please book Solo or try again in a minute.' });
+      }
+      const distanceKm = othersQuote.distanceKm;
+      const dropoffPoint = [othersQuote.lat, othersQuote.lng];
+      const normalizedScheduledAt = scheduled_at || null;
+
+      // Finding-or-creating the pool runs under one MySQL named lock, so two
+      // students booking at the same instant can't both see "no pool yet"
+      // and open two separate pools. GET_LOCK belongs to one connection, so
+      // this whole section uses one dedicated connection.
+      const lockName = 'gotsuian_shared_pool_match';
+
+      db.getConnection((err, connection) => {
+        if (err) return res.status(500).json({ error: err.message });
+
+        const releaseLockAndConnection = () => {
+          connection.query('SELECT RELEASE_LOCK(?)', [lockName], () => connection.release());
+        };
+        const failWith = (error) => {
+          releaseLockAndConnection();
+          res.status(500).json({ error: error.message });
+        };
+
+        connection.query('SELECT GET_LOCK(?, 10) AS got', [lockName], (err, lockRows) => {
+          if (err) return failWith(err);
+          if (!lockRows[0].got) {
+            connection.release();
+            return res.status(503).json({ error: 'Shared rides are busy right now — please try again in a moment.' });
+          }
+
+          findMatchingPool(connection, { pickupPoint: resolvedPickup, dropoffPoint, scheduledAt: normalizedScheduledAt }, (err, pool) => {
+            if (err) return failWith(err);
+
+            const joinPool = (poolId, poolDriverId) => {
+              // A pool a driver already accepted (with room left) takes the
+              // new student straight in as "Accepted" under that driver.
+              const initialStatus = poolDriverId ? 'Accepted' : 'Pending';
+              connection.query(
+                `INSERT INTO rides (passenger_account_id, pickup_location, dropoff_location, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, distance_km, ride_type, pool_id, driver_account_id, fare, status, scheduled_at, notes)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Shared', ?, ?, ?, ?, ?, ?)`,
+                [passenger_account_id, pickup_location, dropoff_location, pickupLatValue, pickupLngValue, dropoffPoint[0], dropoffPoint[1], distanceKm,
+                 poolId, poolDriverId || null, computeSharedFare(distanceKm, 1), initialStatus, normalizedScheduledAt, notes || null],
+                (err, result) => {
+                  if (err) return failWith(err);
+                  // Everyone's share goes down now that one more is aboard.
+                  resettlePoolFares(connection, poolId, (err, count) => {
+                    if (err) return failWith(err);
+                    releaseLockAndConnection();
+                    res.status(201).json({ message: 'Ride requested', rideId: result.insertId, poolId, riderCount: count, distanceKm });
+                    // Tell every rider in the pool (their fare just changed)
+                    // and its driver; with no driver yet, also tell every
+                    // driver there's a request to look at.
+                    db.query(`SELECT passenger_account_id FROM rides WHERE pool_id = ? AND status != 'Cancelled'`, [poolId], (err, riderRows) => {
+                      if (err) return;
+                      riderRows.forEach(r => emitRideUpdated(r.passenger_account_id, poolDriverId || null));
+                    });
+                    if (!poolDriverId) emitPendingOrSchedule(scheduled_at);
+                  });
+                }
+              );
+            };
+
+            if (pool) {
+              joinPool(pool.pool_id, pool.driver_account_id);
+            } else {
+              // No match: this student opens a new pool. ride_pools keeps the
+              // first rider's place names (shown on the driver's card).
+              connection.query(
+                `INSERT INTO ride_pools (pickup_location, dropoff_location, status, scheduled_at) VALUES (?, ?, 'Open', ?)`,
+                [String(pickup_location).slice(0, 100), String(dropoff_location).slice(0, 100), normalizedScheduledAt],
+                (err, poolResult) => {
+                  if (err) return failWith(err);
+                  joinPool(poolResult.insertId, null);
+                }
+              );
+            }
+          });
+        });
+      });
     }
   );
 };
 
-// LIST PENDING RIDES — for the driver dashboard, one card per request.
+// SHARED MATCHING — the oldest Open pool this student can join, or null.
+// A pool matches when:
+//   1. it still has room (fewer than MAX_POOL_SIZE active riders),
+//   2. it leaves at the same time: both "leave now", or both scheduled
+//      within SCHEDULE_POOL_MATCH_TOLERANCE_MINUTES of each other,
+//   3. the new pickup is within SHARED_MATCH_RADIUS_METERS of EVERY rider's
+//      pickup already in it, and the same for the drop-off.
+// Rule 3 is the one to change to match riders differently (e.g. same
+// drop-off only: delete the near(pickupPoint, ...) part below).
+function findMatchingPool(conn, { pickupPoint, dropoffPoint, scheduledAt }, callback) {
+  conn.query(
+    `SELECT rp.pool_id, rp.driver_account_id, r.pickup_lat, r.pickup_lng, r.dropoff_lat, r.dropoff_lng
+     FROM ride_pools rp
+     JOIN rides r ON r.pool_id = rp.pool_id AND r.status IN ('Pending', 'Accepted')
+     WHERE rp.status = 'Open'
+       AND (
+         (rp.scheduled_at IS NULL AND ? IS NULL)
+         OR (rp.scheduled_at IS NOT NULL AND ? IS NOT NULL AND ABS(TIMESTAMPDIFF(MINUTE, rp.scheduled_at, ?)) <= ?)
+       )
+     ORDER BY rp.created_at ASC, rp.pool_id ASC`,
+    [scheduledAt, scheduledAt, scheduledAt, SCHEDULE_POOL_MATCH_TOLERANCE_MINUTES],
+    (err, rows) => {
+      if (err) return callback(err);
+      const pools = new Map();
+      rows.forEach(row => {
+        if (!pools.has(row.pool_id)) pools.set(row.pool_id, { pool_id: row.pool_id, driver_account_id: row.driver_account_id, riders: [] });
+        pools.get(row.pool_id).riders.push(row);
+      });
+      const radiusKm = SHARED_MATCH_RADIUS_METERS / 1000;
+      const near = (point, lat, lng) => lat != null && lng != null && haversineKm(point, [Number(lat), Number(lng)]) <= radiusKm;
+      for (const pool of pools.values()) {
+        if (pool.riders.length >= MAX_POOL_SIZE) continue;
+        const allClose = pool.riders.every(r =>
+          near(pickupPoint, r.pickup_lat, r.pickup_lng) && near(dropoffPoint, r.dropoff_lat, r.dropoff_lng));
+        if (allClose) return callback(null, pool);
+      }
+      callback(null, null);
+    }
+  );
+}
+
+// SHARED FARE RE-PRICING — runs every time a pool's headcount changes (a
+// student joins, cancels, or switches to Solo). Each rider pays
+// computeSharedFare(their own distance, riders now in the pool). Also
+// closes the pool once it is full, or once nobody is left in it, so an
+// empty pool can never be joined again. Calls back with the rider count.
+// conn can be one connection or the db pool (both have .query).
+function resettlePoolFares(conn, poolId, callback) {
+  conn.query(
+    `SELECT ride_id, distance_km, fare FROM rides WHERE pool_id = ? AND status != 'Cancelled'`,
+    [poolId],
+    (err, riders) => {
+      if (err) return callback(err);
+      const count = riders.length;
+      const fares = riders.map(r => r.distance_km != null ? computeSharedFare(Number(r.distance_km), count) : Number(r.fare));
+      let i = 0;
+      const next = (err) => {
+        if (err) return callback(err);
+        if (i < riders.length) {
+          const idx = i++;
+          return conn.query(`UPDATE rides SET fare = ? WHERE ride_id = ?`, [fares[idx], riders[idx].ride_id], next);
+        }
+        // fare_per_rider = the lowest share in the pool, for reference only.
+        const lowest = fares.length ? Math.min(...fares) : null;
+        const closeIt = count === 0 || count >= MAX_POOL_SIZE;
+        conn.query(
+          closeIt
+            ? `UPDATE ride_pools SET fare_per_rider = ?, status = 'Closed', closed_at = COALESCE(closed_at, NOW()) WHERE pool_id = ?`
+            : `UPDATE ride_pools SET fare_per_rider = ? WHERE pool_id = ?`,
+          [lowest, poolId],
+          (err) => callback(err, count)
+        );
+      };
+      next();
+    }
+  );
+}
+
+// LIST PENDING RIDES — for the driver dashboard. Shared rides are grouped
+// by pool so a driver sees one card per tricycle trip, not one per rider.
 // A "book for someone else" request shows the person's name but never their
 // mobile number here (Data Privacy Act, RA 10173): every online driver sees
 // this list, so the number is only sent to the one driver who accepts the
@@ -648,10 +853,12 @@ exports.listPendingRides = (req, res) => {
   const withDeclines = hasDeclinesTable();
   const sql = `
     SELECT r.ride_id, r.passenger_account_id, r.pickup_location, r.dropoff_location,
-           r.ride_type, r.fare,${hasDistanceColumn() ? ' r.distance_km,' : ''}${hasBookedForColumns() ? ' r.booked_for_name,' : ''} r.status, r.scheduled_at, r.notes, r.created_at,
-           CONCAT(s.first_name, ' ', s.last_name) AS passenger_name
+           r.ride_type, r.pool_id, r.fare,${hasDistanceColumn() ? ' r.distance_km,' : ''}${hasBookedForColumns() ? ' r.booked_for_name,' : ''} r.status, r.scheduled_at, r.notes, r.created_at,
+           CONCAT(s.first_name, ' ', s.last_name) AS passenger_name,
+           rp.status AS pool_status
     FROM rides r
     JOIN student s ON s.account_id = r.passenger_account_id
+    LEFT JOIN ride_pools rp ON rp.pool_id = r.pool_id
     WHERE r.status = 'Pending'
       AND (r.scheduled_at IS NULL OR r.scheduled_at <= DATE_ADD(NOW(), INTERVAL ? MINUTE))
       ${withDeclines ? 'AND r.ride_id NOT IN (SELECT ride_id FROM ride_declines WHERE driver_account_id = ?)' : ''}
@@ -663,7 +870,29 @@ exports.listPendingRides = (req, res) => {
   db.query(sql, params, (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
 
-    const grouped = rows.map(row => ({ type: 'solo', ride: row }));
+    const pools = {};
+    const grouped = [];
+
+    rows.forEach(row => {
+      if (row.ride_type === 'Solo' || !row.pool_id) {
+        grouped.push({ type: 'solo', ride: row });
+        return;
+      }
+      if (!pools[row.pool_id]) {
+        pools[row.pool_id] = {
+          type: 'shared',
+          poolId: row.pool_id,
+          pickup_location: row.pickup_location,
+          dropoff_location: row.dropoff_location,
+          pool_status: row.pool_status,
+          scheduled_at: row.scheduled_at,
+          riders: []
+        };
+        grouped.push(pools[row.pool_id]);
+      }
+      pools[row.pool_id].riders.push(row);
+    });
+
     res.status(200).json({ rides: grouped });
   });
 };
@@ -683,11 +912,15 @@ exports.getMyRides = (req, res) => {
            CASE WHEN r.status IN ('Accepted', 'Picked Up', 'In Progress')
                 THEN td.contact_number END AS driver_contact,
            rv.review_id IS NOT NULL AS has_review, rv.rating AS my_rating,
+           rp.status AS pool_status,
            (SELECT COUNT(*) FROM messages m WHERE m.ride_id = r.ride_id
-              AND m.sender_account_id != ? AND m.is_read = 0) AS unread_message_count
+              AND m.sender_account_id != ? AND m.is_read = 0) AS unread_message_count,
+           (SELECT COUNT(*) FROM rides r2 WHERE r2.pool_id = r.pool_id
+              AND r2.status != 'Cancelled') AS pool_rider_count
     FROM rides r
     LEFT JOIN tricycle_driver td ON td.account_id = r.driver_account_id
     LEFT JOIN reviews rv ON rv.ride_id = r.ride_id
+    LEFT JOIN ride_pools rp ON rp.pool_id = r.pool_id
     WHERE r.passenger_account_id = ?
     ORDER BY r.created_at DESC
   `;
@@ -710,6 +943,7 @@ exports.getDriverRides = (req, res) => {
            -- passenger button; pending requests never reach this query.
            CASE WHEN r.status IN ('Accepted', 'Picked Up', 'In Progress')
                 THEN s.contact_number END AS passenger_contact,
+           rp.status AS pool_status,
            (SELECT COUNT(*) FROM messages m WHERE m.ride_id = r.ride_id
               AND m.sender_account_id != ? AND m.is_read = 0) AS unread_message_count,
            -- Whether this driver already filed something about this ride
@@ -719,6 +953,7 @@ exports.getDriverRides = (req, res) => {
               AND c.filed_by_account_id = r.driver_account_id) AS has_my_report
     FROM rides r
     JOIN student s ON s.account_id = r.passenger_account_id
+    LEFT JOIN ride_pools rp ON rp.pool_id = r.pool_id
     WHERE r.driver_account_id = ?
     ORDER BY r.created_at DESC
   `;
@@ -1136,7 +1371,8 @@ exports.getAvailableDrivers = (req, res) => {
   });
 };
 
-// ACCEPT A RIDE
+// ACCEPT A RIDE (solo) OR A POOL (shared — closes it early if not yet full,
+// locking the fare in at whatever headcount it has right now)
 exports.acceptRide = (req, res) => {
   const { rideId } = req.params;
   const driver_account_id = req.user.accountId;
@@ -1175,27 +1411,144 @@ function acceptRideInternal(rideId, driver_account_id, res) {
     if (!rows.length) return res.status(404).json({ error: 'Ride not found' });
     const ride = rows[0];
 
-    // The WHERE clause only matches while the ride is still "Pending" — if
-    // two drivers tap Accept on the same request at the same instant,
-    // MySQL serializes the two UPDATEs against this row, so only the first
-    // one actually finds status = 'Pending' and changes anything. The
-    // loser's affectedRows comes back 0, telling them someone beat them to it
-    // instead of both drivers being told "Ride accepted" for the same trip.
-    db.query(
-      `UPDATE rides SET status = 'Accepted', driver_account_id = ? WHERE ride_id = ? AND status = 'Pending'`,
-      [driver_account_id, rideId],
-      (err, result) => {
-        if (err) return res.status(500).json({ error: err.message });
-        if (result.affectedRows === 0) {
-          return res.status(409).json({ error: 'Another driver already accepted this ride.' });
+    if (ride.ride_type === 'Solo' || !ride.pool_id) {
+      // The WHERE clause only matches while the ride is still "Pending" — if
+      // two drivers tap Accept on the same request at the same instant,
+      // MySQL serializes the two UPDATEs against this row, so only the first
+      // one actually finds status = 'Pending' and changes anything. The
+      // loser's affectedRows comes back 0, telling them someone beat them to it
+      // instead of both drivers being told "Ride accepted" for the same trip.
+      db.query(
+        `UPDATE rides SET status = 'Accepted', driver_account_id = ? WHERE ride_id = ? AND status = 'Pending'`,
+        [driver_account_id, rideId],
+        (err, result) => {
+          if (err) return res.status(500).json({ error: err.message });
+          if (result.affectedRows === 0) {
+            return res.status(409).json({ error: 'Another driver already accepted this ride.' });
+          }
+          res.status(200).json({ message: 'Ride accepted' });
+          emitRideUpdated(ride.passenger_account_id, driver_account_id);
+          emitAvailabilityChanged();
         }
-        res.status(200).json({ message: 'Ride accepted' });
-        emitRideUpdated(ride.passenger_account_id, driver_account_id);
-        emitAvailabilityChanged();
+      );
+      return;
+    }
+
+    db.query(
+      `SELECT COUNT(*) AS c FROM rides WHERE pool_id = ? AND status != 'Cancelled'`,
+      [ride.pool_id],
+      (err, countRows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        const count = countRows[0].c;
+
+        // A 1-rider "Shared" pool is functionally just a Solo ride at the
+        // same fare — accepting it defeats the point of the Shared option,
+        // so require at least 2 riders before a driver can lock it in.
+        if (count < 2) {
+          return res.status(400).json({ error: 'This shared ride needs at least 2 riders before it can be accepted.' });
+        }
+
+        // Accepting early (fewer than 4 riders) does NOT close the pool —
+        // other students can still join this exact trip, under this same
+        // driver, right up until it fills to 4 or the driver actually
+        // departs (see updateRideStatus's 'Picked Up' handling below). Only
+        // a full pool closes for good here.
+        //
+        // The WHERE clause deliberately does NOT check status = 'Open':
+        // createRide already flips a pool to 'Closed' the moment the 4th
+        // rider joins, before any driver has looked at it — status tracks
+        // "still taking new riders", not "already claimed by a driver".
+        // Requiring 'Open' here meant a pool that filled up naturally
+        // (4 passengers joining before a driver ever saw it) could never be
+        // accepted by anyone — every driver's first attempt failed with
+        // "Another driver already accepted", even though none had.
+        // driver_account_id IS NULL is the actual, unambiguous "unclaimed"
+        // check, and is sufficient on its own in every case.
+        const isFull = count >= MAX_POOL_SIZE;
+        const poolUpdateSql = isFull
+          ? `UPDATE ride_pools SET status = 'Closed', driver_account_id = ?, closed_at = NOW() WHERE pool_id = ? AND driver_account_id IS NULL`
+          : `UPDATE ride_pools SET driver_account_id = ? WHERE pool_id = ? AND driver_account_id IS NULL`;
+        // Each rider's fare is NOT changed here: it was already priced
+        // for the current headcount by resettlePoolFares() when they joined.
+
+        // Same guard as the Solo path, applied to the pool: only succeeds if
+        // no driver has claimed it yet. Checking status = 'Open' alone isn't
+        // enough here — an early accept (under 4 riders) deliberately keeps
+        // the pool "Open" so more riders can join, so a second driver's
+        // accept would otherwise match the same row and silently overwrite
+        // the first driver's claim. driver_account_id IS NULL is what
+        // actually distinguishes "nobody's claimed this yet" from "still
+        // accepting new riders under a driver who already has."
+        db.query(
+          poolUpdateSql,
+          [driver_account_id, ride.pool_id],
+          (err, poolResult) => {
+            if (err) return res.status(500).json({ error: err.message });
+            if (poolResult.affectedRows === 0) {
+              return res.status(409).json({ error: 'Another driver already accepted this shared ride.' });
+            }
+            db.query(
+              `UPDATE rides SET status = 'Accepted', driver_account_id = ? WHERE pool_id = ? AND status != 'Cancelled'`,
+              [driver_account_id, ride.pool_id],
+              (err) => {
+                if (err) return res.status(500).json({ error: err.message });
+                res.status(200).json({ message: 'Shared ride accepted', riderCount: count, poolStillOpen: !isFull });
+                db.query(`SELECT passenger_account_id FROM rides WHERE pool_id = ? AND status != 'Cancelled'`, [ride.pool_id], (err2, riderRows) => {
+                  if (err2) return;
+                  riderRows.forEach(r => emitRideUpdated(r.passenger_account_id, driver_account_id));
+                });
+                emitAvailabilityChanged();
+              }
+            );
+          }
+        );
       }
     );
   });
-}
+};
+
+// PASSENGER escape hatch — if they're still the only rider in a Shared pool
+// after waiting a while, let them switch that same request to Solo instead
+// of waiting indefinitely for someone else to pick the same route.
+exports.convertRideToSolo = (req, res) => {
+  const { rideId } = req.params;
+  const passengerAccountId = req.user.accountId;
+
+  db.query(`SELECT * FROM rides WHERE ride_id = ? AND passenger_account_id = ?`, [rideId, passengerAccountId], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!rows.length) return res.status(404).json({ error: 'Ride not found' });
+    const ride = rows[0];
+
+    if (ride.status !== 'Pending' || ride.ride_type !== 'Shared') {
+      return res.status(400).json({ error: 'This ride can no longer be converted.' });
+    }
+
+    db.query(`SELECT COUNT(*) AS c FROM rides WHERE pool_id = ? AND status != 'Cancelled'`, [ride.pool_id], (err, countRows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      if (countRows[0].c > 1) {
+        return res.status(400).json({ error: 'Other students have already joined this shared ride — it can no longer switch to Solo.' });
+      }
+
+      // Back to the full Solo fare for this rider's own road distance (the
+      // same computeFare() a Solo booking uses), then the pool they left is
+      // re-priced, which closes it since nobody is left in it.
+      const soloFare = ride.distance_km != null ? computeFare(Number(ride.distance_km)) : SOLO_FARE;
+      db.query(
+        `UPDATE rides SET ride_type = 'Solo', pool_id = NULL, fare = ? WHERE ride_id = ? AND passenger_account_id = ? AND status = 'Pending'`,
+        [soloFare, rideId, passengerAccountId],
+        (err, result) => {
+          if (err) return res.status(500).json({ error: err.message });
+          if (result.affectedRows === 0) return res.status(409).json({ error: 'Could not convert this ride.' });
+          res.status(200).json({ message: 'Switched to Solo', fare: soloFare });
+          emitRideUpdated(passengerAccountId, null);
+          resettlePoolFares(db, ride.pool_id, (err) => {
+            if (err) console.warn('Could not close the empty Shared pool', err.message);
+          });
+        }
+      );
+    });
+  });
+};
 
 // DRIVER attaches an optional photo to a ride they just ended as Failed
 // (sent separately, after the status change, so ending a ride never waits
@@ -1228,6 +1581,10 @@ exports.uploadFailedRidePhoto = (req, res) => {
 };
 
 // ADVANCE / CANCEL A RIDE'S STATUS.
+// Cancelling only ever drops the one passenger who cancelled — everyone
+// else in a shared trip keeps going. Every other status change (Picked Up,
+// In Progress, Completed, Failed) is the whole tricycle moving together,
+// so it cascades to every rider sharing that pool.
 exports.updateRideStatus = (req, res) => {
   const { rideId } = req.params;
   const { status } = req.body;
@@ -1291,13 +1648,24 @@ exports.updateRideStatus = (req, res) => {
       }
     }
 
+    // 'Declined' behaves like 'Cancelled' for cascade purposes — it only
+    // ever applies to a single still-Pending ride (or, for a Shared pool
+    // decline, every rider's ride_id is targeted individually by the
+    // frontend's own loop — see the decline-pool handler in app.js), never
+    // the whole-tricycle-moves-together cascade that Picked Up/Completed use.
+    const cascadeToPool = !['Cancelled', 'Declined'].includes(status) && ride.pool_id;
+    // Excludes riders who already left this pool (Cancelled/Completed/Failed/
+    // Declined) — otherwise a later whole-trip status change (e.g. Picked Up)
+    // would sweep them back up and resurrect a ride they already cancelled.
     // A Failed ride keeps its reason and explanation on the row (when the
     // columns exist, see rideFailures.js).
     const withFailure = status === 'Failed' && hasFailureColumns();
     const setClause = withFailure ? 'status = ?, failed_reason = ?, failed_note = ?' : 'status = ?';
     const setParams = withFailure ? [status, failedReason, failedNote] : [status];
-    const sql = `UPDATE rides SET ${setClause} WHERE ride_id = ?`;
-    const params = [...setParams, rideId];
+    const sql = cascadeToPool
+      ? `UPDATE rides SET ${setClause} WHERE pool_id = ? AND status NOT IN ('Cancelled', 'Completed', 'Failed', 'Declined')`
+      : `UPDATE rides SET ${setClause} WHERE ride_id = ?`;
+    const params = cascadeToPool ? [...setParams, ride.pool_id] : [...setParams, rideId];
 
     db.query(sql, params, (err) => {
       if (err) return res.status(500).json({ error: err.message });
@@ -1338,14 +1706,57 @@ exports.updateRideStatus = (req, res) => {
         );
       }
 
-      // Tell the passenger + driver to re-check live instead of waiting for
-      // their next poll. A terminal status (Completed/Cancelled/Failed/
-      // Declined) also frees the driver up, so passengers watching
-      // "N drivers available" need to know too.
+      // Whichever rides just changed, tell their passenger(s) + driver to
+      // re-check live instead of waiting for their next poll. A terminal
+      // status (Completed/Cancelled/Failed/Declined) also frees the driver
+      // up, so passengers watching "N drivers available" need to know too.
       const notifyRideChange = () => {
-        emitRideUpdated(ride.passenger_account_id, ride.driver_account_id);
-        if (['Completed', 'Cancelled', 'Failed', 'Declined'].includes(status)) emitAvailabilityChanged();
+        const freesDriver = ['Completed', 'Cancelled', 'Failed', 'Declined'].includes(status);
+        if (cascadeToPool) {
+          db.query(`SELECT passenger_account_id FROM rides WHERE pool_id = ? AND status != 'Cancelled'`, [ride.pool_id], (err3, riderRows) => {
+            if (err3) return;
+            riderRows.forEach(r => emitRideUpdated(r.passenger_account_id, ride.driver_account_id));
+          });
+        } else {
+          emitRideUpdated(ride.passenger_account_id, ride.driver_account_id);
+        }
+        if (freesDriver) emitAvailabilityChanged();
       };
+
+      // A Shared pool accepted early (under 4 riders) stays open to new
+      // joiners until this exact moment — the driver actually departing.
+      // From here on nobody new can join this trip, whatever headcount it
+      // settled at.
+      if (cascadeToPool && status === 'Picked Up') {
+        db.query(
+          `UPDATE ride_pools SET status = 'Closed', closed_at = COALESCE(closed_at, NOW()) WHERE pool_id = ?`,
+          [ride.pool_id],
+          (err2) => {
+            if (err2) return res.status(500).json({ error: err2.message });
+            res.status(200).json({ message: `Ride marked as ${status}` });
+            notifyRideChange();
+          }
+        );
+        return;
+      }
+
+      // A Shared rider cancelled: the riders left in the pool now split the
+      // fare among fewer people, so it is re-priced for them
+      // (resettlePoolFares), and they are told live. When nobody is left the
+      // pool is closed, so an empty pool with a driver still attached can't
+      // be joined by an unrelated new request.
+      if (status === 'Cancelled' && ride.pool_id) {
+        resettlePoolFares(db, ride.pool_id, (err2) => {
+          if (err2) return res.status(500).json({ error: err2.message });
+          res.status(200).json({ message: `Ride marked as ${status}` });
+          notifyRideChange();
+          db.query(`SELECT passenger_account_id FROM rides WHERE pool_id = ? AND status != 'Cancelled'`, [ride.pool_id], (err3, riderRows) => {
+            if (err3) return;
+            riderRows.forEach(r => emitRideUpdated(r.passenger_account_id, ride.driver_account_id));
+          });
+        });
+        return;
+      }
 
       res.status(200).json({ message: `Ride marked as ${status}` });
       notifyRideChange();

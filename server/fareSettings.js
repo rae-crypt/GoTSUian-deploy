@@ -43,6 +43,27 @@ function computeFare(distanceKm, settings = current) {
   return Math.round(settings.first_km_fare + settings.per_km_fare * extraKm);
 }
 
+// ─── SHARED RIDE FARE (restored 2026-10-20, TA's request) ──────────────
+// A Shared ride splits the rider's own Solo fare (computeFare above) by how
+// many students are in the tricycle, rounded UP to the next whole peso, but
+// never below the first-kilometre fare (₱20, the ordinance minimum for one
+// student). Example, 4 km trip = ₱35 Solo:
+//   2 riders -> ceil(35 / 2) = ₱18 -> raised to the ₱20 minimum
+//   with a 10 km trip (₱65 Solo), 2 riders -> ₱33 each, 3 riders -> ₱22
+// TO CHANGE THE RULE (e.g. a panelist asks for a different split):
+//   - different minimum: replace settings.first_km_fare in the Math.max()
+//     below with a number, e.g. Math.max(15, ...)
+//   - no split at all (everyone pays their own Solo fare): return soloFare
+//   - a fixed discount instead, e.g. 20% off: Math.ceil(soloFare * 0.8)
+// Every Shared fare in the system comes from this one function (booking,
+// the quote shown before booking, and re-pricing when someone joins or
+// cancels), so changing it here changes it everywhere.
+function computeSharedFare(distanceKm, riderCount, settings = current) {
+  const soloFare = computeFare(distanceKm, settings);
+  const riders = Math.max(1, Number(riderCount) || 1);
+  return Math.max(settings.first_km_fare, Math.ceil(soloFare / riders));
+}
+
 function saveFareSettings({ first_km_fare, per_km_fare, basis }, callback) {
   db.query(
     `UPDATE fare_settings SET first_km_fare = ?, per_km_fare = ?, basis = ? WHERE id = 1`,
@@ -112,6 +133,7 @@ module.exports = {
   DEFAULT_FARE_SETTINGS,
   getFareSettings,
   computeFare,
+  computeSharedFare,
   saveFareSettings,
   ensureFareSchema,
   hasDistanceColumn
