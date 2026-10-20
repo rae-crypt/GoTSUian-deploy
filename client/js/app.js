@@ -4465,7 +4465,7 @@ function shortCampusName(locationText) {
 // rather than a static block in the page HTML. This is the one place that
 // needs a second confirmation before an irreversible action (creating the
 // ride), so it's a dedicated layout rather than a generic message dialog.
-function showRideConfirmModal({ pickupLocation, dropoffLocation, rideType, fareText, whenLabel, bookedFor }) {
+function showRideConfirmModal({ pickupLocation, dropoffLocation, rideType, fareText, fareNote, whenLabel, bookedFor }) {
   // Same card shape as the pickup/drop-off box above it, with the person's
   // initial in the round badge where the A/B dots sit.
   const bookedForBlock = bookedFor && !bookedFor.error ? `
@@ -4525,6 +4525,7 @@ function showRideConfirmModal({ pickupLocation, dropoffLocation, rideType, fareT
           <span class="ride-confirm-fare-label">Estimated fare</span>
           <span class="ride-confirm-fare-value">${escapeHtml(fareText)}</span>
         </div>
+        ${fareNote ? `<p class="ride-confirm-fare-note">${escapeHtml(fareNote)}</p>` : ''}
 
         <div class="ride-confirm-actions">
           <button type="button" class="btn-secondary-outline confirm-cancel-btn">Cancel</button>
@@ -5419,11 +5420,19 @@ function setupPassengerRideRequestForm() {
     // the same selected card used to read rideType above (its price figure),
     // not a separately-maintained number — one source of truth.
     const cardFare = selectedRideTypeBtn && selectedRideTypeBtn.querySelector('.ride-card-price b');
-    const fareText = rideType === 'Shared' && othersQuote && othersQuote.sharedFareMin != null
-      ? `${othersQuote.sharedFareMin === othersQuote.sharedFareMax ? `₱${othersQuote.sharedFareMin}` : `₱${othersQuote.sharedFareMin}–₱${othersQuote.sharedFareMax}`} each, depending on how many students join`
+    // Shared: the big figure stays short ("₱20–₱35 each") so it fits the
+    // fare line on a phone; the per-headcount fares go in a small note
+    // under it (fareNote). The numbers come from the server's quote, which
+    // reads SHARED_FARE_BY_HEADCOUNT in server/fareSettings.js.
+    const isSharedQuote = rideType === 'Shared' && othersQuote && othersQuote.sharedFareMin != null;
+    const fareText = isSharedQuote
+      ? `${othersQuote.sharedFareMin === othersQuote.sharedFareMax ? `₱${othersQuote.sharedFareMin}` : `₱${othersQuote.sharedFareMin}–₱${othersQuote.sharedFareMax}`} each`
       : othersQuote
         ? formatFareWithDistance(othersQuote.fare, othersQuote.distanceKm)
         : (cardFare ? cardFare.textContent : '');
+    const fareNote = isSharedQuote
+      ? `Depends on how many students join: ${Object.keys(SHARED_FARES).map(n => `${n} = ₱${SHARED_FARES[n]}`).join(', ')}.`
+      : '';
     const whenLabel = scheduleSelect && scheduleSelect.selectedOptions[0]
       ? scheduleSelect.selectedOptions[0].textContent
       : 'Leave now';
@@ -5432,6 +5441,7 @@ function setupPassengerRideRequestForm() {
       dropoffLocation,
       rideType,
       fareText,
+      fareNote,
       whenLabel,
       bookedFor
     });
