@@ -3746,7 +3746,11 @@ async function alertDriverOfNewRides(newGroups) {
     tone: 'info',
     icon: '<img src="../images/tricycle.png" alt="" style="width:100%;height:100%;border-radius:50%">',
     title: 'New ride request',
-    message: `${ride.pickup_location} → ${ride.dropoff_location}. Estimated fare ${formatFareWithDistance(ride.fare || 0, ride.distance_km)}${ride.booked_for_name ? `. Booked for ${ride.booked_for_name} (number shown once you accept)` : ''}${more}.`,
+    // Shared: says how many students and each one's fixed fare, since the
+    // first student's own fare alone would read like a Solo trip.
+    message: group.type === 'shared'
+      ? `Shared trip · ${group.riders.length} students. ${ride.pickup_location} → ${ride.dropoff_location}. ₱${Number(ride.fare || 0).toFixed(0)} each${more}.`
+      : `${ride.pickup_location} → ${ride.dropoff_location}. Estimated fare ${formatFareWithDistance(ride.fare || 0, ride.distance_km)}${ride.booked_for_name ? `. Booked for ${ride.booked_for_name} (number shown once you accept)` : ''}${more}.`,
     primaryLabel: 'Accept',
     secondaryLabel: 'Later',
     onPrimary: () => {

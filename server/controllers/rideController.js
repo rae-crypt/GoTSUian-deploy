@@ -903,7 +903,14 @@ exports.listPendingRides = (req, res) => {
       pools[row.pool_id].riders.push(row);
     });
 
-    res.status(200).json({ rides: grouped });
+    // A Shared request is only shown to drivers once at least 2 students
+    // are in it (2026-10-20, her call): a driver can't accept it before
+    // that anyway, and showing it made the new-request popup offer an
+    // Accept that did nothing. The 2nd student joining makes it appear (and
+    // pop up) for every driver. TO CHANGE the minimum: the 2 below, and the
+    // same 2 in acceptRideInternal ("needs at least 2 riders").
+    const visible = grouped.filter(g => g.type !== 'shared' || g.riders.length >= 2);
+    res.status(200).json({ rides: visible });
   });
 };
 
