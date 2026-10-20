@@ -4492,7 +4492,7 @@ function showRideConfirmModal({ pickupLocation, dropoffLocation, rideType, fareT
           </span>
           <div class="ride-confirm-head-text">
             <h3>Confirm your ride</h3>
-            <p>Double-check the trip before it's sent</p>
+            <p>Double check the trip before it's sent</p>
           </div>
           <button type="button" class="ride-confirm-close" aria-label="Close">&times;</button>
         </div>
