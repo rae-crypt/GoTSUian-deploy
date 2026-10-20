@@ -44,24 +44,24 @@ function computeFare(distanceKm, settings = current) {
 }
 
 // ─── SHARED RIDE FARE (restored 2026-10-20, TA's request) ──────────────
-// A Shared ride splits the rider's own Solo fare (computeFare above) by how
-// many students are in the tricycle, rounded UP to the next whole peso, but
-// never below the first-kilometre fare (₱20, the ordinance minimum for one
-// student). Example, 4 km trip = ₱35 Solo:
-//   2 riders -> ceil(35 / 2) = ₱18 -> raised to the ₱20 minimum
-//   with a 10 km trip (₱65 Solo), 2 riders -> ₱33 each, 3 riders -> ₱22
-// TO CHANGE THE RULE (e.g. a panelist asks for a different split):
-//   - different minimum: replace settings.first_km_fare in the Math.max()
-//     below with a number, e.g. Math.max(15, ...)
-//   - no split at all (everyone pays their own Solo fare): return soloFare
-//   - a fixed discount instead, e.g. 20% off: Math.ceil(soloFare * 0.8)
-// Every Shared fare in the system comes from this one function (booking,
-// the quote shown before booking, and re-pricing when someone joins or
-// cancels), so changing it here changes it everywhere.
-function computeSharedFare(distanceKm, riderCount, settings = current) {
-  const soloFare = computeFare(distanceKm, settings);
-  const riders = Math.max(1, Number(riderCount) || 1);
-  return Math.max(settings.first_km_fare, Math.ceil(soloFare / riders));
+// Shared rides keep the ORIGINAL fixed fare per student, set by how many
+// students end up in the tricycle (students sharing get off at the same
+// place, so distance is not used). Solo rides are NOT affected: they stay
+// priced by road distance (computeFare above).
+//   2 students -> ₱35 each, 3 -> ₱25 each, 4 -> ₱20 each
+// A Shared ride with only 1 student has no Shared fare yet (null = "waiting
+// for more students"); a driver can't accept it until a 2nd joins.
+// TO CHANGE a Shared fare (e.g. a panelist asks for ₱30 for 2 students):
+//   edit the number here AND the same table SHARED_FARES in
+//   client/js/app.js (the chips on the passenger/driver cards).
+// TO ALLOW 5 students: add 5: <fare> here and in app.js, and raise
+//   MAX_POOL_SIZE (rideController.js) and MAX_SHARED_RIDERS (app.js).
+const SHARED_FARE_BY_HEADCOUNT = { 2: 35, 3: 25, 4: 20 };
+
+// The fixed fare each student pays for this headcount, or null if the
+// headcount has no Shared fare (1 student, still waiting).
+function computeSharedFare(riderCount) {
+  return SHARED_FARE_BY_HEADCOUNT[riderCount] != null ? SHARED_FARE_BY_HEADCOUNT[riderCount] : null;
 }
 
 function saveFareSettings({ first_km_fare, per_km_fare, basis }, callback) {
@@ -133,6 +133,7 @@ module.exports = {
   DEFAULT_FARE_SETTINGS,
   getFareSettings,
   computeFare,
+  SHARED_FARE_BY_HEADCOUNT,
   computeSharedFare,
   saveFareSettings,
   ensureFareSchema,

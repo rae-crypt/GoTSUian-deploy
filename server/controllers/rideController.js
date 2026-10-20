@@ -21,8 +21,9 @@ const SOLO_FARE = 60;
 // students. Each student books on their own; createRide puts them in the
 // same pool when BOTH their pickups and their drop-offs are within
 // SHARED_MATCH_RADIUS_METERS of every rider already in it, and they leave
-// at the same time. The fare per rider is computeSharedFare() in
-// fareSettings.js. Tables used: ride_pools (one row per trip) and
+// at the same time. Each student pays the fixed Shared fare for the
+// headcount (SHARED_FARE_BY_HEADCOUNT in fareSettings.js: 2 = ₱35,
+// 3 = ₱25, 4 = ₱20); Solo stays priced by distance. Tables used: ride_pools (one row per trip) and
 // rides.pool_id (which trip a booking belongs to). No new columns.
 // TO CHANGE: how many students fit -> MAX_POOL_SIZE; how close riders must
 // be to share -> SHARED_MATCH_RADIUS_METERS (300 = about a 4-minute walk).
@@ -529,13 +530,11 @@ exports.quoteOthersDropoff = async (req, res) => {
     const quote = pickup_is_custom
       ? await resolveCustomPickupDropoff(await resolvePickupPoint(pickup_location, pickup_lat, pickup_lng), dropoff_text, dropoffCoords)
       : await computeOthersFare(pickup_location, dropoff_text, dropoffCoords);
-    // Shared preview for the Shared card: the share with a full tricycle
-    // (lowest) up to the share with only 2 riders (highest). Same
-    // computeSharedFare() the booking uses.
-    if (quote.distanceKm != null) {
-      quote.sharedFareMin = computeSharedFare(quote.distanceKm, MAX_POOL_SIZE);
-      quote.sharedFareMax = computeSharedFare(quote.distanceKm, 2);
-    }
+    // Shared preview for the Shared card: the fixed fare with a full
+    // tricycle (lowest) up to the fare with 2 students (highest), from the
+    // same table the booking uses (computeSharedFare in fareSettings.js).
+    quote.sharedFareMin = computeSharedFare(MAX_POOL_SIZE);
+    quote.sharedFareMax = computeSharedFare(2);
     res.status(200).json(quote);
   } catch (error) {
     res.status(400).json({ error: error.message });
@@ -678,11 +677,10 @@ exports.createRide = async (req, res) => {
       }
 
       // ── SHARED: join a matching pool, or open a new one ──────────────
-      // Every rider's own road distance is saved (distance_km), because
-      // their share is re-priced from it each time the headcount changes.
-      if (!hasDistanceColumn()) {
-        return res.status(503).json({ error: 'Shared rides are not available right now. Please book Solo or try again in a minute.' });
-      }
+      // The rider's road distance is still saved (distance_km, when the
+      // column exists) for the record and for "Book as Solo instead", but
+      // the Shared fare itself is the fixed one for the headcount.
+      const withDistance = hasDistanceColumn();
       const distanceKm = othersQuote.distanceKm;
       const dropoffPoint = [othersQuote.lat, othersQuote.lng];
       const normalizedScheduledAt = scheduled_at || null;
@@ -719,13 +717,15 @@ exports.createRide = async (req, res) => {
               // new student straight in as "Accepted" under that driver.
               const initialStatus = poolDriverId ? 'Accepted' : 'Pending';
               connection.query(
-                `INSERT INTO rides (passenger_account_id, pickup_location, dropoff_location, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, distance_km, ride_type, pool_id, driver_account_id, fare, status, scheduled_at, notes)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Shared', ?, ?, ?, ?, ?, ?)`,
-                [passenger_account_id, pickup_location, dropoff_location, pickupLatValue, pickupLngValue, dropoffPoint[0], dropoffPoint[1], distanceKm,
-                 poolId, poolDriverId || null, computeSharedFare(distanceKm, 1), initialStatus, normalizedScheduledAt, notes || null],
+                `INSERT INTO rides (passenger_account_id, pickup_location, dropoff_location, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng,${withDistance ? ' distance_km,' : ''} ride_type, pool_id, driver_account_id, fare, status, scheduled_at, notes)
+                 VALUES (?, ?, ?, ?, ?, ?, ?,${withDistance ? ' ?,' : ''} 'Shared', ?, ?, NULL, ?, ?, ?)`,
+                [passenger_account_id, pickup_location, dropoff_location, pickupLatValue, pickupLngValue, dropoffPoint[0], dropoffPoint[1],
+                 ...(withDistance ? [distanceKm] : []),
+                 poolId, poolDriverId || null, initialStatus, normalizedScheduledAt, notes || null],
                 (err, result) => {
                   if (err) return failWith(err);
-                  // Everyone's share goes down now that one more is aboard.
+                  // Everyone's fare is set again for the new headcount
+                  // (e.g. 2 -> 3 students: ₱35 -> ₱25 each).
                   resettlePoolFares(connection, poolId, (err, count) => {
                     if (err) return failWith(err);
                     releaseLockAndConnection();
@@ -806,19 +806,31 @@ function findMatchingPool(conn, { pickupPoint, dropoffPoint, scheduledAt }, call
 }
 
 // SHARED FARE RE-PRICING — runs every time a pool's headcount changes (a
-// student joins, cancels, or switches to Solo). Each rider pays
-// computeSharedFare(their own distance, riders now in the pool). Also
-// closes the pool once it is full, or once nobody is left in it, so an
+// student joins, cancels, or switches to Solo). Every student in the pool
+// gets the same fixed fare for the new headcount (computeSharedFare in
+// fareSettings.js). With 1 student left:
+//   - before any driver accepted: fare stays empty ("waiting for more
+//     students"), as in the original Shared rides;
+//   - after a driver accepted (the others cancelled): that student is now
+//     riding alone, so they pay the normal Solo fare for their distance.
+// Also closes the pool once it is full, or once nobody is left in it, so an
 // empty pool can never be joined again. Calls back with the rider count.
 // conn can be one connection or the db pool (both have .query).
 function resettlePoolFares(conn, poolId, callback) {
   conn.query(
-    `SELECT ride_id, distance_km, fare FROM rides WHERE pool_id = ? AND status != 'Cancelled'`,
+    `SELECT r.ride_id, ${hasDistanceColumn() ? 'r.distance_km' : 'NULL AS distance_km'}, rp.driver_account_id AS pool_driver
+     FROM rides r JOIN ride_pools rp ON rp.pool_id = r.pool_id
+     WHERE r.pool_id = ? AND r.status != 'Cancelled'`,
     [poolId],
     (err, riders) => {
       if (err) return callback(err);
       const count = riders.length;
-      const fares = riders.map(r => r.distance_km != null ? computeSharedFare(Number(r.distance_km), count) : Number(r.fare));
+      const fares = riders.map(r => {
+        const shared = computeSharedFare(count);
+        if (shared != null) return shared;
+        if (r.pool_driver && r.distance_km != null) return computeFare(Number(r.distance_km));
+        return null;
+      });
       let i = 0;
       const next = (err) => {
         if (err) return callback(err);
@@ -826,14 +838,12 @@ function resettlePoolFares(conn, poolId, callback) {
           const idx = i++;
           return conn.query(`UPDATE rides SET fare = ? WHERE ride_id = ?`, [fares[idx], riders[idx].ride_id], next);
         }
-        // fare_per_rider = the lowest share in the pool, for reference only.
-        const lowest = fares.length ? Math.min(...fares) : null;
         const closeIt = count === 0 || count >= MAX_POOL_SIZE;
         conn.query(
           closeIt
             ? `UPDATE ride_pools SET fare_per_rider = ?, status = 'Closed', closed_at = COALESCE(closed_at, NOW()) WHERE pool_id = ?`
             : `UPDATE ride_pools SET fare_per_rider = ? WHERE pool_id = ?`,
-          [lowest, poolId],
+          [computeSharedFare(count), poolId],
           (err) => callback(err, count)
         );
       };
@@ -1693,7 +1703,11 @@ exports.updateRideStatus = (req, res) => {
       }
 
       if (status === 'Failed') {
-        const againstPassenger = PASSENGER_REASONS.includes(failedReason);
+        // A Shared trip ends as Failed for every student in it at once, but
+        // the reason can't tell WHICH student was at fault, so for a Shared
+        // trip the report is filed against no one; the admin reads the
+        // explanation (and the ride's chats) to decide.
+        const againstPassenger = PASSENGER_REASONS.includes(failedReason) && !ride.pool_id;
         db.query(
           `INSERT INTO complaints (filed_by_account_id, against_account_id, ride_id, category, description)
            VALUES (?, ?, ?, ?, ?)`,

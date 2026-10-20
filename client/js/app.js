@@ -4002,9 +4002,9 @@ let lastFareEstimateKey = null;
 // status while there's nothing to show yet, then the peso figure with the
 // distance under it. Only an error gets the line under the card, since it
 // needs a full sentence.
-// The Shared card gets the same state: "₱20–₱33" (the share with a full
-// tricycle up to the share with 2 riders, from the server's quote) and
-// "2–4 students" under it; the waiting/error text is the same as Solo's.
+// The Shared card gets the same state: "₱20–₱35" (the fixed fare with a
+// full tricycle up to the fare with 2 students, from the server's quote)
+// and "per student" under it; the waiting/error text is the same as Solo's.
 function setFareEstimate(state, { main, sub = '', message = '', sharedMain = null, sharedSub = '' }) {
   const sharedBox = document.querySelector('#shared-fare-box');
   if (sharedBox) {
@@ -4087,7 +4087,7 @@ async function runFareEstimate(token, pickupInput, dropoffText, pickupCoords, dr
       main: `₱${Number(quote.fare).toFixed(0)}`,
       sub: quote.distanceKm != null ? `${Number(quote.distanceKm).toFixed(1)} km` : '',
       sharedMain: sharedRange,
-      sharedSub: sharedRange ? '2–4 students' : ''
+      sharedSub: sharedRange ? 'per student' : ''
     });
   } catch (error) {
     if (token !== fareEstimateToken) return;
@@ -4549,20 +4549,22 @@ function showRideConfirmModal({ pickupLocation, dropoffLocation, rideType, fareT
 // original <select> — kept in the DOM (visually hidden) since
 // setupPassengerRideRequestForm() below still reads its .value directly;
 // these buttons just drive that same hidden select instead of replacing it.
-// SHARED (restored 2026-10-20): how full a Shared tricycle is, as four seat
-// chips ("1 2 3 4", filled up to the riders so far). The old chips showed
-// fixed prices (2 · ₱35, 3 · ₱25, 4 · ₱20); since the fare is now split from
-// each rider's own distance (computeSharedFare in server/fareSettings.js),
-// the peso amount is shown separately and the chips only show the headcount.
-// To change the seats, change MAX_SHARED_RIDERS here AND MAX_POOL_SIZE in
-// server/controllers/rideController.js.
+// SHARED (restored 2026-10-20, TA's request): the original fixed fare per
+// student, by how many students are in the tricycle. Solo is NOT affected
+// (it stays priced by road distance).
+// TO CHANGE a Shared fare: edit it here AND in SHARED_FARE_BY_HEADCOUNT in
+// server/fareSettings.js (the server's number is what is actually saved;
+// this copy only draws the chips). TO CHANGE the seats: MAX_SHARED_RIDERS
+// here AND MAX_POOL_SIZE in server/controllers/rideController.js.
+const SHARED_FARES = { 2: 35, 3: 25, 4: 20 };
 const MAX_SHARED_RIDERS = 4;
+
+// The fare chips on a Shared ride card: "2 · ₱35  3 · ₱25  4 · ₱20", with
+// every headcount reached so far highlighted.
 function sharedSeatChipsHtml(riderCount) {
-  const chips = [];
-  for (let seat = 1; seat <= MAX_SHARED_RIDERS; seat++) {
-    chips.push(`<span class="fare-tier-chip${riderCount >= seat ? ' is-active' : ''}">${seat}</span>`);
-  }
-  return `<div class="fare-tier-row" aria-label="${riderCount} of ${MAX_SHARED_RIDERS} students">${chips.join('')}<span class="fare-tier-chip">students</span></div>`;
+  const chips = Object.keys(SHARED_FARES).map(Number).sort((a, b) => a - b)
+    .map(count => `<span class="fare-tier-chip${riderCount >= count ? ' is-active' : ''}">${count} · ₱${SHARED_FARES[count]}</span>`);
+  return `<div class="fare-tier-row" aria-label="${riderCount} of ${MAX_SHARED_RIDERS} students">${chips.join('')}</div>`;
 }
 
 function setupRideTypeToggle() {
@@ -5465,7 +5467,7 @@ function setupPassengerRideRequestForm() {
         'success',
         'Ride requested',
         rideType === 'Shared'
-          ? 'Your seat is booked. Your fare goes down as more students join, and is final once the driver picks you up.'
+          ? 'Your seat is booked. Your fare is set once a 2nd student joins (₱35 for 2, ₱25 for 3, ₱20 for 4).'
           : 'Your trip request is now waiting for a driver.'
       );
 
@@ -6300,8 +6302,8 @@ function renderPendingRideCard(group) {
   const canAccept = riderCount >= 2;
 
   const fareTierRow = sharedSeatChipsHtml(riderCount);
-  // What the driver earns for the whole trip: every rider's share added up
-  // (each share is from that rider's own distance, so they can differ).
+  // What the driver earns for the whole trip: every student's fixed fare
+  // added up (e.g. 3 students x ₱25 = ₱75). Empty while only 1 has joined.
   const poolTotal = group.riders.reduce((sum, r) => sum + Number(r.fare || 0), 0);
 
   const description = !canAccept
@@ -6325,7 +6327,7 @@ function renderPendingRideCard(group) {
       </div>
       <div class="driver-card-meta">
         <span>${names}</span>
-        <span>Total fare: ₱${poolTotal.toFixed(0)}</span>
+        ${poolTotal > 0 ? `<span>Total fare: ₱${poolTotal.toFixed(0)}</span>` : ''}
         ${scheduledBadgeHtml(group.scheduled_at)}
       </div>
       ${fareTierRow}
@@ -6369,7 +6371,7 @@ function renderActiveRideCard(group) {
   // up until it's full or the driver marks "Picked Up" (departs).
   const poolStillOpen = anchor.ride_type === 'Shared' && anchor.pool_status === 'Open' && group.riders.length < MAX_SHARED_RIDERS;
   const fareTierRow = poolStillOpen ? sharedSeatChipsHtml(group.riders.length) : '';
-  // Shared: each student's pickup and share, since pickups can be up to
+  // Shared: each student's pickup and fare, since pickups can be up to
   // 300 m apart (SHARED_MATCH_RADIUS_METERS on the server). The map and ETA
   // follow the first rider's pickup.
   const sharedRiderList = anchor.ride_type === 'Shared' && group.riders.length > 1 ? `

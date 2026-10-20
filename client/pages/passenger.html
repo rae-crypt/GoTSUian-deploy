@@ -155,9 +155,11 @@
                 </button>
                 <!-- SHARED (restored 2026-10-20, TA's request): the server puts
                      students whose pickups and drop-offs are within 300 m of each
-                     other in one tricycle (up to 4) and splits the fare
-                     (computeSharedFare in server/fareSettings.js). The price
-                     range fills in with the Solo fare (setFareEstimate in app.js).
+                     other in one tricycle (up to 4). Shared keeps the original
+                     fixed fare per student: 2 = ₱35, 3 = ₱25, 4 = ₱20
+                     (SHARED_FARE_BY_HEADCOUNT in server/fareSettings.js); Solo
+                     stays priced by distance. The price range fills in with the
+                     Solo fare (setFareEstimate in app.js).
                      To hide Shared again: delete this button. -->
                 <button type="button" class="ride-type-btn ride-card" data-ride-type="Shared">
                   <img class="ride-card-icon" src="../images/tricycle.png" alt="">
