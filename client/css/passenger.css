@@ -3331,7 +3331,7 @@ body[data-page="passenger"] .ride-type-btn small { display: block; font-weight: 
 body[data-page="passenger"] .ride-type-btn.is-selected { background: var(--primary); border-color: var(--primary); color: #fff8f6; }
 body[data-page="passenger"] .ride-type-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 body[data-page="passenger"] .field-note { display: block; font-size: 11.5px; color: var(--gt-muted); line-height: 1.5; margin: 4px 0 16px; }
-/* ---- "Your trip": one card per ride type (only Solo for now) ---- */
+/* ---- "Your trip": one card per ride type (Solo and Shared) ---- */
 /* Overrides the old toggle-button look above, including the :only-child
    rule that shrank a lone button to its label. */
 body[data-page="passenger"] .ride-type-toggle.ride-card-list { flex-direction: column; }
@@ -3339,9 +3339,22 @@ body[data-page="passenger"] .ride-type-toggle .ride-type-btn.ride-card,
 body[data-page="passenger"] .ride-type-toggle .ride-type-btn.ride-card:only-child {
   display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; align-items: center; gap: 12px;
   width: 100%; align-self: stretch; flex: none;
-  padding: 11px 12px; border-radius: 14px; text-align: left; cursor: default;
-  border: 2px solid var(--primary); background: #fff7f6; color: var(--text);
+  padding: 11px 12px; border-radius: 14px; text-align: left; cursor: pointer;
+  border: 2px solid #f1d9d9; background: #fff; color: var(--text);
   font-family: inherit;
+}
+/* Solo and Shared (restored 2026-10-20): only the chosen card gets the red
+   border and tint, so tapping a card visibly selects it. Before, every card
+   was styled as selected (made when Solo was the only card), so a tap on
+   Shared changed nothing on screen. The card text stays dark: the plain
+   .ride-type-btn.is-selected rule (red fill, white text) is for the old
+   small buttons and is overridden here. */
+body[data-page="passenger"] .ride-type-toggle .ride-type-btn.ride-card.is-selected {
+  border-color: var(--primary); background: #fff7f6; color: var(--text);
+  box-shadow: 0 0 0 3px rgba(139, 26, 26, 0.10);
+}
+body[data-page="passenger"] .ride-type-toggle .ride-type-btn.ride-card:disabled {
+  opacity: 0.45; cursor: not-allowed;
 }
 body[data-page="passenger"] .ride-card-icon { width: 44px; height: 44px; border-radius: 50%; display: block; }
 body[data-page="passenger"] .ride-card-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
