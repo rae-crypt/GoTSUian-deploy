@@ -14,8 +14,13 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link href="https://api.fontshare.com/v2/css?f[]=clash-display@500,600,700&display=swap" rel="stylesheet">
+  <!-- Smooth nav (2026-10-20): hides the nav links/buttons until app.js has
+       set them for the logged-in role, then they fade in together, so
+       nothing flashes on refresh. Safety: shown anyway after 1.5 s. See
+       revealNavWhenReady() in app.js and "SMOOTH NAV" in theme.css. -->
+  <script>document.documentElement.classList.add('nav-pending');setTimeout(function(){document.documentElement.classList.remove('nav-pending');},1500);</script>
   <link rel="stylesheet" href="../css/how-it-works.css?v=20260924">
-  <link rel="stylesheet" href="../css/theme.css?v=20261005b">
+  <link rel="stylesheet" href="../css/theme.css?v=20261020a">
 </head>
 <body data-page="how-it-works">
   <header>
@@ -211,6 +216,6 @@
   </footer>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="../js/app.js?v=20261020c"></script>
+  <script src="../js/app.js?v=20261020d"></script>
 </body>
 </html>

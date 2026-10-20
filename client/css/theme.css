@@ -450,3 +450,31 @@ footer.site-shell.footer-slim a:hover { text-decoration: underline; }
   footer.site-shell.footer-slim { flex-direction: column; justify-content: center; text-align: center; font-size: 12.5px; padding: 16px 16px 22px; }
   footer.site-shell.footer-slim nav { justify-content: center; gap: 6px 14px; }
 }
+
+/* ---- SMOOTH NAV + PAGE CHANGES (2026-10-20) ----
+   1. While html has .nav-pending (set by the tiny script at the top of every
+      page), the items inside the nav bar stay invisible, because which links
+      to show depends on who is logged in and only app.js knows that. When
+      app.js has finished (revealNavWhenReady), they fade in together, so
+      Login / Sign in / Get Started / My Rides / Admin no longer flash.
+      Only the items INSIDE .nav-links / .nav-cta are touched, never the
+      phone drawer box itself, so the mobile menu works exactly as before.
+   2. Going to another page cross-fades instead of flashing white (Chrome/
+      Edge; other browsers ignore it). Off for people who turn off motion.
+   TO UNDO: delete this block, the nav-pending <script> line in each page,
+   and the revealNavWhenReady() call in app.js. */
+html.nav-pending .navbar > .nav-links > *,
+html.nav-pending .navbar > .nav-cta > * {
+  visibility: hidden;
+}
+html.nav-ready .navbar > .nav-links > *,
+html.nav-ready .navbar > .nav-cta > * {
+  animation: gtNavFadeIn 0.2s ease;
+}
+@keyframes gtNavFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  @view-transition { navigation: auto; }
+}

@@ -8569,6 +8569,23 @@ window.addEventListener('appinstalled', () => {
   hideInstallBanner();
 });
 
+// SMOOTH NAV (2026-10-20): every page starts with html.nav-pending (tiny
+// script at the top of each page), which keeps the nav bar's links and
+// buttons invisible while the setup above decides which ones this user
+// should see. Once that is done they fade in together (nav-ready, ~0.2 s),
+// so nothing pops in and out on refresh. See "SMOOTH NAV" in theme.css.
+function revealNavWhenReady() {
+  const root = document.documentElement;
+  if (!root.classList.contains('nav-pending')) return;
+  requestAnimationFrame(() => {
+    root.classList.remove('nav-pending');
+    root.classList.add('nav-ready');
+    // Removed after the fade so it never overrides the phone drawer's own
+    // animations later.
+    setTimeout(() => root.classList.remove('nav-ready'), 300);
+  });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   if (isIosSafari()) showInstallBanner('ios');
 });
@@ -8631,6 +8648,7 @@ document.addEventListener('DOMContentLoaded', function() {
   setupAvailabilityIndicatorClick();
   setupAccountStandingToggle();
   setupRulesLegendFilter();
+  revealNavWhenReady();
 
   // Live updates for both roles now arrive via Socket.IO (see
   // manageRealtimeConnection(), wired into refreshAuthState() above) —
