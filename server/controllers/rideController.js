@@ -744,6 +744,8 @@ exports.createRide = async (req, res) => {
             };
 
             if (pool) {
+              // DEBUG (2026-10-27): safe to delete.
+              console.log(`[Shared] joined pool ${pool.pool_id} (${pool.riders.length + 1} riders now)${pool.driver_account_id ? `, already accepted by driver ${pool.driver_account_id}, so it skips the pending list` : ''}.`);
               joinPool(pool.pool_id, pool.driver_account_id);
             } else {
               // No match: this student opens a new pool. ride_pools keeps the
@@ -799,6 +801,17 @@ function findMatchingPool(conn, { pickupPoint, dropoffPoint, scheduledAt }, call
         const allClose = pool.riders.every(r =>
           near(pickupPoint, r.pickup_lat, r.pickup_lng) && near(dropoffPoint, r.dropoff_lat, r.dropoff_lng));
         if (allClose) return callback(null, pool);
+      }
+      // DEBUG (2026-10-27): why a Shared booking opened its own trip instead
+      // of joining one. Shows in Railway → service → Deploy Logs, e.g.
+      // "pool 12: pickup 850 m, drop-off 40 m" = the pickups were too far
+      // apart (GPS). Safe to delete this block.
+      if (pools.size) {
+        const m = (point, lat, lng) => lat == null || lng == null ? 'no GPS' : `${Math.round(haversineKm(point, [Number(lat), Number(lng)]) * 1000)} m`;
+        const why = [...pools.values()].map(p => `pool ${p.pool_id} (${p.riders.length} rider${p.riders.length === 1 ? '' : 's'}): pickup ${m(pickupPoint, p.riders[0].pickup_lat, p.riders[0].pickup_lng)}, drop-off ${m(dropoffPoint, p.riders[0].dropoff_lat, p.riders[0].dropoff_lng)}`);
+        console.log(`[Shared] no match within ${SHARED_MATCH_RADIUS_METERS} m, opening a new trip. Open trips: ${why.join('; ')}`);
+      } else {
+        console.log('[Shared] no open Shared trip to join, opening a new trip.');
       }
       callback(null, null);
     }
@@ -859,23 +872,26 @@ function resettlePoolFares(conn, poolId, callback) {
 // this list, so the number is only sent to the one driver who accepts the
 // ride (getDriverRides).
 exports.listPendingRides = (req, res) => {
-  // Hides requests this driver has already declined (see declineRide).
+  // Requests this driver already declined (see declineRide) are marked
+  // declined_by_me and filtered out below, NOT in the SQL: a Shared trip
+  // needs every rider in it counted, even ones this driver declined, or a
+  // student joining a trip the driver had declined made it look like a
+  // 1-student trip and hid it (fixed 2026-10-27).
   const withDeclines = hasDeclinesTable();
   const sql = `
     SELECT r.ride_id, r.passenger_account_id, r.pickup_location, r.dropoff_location,
            r.ride_type, r.pool_id, r.fare,${hasDistanceColumn() ? ' r.distance_km,' : ''}${hasBookedForColumns() ? ' r.booked_for_name,' : ''} r.status, r.scheduled_at, r.notes, r.created_at,
            CONCAT(s.first_name, ' ', s.last_name) AS passenger_name,
-           rp.status AS pool_status
+           rp.status AS pool_status,
+           ${withDeclines ? 'EXISTS(SELECT 1 FROM ride_declines d WHERE d.ride_id = r.ride_id AND d.driver_account_id = ?)' : '0'} AS declined_by_me
     FROM rides r
     JOIN student s ON s.account_id = r.passenger_account_id
     LEFT JOIN ride_pools rp ON rp.pool_id = r.pool_id
     WHERE r.status = 'Pending'
       AND (r.scheduled_at IS NULL OR r.scheduled_at <= DATE_ADD(NOW(), INTERVAL ? MINUTE))
-      ${withDeclines ? 'AND r.ride_id NOT IN (SELECT ride_id FROM ride_declines WHERE driver_account_id = ?)' : ''}
     ORDER BY r.created_at ASC
   `;
-  const params = [SCHEDULE_LEAD_TIME_MINUTES];
-  if (withDeclines) params.push(req.user.accountId);
+  const params = withDeclines ? [req.user.accountId, SCHEDULE_LEAD_TIME_MINUTES] : [SCHEDULE_LEAD_TIME_MINUTES];
 
   db.query(sql, params, (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
@@ -885,7 +901,7 @@ exports.listPendingRides = (req, res) => {
 
     rows.forEach(row => {
       if (row.ride_type === 'Solo' || !row.pool_id) {
-        grouped.push({ type: 'solo', ride: row });
+        if (!Number(row.declined_by_me)) grouped.push({ type: 'solo', ride: row });
         return;
       }
       if (!pools[row.pool_id]) {
@@ -909,7 +925,10 @@ exports.listPendingRides = (req, res) => {
     // Accept that did nothing. The 2nd student joining makes it appear (and
     // pop up) for every driver. TO CHANGE the minimum: the 2 below, and the
     // same 2 in acceptRideInternal ("needs at least 2 riders").
-    const visible = grouped.filter(g => g.type !== 'shared' || g.riders.length >= 2);
+    // A Shared trip this driver declined stays hidden from them until a new
+    // student joins it (that student's request is new to this driver).
+    const visible = grouped.filter(g => g.type !== 'shared'
+      || (g.riders.length >= 2 && g.riders.some(r => !Number(r.declined_by_me))));
     res.status(200).json({ rides: visible });
   });
 };
