@@ -16,6 +16,16 @@ function isSuspended(accountId) {
   });
 }
 
+// No spaces in a new password (2026-10-26, her call). The login form trims
+// spaces at the start and end, so a password saved with them could never be
+// typed back in; refusing every space keeps sign-up, change and reset simple
+// and matching. Existing passwords are untouched (login is unchanged).
+// TO CHANGE the message: PASSWORD_SPACE_MESSAGE (same text in client/js/app.js).
+const PASSWORD_SPACE_MESSAGE = 'Password cannot contain spaces.';
+function hasSpace(password) {
+  return /\s/.test(String(password));
+}
+
 // REGISTER STUDENT (Passenger)
 exports.registerStudent = async (req, res) => {
   const {
@@ -34,6 +44,9 @@ exports.registerStudent = async (req, res) => {
   // and still has to be unique.
   if (!username || !password || !first_name || !last_name) {
     return res.status(400).json({ error: 'Missing required fields' });
+  }
+  if (hasSpace(password)) {
+    return res.status(400).json({ error: PASSWORD_SPACE_MESSAGE });
   }
 
   // Mobile number, required since 2026-10-04 (IT expert review): a Gmail
@@ -228,6 +241,9 @@ exports.resetPasswordStudent = async (req, res) => {
   if (newPassword.length < 8) {
     return res.status(400).json({ error: 'Password must be at least 8 characters' });
   }
+  if (hasSpace(newPassword)) {
+    return res.status(400).json({ error: PASSWORD_SPACE_MESSAGE });
+  }
 
   const email = rawEmail.trim().toLowerCase();
 
@@ -278,6 +294,9 @@ function changePassword(role) {
     if (newPassword.length < 8) {
       return res.status(400).json({ error: 'New password must be at least 8 characters' });
     }
+    if (hasSpace(newPassword)) {
+      return res.status(400).json({ error: PASSWORD_SPACE_MESSAGE });
+    }
 
     db.query(
       `SELECT password FROM user_account WHERE account_id = ? AND role = ?`,
@@ -324,6 +343,9 @@ exports.registerDriver = async (req, res) => {
   // it doubles as the unique login identifier stored in user_account.username.
   if (!contact_number || !password || !first_name || !last_name || !driver_license_no || !plate_number || !body_number) {
     return res.status(400).json({ error: 'Missing required fields' });
+  }
+  if (hasSpace(password)) {
+    return res.status(400).json({ error: PASSWORD_SPACE_MESSAGE });
   }
 
   // Plate number (LTO-issued, e.g. CD-64318) and body number (TODA unit

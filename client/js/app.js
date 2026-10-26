@@ -1385,6 +1385,10 @@ function setupChangePasswordForm() {
       if (errorEl) errorEl.textContent = 'New password must be at least 8 characters.';
       return;
     }
+    if (passwordHasSpace(newPassword)) {
+      if (errorEl) errorEl.textContent = PASSWORD_SPACE_MESSAGE;
+      return;
+    }
     if (newPassword !== confirmNewPassword) {
       if (errorEl) errorEl.textContent = 'New password and confirmation do not match.';
       return;
@@ -7112,6 +7116,15 @@ function formatContactNumber(value) {
   return value.replace(/[^0-9]/g, '').slice(0, 11);
 }
  
+// No spaces in a new password (2026-10-26, her call): the login form trims
+// spaces at the ends, so a password saved with spaces could fail to log in.
+// The server refuses them too (authController.js hasSpace).
+// TO CHANGE the message: PASSWORD_SPACE_MESSAGE (same text on the server).
+const PASSWORD_SPACE_MESSAGE = 'Password cannot contain spaces.';
+function passwordHasSpace(value) {
+  return /\s/.test(value);
+}
+
 function checkPasswordStrength(value) {
   const hasLower = /[a-z]/.test(value);
   const hasUpper = /[A-Z]/.test(value);
@@ -7528,6 +7541,10 @@ function setupAuthForm() {
         }
         if (newPassword.length < 8) {
           if (err2) err2.textContent = 'Password must be at least 8 characters';
+          return;
+        }
+        if (passwordHasSpace(newPassword)) {
+          if (err2) err2.textContent = PASSWORD_SPACE_MESSAGE;
           return;
         }
 
@@ -8035,6 +8052,9 @@ function setupAuthForm() {
         isValid = false;
       } else if (password.length < 8) {
         document.querySelector('#password-error').textContent = 'Password must be at least 8 characters';
+        isValid = false;
+      } else if (passwordHasSpace(password)) {
+        document.querySelector('#password-error').textContent = PASSWORD_SPACE_MESSAGE;
         isValid = false;
       }
  
