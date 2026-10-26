@@ -253,7 +253,8 @@ function setupScrollReveal() {
 // that backup was the actual cause of repeated cross-tab login hijacks —
 // any tab whose sessionStorage happened to be empty would silently adopt
 // whoever logged in elsewhere. Removed rather than patched again.)
-// "Stay signed in" (opt-in, unchecked by default) — sessionStorage is
+// "Stay signed in" (ticked by default since 2026-10-27, see auth.html;
+// users can untick it) — sessionStorage is
 // still the source of truth for a tab that's already logged in, but a
 // brand-new tab/browser-restart with no sessionStorage of its own will
 // self-heal from localStorage IF the user checked the box at login (see

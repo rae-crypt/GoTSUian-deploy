@@ -227,8 +227,12 @@
               <p class="forgot-password-row" id="forgot-password-row"><button type="button" id="forgot-password-link" class="btn-link">Forgot password?</button></p>
             </div>
 
+            <!-- "Stay signed in" is ticked by default (2026-10-27): phones close
+                 an idle browser tab in the background, and without this the
+                 login was lost with it. Users can still untick it.
+                 TO CHANGE back to unticked by default: remove "checked" below. -->
             <label class="checkbox-field">
-              <input type="checkbox" id="login-remember-me" name="rememberMe">
+              <input type="checkbox" id="login-remember-me" name="rememberMe" checked>
               <span>Stay signed in on this device</span>
             </label>
 
