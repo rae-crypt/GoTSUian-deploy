@@ -7695,8 +7695,16 @@ function setupAuthForm() {
     // Toggle driver's license field visibility based on role
     const emailField = document.querySelector('#reg-email-field');
     const driverContactNote = document.querySelector('#driver-contact-note');
+    // Full name example shown in the empty box, per role (2026-10-26: drivers
+    // got a male example instead of "Jane Doe").
+    // TO CHANGE: edit the two names below.
+    const PASSENGER_NAME_PLACEHOLDER = 'Jane Doe';
+    const DRIVER_NAME_PLACEHOLDER = 'Juan Dela Cruz';
     const toggleDriverSection = () => {
       if (!driverSection || !roleSelect) return;
+      if (fullNameLiveInput) {
+        fullNameLiveInput.placeholder = roleSelect.value === 'driver' ? DRIVER_NAME_PLACEHOLDER : PASSENGER_NAME_PLACEHOLDER;
+      }
       if (roleSelect.value === 'driver') {
         driverSection.style.display = '';
         if (licenseInput) licenseInput.setAttribute('required', 'required');
