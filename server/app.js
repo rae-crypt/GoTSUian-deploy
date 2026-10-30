@@ -85,6 +85,15 @@ app.get('/', (req, res) => {
   res.redirect('/pages/index.html');
 });
 
+// Admin portal has no link on the public site (panel recommendation, final
+// defense): admins type the address directly, like WordPress's /wp-admin.
+// Hiding the link is not the security — every /api/admin call still needs an
+// admin login token. Redirect (not sendFile) so admin.html's ../css paths work.
+// TO CHANGE: rename '/admin' here to change the typed address, e.g. '/gotsuian-admin'.
+app.get(['/admin', '/admin/'], (req, res) => {
+  res.redirect('/pages/admin.html');
+});
+
 // Auth routes
 app.use('/api/auth', authRoutes);
 
