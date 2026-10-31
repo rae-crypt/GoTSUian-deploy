@@ -2480,6 +2480,171 @@ function openAdminPanel(selector) {
   panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
+// ===== ACTIVITY LOG (2026-11-01) =====
+// The admin's plain-sentence list of what passengers, drivers and the admin
+// did (server: activityLog.js, GET /api/admin/activity). Each entry is one
+// sentence, grouped under Today / Yesterday / a date, newest first.
+// Pink rows "need attention" (reports, failed rides, wrong passwords).
+const activityLogState = { who: 'all', q: '', oldestId: null, loadedMore: false, entries: [] };
+
+const ACTIVITY_ICONS = {
+  ride: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5.5" cy="14.5" r="2"/><circle cx="15" cy="14.5" r="2"/><path d="M7.5 14.5h5.5M3.5 14.5V9l3-4h6l2.5 4.5v5"/><path d="M6.5 9h8"/></svg>',
+  star: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M10 2.8l2.2 4.6 5 .7-3.6 3.5.9 5-4.5-2.4-4.5 2.4.9-5L2.8 8.1l5-.7z"/></svg>',
+  person: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="10" cy="7" r="3.2"/><path d="M3.8 17c.8-3.2 3.3-5 6.2-5s5.4 1.8 6.2 5"/></svg>',
+  alert: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3L18 17H2z"/><path d="M10 8.5v3.5M10 14.5v.1"/></svg>',
+  gear: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h8M15 6h1M4 14h1M8 14h8"/><circle cx="13.5" cy="6" r="1.6"/><circle cx="6.5" cy="14" r="1.6"/></svg>'
+};
+
+// The button an entry can carry, and the panel it opens.
+// TO CHANGE the button wording: the labels here.
+const ACTIVITY_LINKS = {
+  complaint: { label: 'Open Complaints', panel: '#complaints-panel' },
+  driver: { label: 'Check this driver', panel: '#driver-management-panel' }
+};
+
+function activityDayLabel(date) {
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+  if (date.toDateString() === today.toDateString()) return 'Today';
+  if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+  return date.toLocaleDateString('en-PH', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function renderActivityEntry(entry) {
+  const when = new Date(entry.created_at);
+  const roleLabel = entry.actor_role === 'passenger' ? ' · Passenger' : entry.actor_role === 'driver' ? ' · Driver' : '';
+  const link = ACTIVITY_LINKS[entry.link_type];
+  return `
+    <div class="activity-item${entry.needs_attention ? ' is-attention' : ''}">
+      <span class="activity-dot role-${escapeHtml(entry.actor_role)}">${ACTIVITY_ICONS[entry.icon] || ACTIVITY_ICONS.person}</span>
+      <span class="activity-body">
+        <span class="activity-text"><strong>${escapeHtml(entry.actor_name)}</strong> ${escapeHtml(entry.message)}</span>
+        <span class="activity-meta">${escapeHtml(when.toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' }))}${roleLabel}</span>
+        ${link ? `<button type="button" class="activity-open" data-open-panel="${link.panel}">${escapeHtml(link.label)}</button>` : ''}
+      </span>
+    </div>`;
+}
+
+function drawActivityList() {
+  const list = document.querySelector('#activity-list');
+  if (!list) return;
+  const entries = activityLogState.entries;
+  if (!entries.length) {
+    list.innerHTML = `<p class="activity-empty">${activityLogState.q || activityLogState.who !== 'all' ? 'Nothing matches this yet.' : 'Nothing has happened yet. Activity will show up here.'}</p>`;
+    return;
+  }
+  const days = [];
+  entries.forEach(entry => {
+    const label = activityDayLabel(new Date(entry.created_at));
+    const last = days[days.length - 1];
+    if (last && last.label === label) last.items.push(entry);
+    else days.push({ label, items: [entry] });
+  });
+  list.innerHTML = days.map(day => `
+    <div class="activity-day">
+      <h3>${escapeHtml(day.label)}</h3>
+      <div class="activity-day-card">${day.items.map(renderActivityEntry).join('')}</div>
+    </div>`).join('');
+}
+
+// append = "Show older activity" (adds the next page below). Otherwise the
+// list starts over from the newest, e.g. on a new tab, search or refresh.
+async function renderAdminActivityLog(append = false) {
+  const list = document.querySelector('#activity-list');
+  if (!list) return;
+  const user = getStoredUser();
+  if (!isAuthenticated() || user.role !== 'admin') return;
+  // The 20-second auto refresh leaves the list alone once the admin has
+  // loaded older pages, so it doesn't jump back while they read.
+  if (!append && activityLogState.loadedMore && activityLogState.autoRefreshing) return;
+
+  const midnight = new Date();
+  midnight.setHours(0, 0, 0, 0);
+  const params = new URLSearchParams({ who: activityLogState.who, since: midnight.toISOString() });
+  if (activityLogState.q) params.set('q', activityLogState.q);
+  if (append && activityLogState.oldestId) params.set('before', activityLogState.oldestId);
+
+  try {
+    const res = await fetch(`${ADMIN_API_URL}/activity?${params}`, { headers: getAuthHeaders() });
+    if (!res.ok) throw new Error('Could not load the activity log');
+    const data = await res.json();
+    const entries = data.entries || [];
+    activityLogState.entries = append ? activityLogState.entries.concat(entries) : entries;
+    activityLogState.loadedMore = append;
+    const oldest = activityLogState.entries[activityLogState.entries.length - 1];
+    activityLogState.oldestId = oldest ? oldest.log_id : null;
+    drawActivityList();
+
+    const moreBtn = document.querySelector('#activity-more-btn');
+    if (moreBtn) moreBtn.hidden = !data.hasMore;
+
+    if (data.summary) {
+      const set = (id, n) => { const el = document.querySelector(id); if (el) el.textContent = Number(n || 0).toLocaleString(); };
+      set('#activity-sum-booked', data.summary.booked);
+      set('#activity-sum-finished', data.summary.finished);
+      set('#activity-sum-cancelled', data.summary.cancelled);
+      set('#activity-sum-attention', data.summary.attention);
+      const pill = document.querySelector('#activity-attention-count');
+      if (pill) {
+        pill.hidden = !data.summary.attention;
+        pill.textContent = `${data.summary.attention} need${data.summary.attention === 1 ? 's' : ''} attention`;
+        pill.classList.toggle('is-alert', data.summary.attention > 0);
+      }
+    }
+  } catch (error) {
+    console.warn('Unable to fetch the activity log', error);
+    if (!append) list.innerHTML = '<p class="activity-empty">Could not load the activity log. It will try again shortly.</p>';
+  }
+}
+
+// Called by the auto refresh / live signals: a fresh first page, unless the
+// admin is reading older entries.
+function refreshAdminActivityLog() {
+  activityLogState.autoRefreshing = true;
+  renderAdminActivityLog(false).finally(() => { activityLogState.autoRefreshing = false; });
+}
+
+function setupAdminActivityLog() {
+  const panel = document.querySelector('#activity-log-panel');
+  if (!panel) return;
+
+  panel.querySelectorAll('[data-activity-who]').forEach(tab => {
+    tab.addEventListener('click', () => {
+      activityLogState.who = tab.getAttribute('data-activity-who');
+      panel.querySelectorAll('[data-activity-who]').forEach(t => {
+        const on = t === tab;
+        t.classList.toggle('is-active', on);
+        t.setAttribute('aria-pressed', String(on));
+      });
+      renderAdminActivityLog(false);
+    });
+  });
+
+  // Waits until the admin stops typing for a moment before searching.
+  // TO CHANGE the wait: 350 (milliseconds).
+  const search = panel.querySelector('#activity-search');
+  let searchTimer = null;
+  if (search) {
+    search.addEventListener('input', () => {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => {
+        activityLogState.q = search.value.trim();
+        renderAdminActivityLog(false);
+      }, 350);
+    });
+  }
+
+  const moreBtn = panel.querySelector('#activity-more-btn');
+  if (moreBtn) moreBtn.addEventListener('click', () => renderAdminActivityLog(true));
+
+  // "Open Complaints" / "Check this driver" buttons inside entries.
+  panel.addEventListener('click', (event) => {
+    const btn = event.target.closest('[data-open-panel]');
+    if (btn) openAdminPanel(btn.getAttribute('data-open-panel'));
+  });
+}
+
 // Same collapsible-section treatment as the admin panels, applied to
 // passenger-profile.html / driver-profile.html's "Profile details" /
 // "Change password" / "Loyalty Rewards" cards. Safe no-op elsewhere.
@@ -8462,6 +8627,7 @@ function refreshLiveRideViews() {
   renderDriverDashboardStats();
   renderAdminBookings();
   renderAdminStats();
+  refreshAdminActivityLog();
 }
 
 // TO CHANGE how often the safety check runs: AUTO_REFRESH_MS (20000 = 20 s).
@@ -8541,6 +8707,7 @@ function manageRealtimeConnection() {
   // gone past the grace period — keeps the Active/Offline pills current.
   realtimeSocket.on('complaint:filed', function() {
     renderAdminComplaints();
+    refreshAdminActivityLog();
   });
 
   realtimeSocket.on('passengers:presence-changed', function() {
@@ -8619,6 +8786,7 @@ function refreshAuthState() {
   renderAdminComplaints();
   renderAdminStats();
   renderAdminLoyaltyOverview();
+  renderAdminActivityLog();
   renderLoyaltyStatus();
   renderDriverRating();
   renderDriverRatingsFull();
@@ -8769,6 +8937,7 @@ document.addEventListener('DOMContentLoaded', function() {
   setupAdminFareSettings();
   setupAdminBookingsFilter();
   setupAdminPanelCollapse();
+  setupAdminActivityLog();
   setupLoyaltyHistoryToggle();
   setupLoyaltyRoleTabs();
   setupDashboardCardCollapse();

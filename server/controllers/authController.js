@@ -6,6 +6,7 @@ const jwt = require('jsonwebtoken');
 const { emitAvailabilityChanged } = require('../socket');
 const { getSuspension, SUSPENDED_MESSAGE } = require('../suspension');
 const { isMobileTaken, MOBILE_TAKEN_MESSAGE } = require('../mobileNumbers');
+const { logActivity, logFailedLogin } = require('../activityLog');
 
 // True when an admin-issued Violation has suspended this account (see
 // suspension.js). Checked after the password, so a wrong password never
@@ -147,6 +148,8 @@ exports.registerStudent = async (req, res) => {
                     studentId: studentResult.insertId,
                     token
                   });
+                  logActivity(req, { role: 'passenger', accountId, name: `${first_name} ${last_name}`,
+                    action: 'signed_up', icon: 'person', text: 'made a new passenger account.' });
                 });
               });
             });
@@ -178,6 +181,7 @@ exports.loginStudent = async (req, res) => {
     if (err) return res.status(500).json({ error: err.message });
 
     if (results.length === 0) {
+      logFailedLogin(req, { kind: 'passenger', who: null, key: username });
       return res.status(401).json({ error: 'Invalid username or password' });
     }
 
@@ -185,6 +189,7 @@ exports.loginStudent = async (req, res) => {
     const passwordMatch = await bcrypt.compare(password, user.password);
 
     if (!passwordMatch) {
+      logFailedLogin(req, { kind: 'passenger', who: `${user.first_name} ${user.last_name}`, key: username });
       return res.status(401).json({ error: 'Invalid username or password' });
     }
     if (await isSuspended(user.account_id)) {
@@ -214,6 +219,8 @@ exports.loginStudent = async (req, res) => {
           role: user.role
         }
       });
+      logActivity(req, { role: 'passenger', accountId: user.account_id, name: `${user.first_name} ${user.last_name}`,
+        action: 'logged_in', icon: 'person', text: 'logged in.' });
     });
   });
 };
@@ -226,6 +233,7 @@ exports.logoutStudent = (req, res) => {
   db.query(`UPDATE student SET is_online = FALSE WHERE account_id = ?`, [accountId], (err) => {
     if (err) return res.status(500).json({ error: err.message });
     res.status(200).json({ message: 'Logged out' });
+    logActivity(req, { role: 'passenger', accountId, action: 'logged_out', icon: 'person', text: 'logged out.' });
   });
 };
 
@@ -269,6 +277,12 @@ exports.resetPasswordStudent = async (req, res) => {
             }
             db.query(`DELETE FROM email_otp WHERE email = ?`, [email]);
             res.status(200).json({ message: 'Password updated successfully' });
+            // The new password is never put in the log.
+            db.query(`SELECT account_id FROM user_account WHERE username = ? AND role = 'student'`, [email], (err2, rows) => {
+              if (err2 || !rows.length) return;
+              logActivity(req, { role: 'passenger', accountId: rows[0].account_id, action: 'password_reset', icon: 'person',
+                text: 'made a new password using "Forgot password" (email code).' });
+            });
           }
         );
       } catch (error) {
@@ -318,6 +332,7 @@ function changePassword(role) {
             (err) => {
               if (err) return res.status(500).json({ error: err.message });
               res.status(200).json({ message: 'Password updated successfully' });
+              logActivity(req, { role, accountId, action: 'password_changed', icon: 'person', text: 'changed their password.' });
             }
           );
         } catch (error) {
@@ -443,6 +458,8 @@ exports.registerDriver = async (req, res) => {
                 driverId: driverResult.insertId,
                 accountStatus: 'Pending'
               });
+              logActivity(req, { role: 'driver', accountId, name: `${first_name} ${last_name}`, action: 'signed_up',
+                icon: 'person', link: 'driver', text: 'signed up as a driver and is waiting for approval.' });
             });
           });
         });
@@ -475,7 +492,7 @@ exports.reuploadDriverLicense = (req, res) => {
   }
 
   const sql = `
-    SELECT ua.password, td.driver_id, td.account_status, td.license_document_path
+    SELECT ua.password, ua.account_id, td.driver_id, td.account_status, td.license_document_path
     FROM user_account ua
     JOIN tricycle_driver td ON ua.account_id = td.account_id
     WHERE ua.username = ? AND ua.role = 'driver'
@@ -508,6 +525,8 @@ exports.reuploadDriverLicense = (req, res) => {
           fs.unlink(path.join(__dirname, '..', driver.license_document_path), () => {});
         }
         res.status(200).json({ message: 'License uploaded' });
+        logActivity(req, { role: 'driver', accountId: driver.account_id, action: 'license_reuploaded', icon: 'person',
+          link: 'driver', text: "sent a new photo of their driver's license. It is waiting for your check." });
       }
     );
   });
@@ -532,6 +551,7 @@ exports.loginDriver = async (req, res) => {
     if (err) return res.status(500).json({ error: err.message });
 
     if (results.length === 0) {
+      logFailedLogin(req, { kind: 'driver', who: null, key: username });
       return res.status(401).json({ error: 'Invalid username or password' });
     }
 
@@ -539,6 +559,7 @@ exports.loginDriver = async (req, res) => {
     const passwordMatch = await bcrypt.compare(password, user.password);
 
     if (!passwordMatch) {
+      logFailedLogin(req, { kind: 'driver', who: `${user.first_name} ${user.last_name}`, key: username });
       return res.status(401).json({ error: 'Invalid username or password' });
     }
 
@@ -583,6 +604,8 @@ exports.loginDriver = async (req, res) => {
         }
       });
       emitAvailabilityChanged();
+      logActivity(req, { role: 'driver', accountId: user.account_id, name: `${user.first_name} ${user.last_name}`,
+        action: 'logged_in', icon: 'person', text: 'logged in and is ready for rides.' });
     });
   });
 };
@@ -606,6 +629,7 @@ exports.loginAdmin = async (req, res) => {
     if (err) return res.status(500).json({ error: err.message });
 
     if (results.length === 0) {
+      logFailedLogin(req, { kind: 'admin', key: 'admin' });
       return res.status(401).json({ error: 'Invalid username or password' });
     }
 
@@ -618,6 +642,7 @@ exports.loginAdmin = async (req, res) => {
     const passwordMatch = await bcrypt.compare(password, admin.password);
 
     if (!passwordMatch) {
+      logFailedLogin(req, { kind: 'admin', key: 'admin' });
       return res.status(401).json({ error: 'Invalid username or password' });
     }
 
@@ -637,5 +662,6 @@ exports.loginAdmin = async (req, res) => {
         role: 'admin'
       }
     });
+    logActivity(req, { role: 'admin', adminId: admin.admin_id, action: 'logged_in', icon: 'person', text: 'logged in.' });
   });
 };

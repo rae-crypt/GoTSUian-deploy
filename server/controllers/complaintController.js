@@ -5,6 +5,7 @@ const { hasEvidenceColumn } = require('../complaintEvidence');
 const { emitComplaintUpdated, emitComplaintFiled, emitViolationIssued, emitAccountSuspended, emitAvailabilityChanged, emitNewPendingRide } = require('../socket');
 const { suspendAccount, getSuspension, SUSPENDED_MESSAGE } = require('../suspension');
 const { hasFailureColumns } = require('../rideFailures');
+const { logActivity } = require('../activityLog');
 
 // Categories mirror rules.html's Code of Conduct — passengers report the
 // "For Drivers" violations, drivers report the "For Students / Passengers"
@@ -50,6 +51,12 @@ exports.createComplaint = (req, res) => {
       if (err) return reject(500, err.message);
       res.status(201).json({ message: 'Complaint submitted', complaintId: result.insertId });
       emitComplaintFiled();
+      // Activity Log (see activityLog.js).
+      logActivity(req, { role: req.user.role, accountId: filed_by_account_id, action: 'report_filed', icon: 'alert',
+        attention: true, link: 'complaint', subjectAccountId: against_account_id || null,
+        text: (c) => against_account_id
+          ? `reported ${req.user.role === 'driver' ? 'passenger' : 'driver'} ${c.subject} for: ${category}.`
+          : `sent a report: ${category}.` });
     }
   );
 
@@ -184,6 +191,8 @@ exports.getComplaintEvidence = (req, res) => {
     const filePath = path.join(__dirname, '..', rows[0].evidence_path);
     if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'The photo is missing from the server' });
     res.sendFile(filePath);
+    logActivity(req, { role: 'admin', adminId: req.user.adminId, action: 'viewed_evidence', icon: 'gear',
+      text: `looked at the proof photo of report #${complaintId}.` });
   });
 };
 
@@ -206,6 +215,9 @@ exports.getRideChatForAdmin = (req, res) => {
     (err, rows) => {
       if (err) return res.status(500).json({ error: err.message });
       res.status(200).json({ messages: rows });
+      // The chat text itself is never copied into the log.
+      logActivity(req, { role: 'admin', adminId: req.user.adminId, action: 'viewed_chat', icon: 'gear', rideId,
+        text: (c) => `read the chat between ${c.passenger} and ${c.driver} to check a report.` });
     }
   );
 };
@@ -226,6 +238,8 @@ exports.updateComplaintStatus = (req, res) => {
       if (err) return res.status(500).json({ error: err.message });
       if (result.affectedRows === 0) return res.status(404).json({ error: 'Complaint not found' });
       res.status(200).json({ message: `Complaint marked as ${status}` });
+      logActivity(req, { role: 'admin', adminId: req.user.adminId, action: 'report_updated', icon: 'gear',
+        text: `marked report #${complaintId} as ${status}.` });
 
       db.query(`SELECT filed_by_account_id FROM complaints WHERE complaint_id = ?`, [complaintId], (err2, rows) => {
         if (!err2 && rows[0]) emitComplaintUpdated(rows[0].filed_by_account_id);
@@ -247,6 +261,12 @@ function insertViolationRow(res, { account_id, issued_by_admin_id, complaint_id,
 
       const responseBody = { message, escalated, finalSeverity: severity, suspended: false };
       emitViolationIssued(account_id);
+      // Activity Log (see activityLog.js). A Violation also suspends them.
+      logActivity(res.req, { role: 'admin', adminId: issued_by_admin_id, action: severity === 'Violation' ? 'violation_issued' : 'warning_issued',
+        icon: 'gear', subjectAccountId: account_id,
+        text: (c) => severity === 'Violation'
+          ? `gave ${c.subject} a violation${escalated ? ' (their 2nd warning)' : ''}, so the account is suspended. Reason: ${reason}.`
+          : `gave ${c.subject} a warning. Reason: ${reason}.` });
 
       // A Violation suspends the account straight away (see suspension.js).
       const afterSuspension = (next) => {

@@ -2702,3 +2702,128 @@ body {
 .admin-chat-who { font-size: 11px; font-weight: 700; color: var(--muted); }
 .admin-chat-text { color: var(--text); white-space: pre-wrap; word-break: break-word; }
 .admin-chat-empty { font-size: 13px; color: var(--muted); text-align: center; margin: 12px 0; }
+
+/* ===== ACTIVITY LOG (2026-11-01) =====
+   Plain-sentence feed of what passengers, drivers and the admin did
+   (renderAdminActivityLog in app.js). Built for a non-techy admin: big
+   readable text, one sentence per entry, pink rows = needs attention. */
+.admin-panel-count[hidden],
+#activity-more-btn[hidden] { display: none; }
+
+.activity-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.activity-num {
+  background: var(--light);
+  border: 1px solid #f5e6da;
+  border-radius: 14px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+.activity-num strong { font-size: 24px; font-weight: 800; color: var(--text); }
+.activity-num span { font-size: 13px; color: var(--muted); }
+.activity-num.tone-success strong { color: var(--tone-success); }
+.activity-num.tone-warning strong { color: var(--tone-warning); }
+.activity-num.tone-danger { background: var(--tone-danger-bg); border-color: #f3cfcf; }
+.activity-num.tone-danger strong { color: var(--tone-danger); }
+
+.activity-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.activity-tab {
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  min-height: 42px;
+  padding: 0 18px;
+  border-radius: 999px;
+  border: 1px solid #f0ddc9;
+  background: var(--white);
+  color: var(--primary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.activity-tab.is-active { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+.activity-search { display: flex; flex-direction: column; gap: 4px; margin-bottom: 18px; }
+.activity-search span { font-size: 13.5px; font-weight: 700; color: var(--muted); }
+.activity-search input {
+  font-family: inherit;
+  font-size: 16px;
+  min-height: 46px;
+  padding: 0 14px;
+  border: 1px solid #f0ddc9;
+  border-radius: 12px;
+  background: var(--light);
+  color: var(--text);
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.activity-day { margin-bottom: 14px; }
+.activity-day h3 {
+  margin: 0 0 6px;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 12.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.activity-day-card { border: 1px solid #f5e6da; border-radius: 16px; overflow: hidden; background: var(--white); }
+.activity-item { display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; }
+.activity-item + .activity-item { border-top: 1px solid #f5e6da; }
+.activity-item.is-attention { background: #fdf0f0; }
+.activity-dot {
+  width: 36px; height: 36px; border-radius: 50%;
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.activity-dot svg { width: 18px; height: 18px; }
+.activity-dot.role-passenger { background: #fff1f1; color: var(--primary); }
+.activity-dot.role-driver { background: #fdf3dc; color: #8a5a00; }
+.activity-dot.role-admin { background: var(--tone-success-bg); color: var(--tone-success); }
+.activity-dot.role-unknown { background: var(--tone-danger-bg); color: var(--tone-danger); }
+.activity-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.activity-text { font-size: 15.5px; line-height: 1.5; color: var(--text); overflow-wrap: anywhere; }
+.activity-text strong { font-weight: 700; }
+.activity-meta { font-size: 12.5px; color: var(--muted); }
+.activity-open {
+  align-self: flex-start;
+  margin-top: 6px;
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 700;
+  min-height: 38px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: none;
+  background: var(--primary);
+  color: #fff;
+  cursor: pointer;
+}
+.activity-empty {
+  margin: 4px 0 12px;
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--muted);
+  background: var(--light);
+  border-radius: 14px;
+  font-size: 14.5px;
+}
+.activity-more { display: flex; justify-content: center; padding: 4px 0 14px; }
+.activity-more .admin-btn { min-height: 44px; padding: 0 22px; font-size: 14.5px; color: var(--primary); }
+
+@media (max-width: 640px) {
+  .activity-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .activity-num strong { font-size: 21px; }
+  /* One row you swipe sideways, instead of tabs stacking up. */
+  .activity-tabs { flex-wrap: nowrap; overflow-x: auto; margin: 0 -4px 12px; padding: 0 4px 4px; }
+  .activity-tab { flex-shrink: 0; min-height: 40px; padding: 0 15px; }
+  .activity-item { padding: 12px; gap: 10px; }
+  .activity-dot { width: 32px; height: 32px; }
+  .activity-text { font-size: 15px; }
+}

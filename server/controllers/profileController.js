@@ -1,5 +1,6 @@
 const db = require('../config/db');
 const { isMobileTaken, MOBILE_TAKEN_MESSAGE } = require('../mobileNumbers');
+const { logActivity } = require('../activityLog');
 
 // GET the logged-in user's profile — branches by role since students and
 // drivers live in different tables with different fields.
@@ -64,6 +65,9 @@ exports.updateProfile = (req, res) => {
       if (err) return res.status(500).json({ error: err.message });
       if (result.affectedRows === 0) return res.status(404).json({ error: 'Profile not found' });
       res.status(200).json({ message: 'Profile updated successfully' });
+      // Activity Log (see activityLog.js). What they typed is not copied in.
+      logActivity(req, { role, accountId, action: 'profile_updated', icon: 'person',
+        text: newNumber ? 'updated their profile and added a mobile number.' : 'updated their profile.' });
     }
   );
 

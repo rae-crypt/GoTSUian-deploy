@@ -7,6 +7,17 @@ const { emitDriverAccountStatus, emitLoyaltyGranted, getPresentPassengerIds, get
 const { getFareSettings, saveFareSettings } = require('../fareSettings');
 const { getSuspensionMap, liftSuspension } = require('../suspension');
 const { hasFailureColumns } = require('../rideFailures');
+const { logActivity, listActivity, peso } = require('../activityLog');
+
+// ACTIVITY LOG — the admin's plain-sentence list of what everyone did (see
+// activityLog.js). ?who=all|passenger|driver|admin|attention, ?q= a name,
+// ?before= the oldest log_id already shown, ?since= the admin's midnight.
+exports.listActivityLog = (req, res) => {
+  listActivity(req.query, (err, result) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.status(200).json(result);
+  });
+};
 
 // Adds suspended_at / suspension_reason (null when not suspended) to each
 // passenger/driver row, so the admin lists can flag suspended accounts.
@@ -27,6 +38,10 @@ exports.liftAccountSuspension = (req, res) => {
     if (err) return res.status(500).json({ error: err.message });
     if (!lifted) return res.status(404).json({ error: 'This account is not suspended.' });
     res.status(200).json({ message: 'Suspension lifted. They can log in again.' });
+    // Activity Log (see activityLog.js).
+    logActivity(req, { role: 'admin', adminId: req.user.adminId, action: 'suspension_lifted', icon: 'gear',
+      subjectAccountId: accountId,
+      text: (c) => `lifted the suspension of ${c.subject}. They can log in again.` });
   });
 };
 
@@ -58,9 +73,16 @@ exports.updateFareSettings = (req, res) => {
     return res.status(400).json({ error: 'Enter a first-kilometre fare above ₱0 and a per-kilometre fare from ₱0 to ₱1000.' });
   }
 
+  const before = { ...getFareSettings() };
   saveFareSettings({ first_km_fare: firstKmFare, per_km_fare: perKmFare, basis }, (err, settings) => {
     if (err) return res.status(500).json({ error: err.message });
     res.status(200).json(settings);
+    // Activity Log: only the figures that actually changed.
+    const changes = [];
+    if (Number(before.first_km_fare) !== firstKmFare) changes.push(`the starting fare from ${peso(before.first_km_fare)} to ${peso(firstKmFare)}`);
+    if (Number(before.per_km_fare) !== perKmFare) changes.push(`the fare per kilometre from ${peso(before.per_km_fare)} to ${peso(perKmFare)}`);
+    logActivity(req, { role: 'admin', adminId: req.user.adminId, action: 'fare_changed', icon: 'gear',
+      text: changes.length ? `changed ${changes.join(' and ')}.` : 'saved the fare settings without changing the fare.' });
   });
 };
 
@@ -96,7 +118,7 @@ exports.listDrivers = (req, res) => {
 exports.getDriverLicenseFile = (req, res) => {
   const { driverId } = req.params;
 
-  db.query(`SELECT license_document_path FROM tricycle_driver WHERE driver_id = ?`, [driverId], (err, rows) => {
+  db.query(`SELECT account_id, license_document_path FROM tricycle_driver WHERE driver_id = ?`, [driverId], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     if (!rows.length || !rows[0].license_document_path) {
       return res.status(404).json({ error: 'No license document on file for this driver' });
@@ -107,6 +129,9 @@ exports.getDriverLicenseFile = (req, res) => {
       return res.status(404).json({ error: 'License file is missing from the server' });
     }
     res.sendFile(filePath);
+    // Activity Log: a government ID is personal data, so who opened it is kept.
+    logActivity(req, { role: 'admin', adminId: req.user.adminId, action: 'viewed_license', icon: 'gear',
+      subjectAccountId: rows[0].account_id, text: (c) => `looked at ${c.subject}'s driver's license.` });
   });
 };
 
@@ -126,6 +151,8 @@ exports.getFailedRidePhoto = (req, res) => {
       return res.status(404).json({ error: 'The photo is missing from the server' });
     }
     res.sendFile(filePath);
+    logActivity(req, { role: 'admin', adminId: req.user.adminId, action: 'viewed_failed_photo', icon: 'gear',
+      rideId, text: (c) => `looked at the photo ${c.driver} sent for ${c.passenger}'s ride that could not be completed.` });
   });
 };
 
@@ -253,6 +280,9 @@ exports.grantLoyaltyCertificate = (req, res) => {
             if (err) return res.status(500).json({ error: err.message });
             emitLoyaltyGranted(account_id);
             res.status(201).json({ message: 'Certificate granted', milestone: nextThreshold });
+            logActivity(req, { role: 'admin', adminId: grantedByAdminId, action: 'certificate_granted', icon: 'star',
+              subjectAccountId: account_id,
+              text: (c) => `gave ${c.subject} a Certificate of Recognition for ${nextThreshold} finished rides.` });
           }
         );
       });
@@ -317,6 +347,9 @@ exports.updateDriverStatus = (req, res) => {
     db.query(`SELECT account_id FROM tricycle_driver WHERE driver_id = ?`, [driverId], (err2, rows) => {
       if (err2 || !rows.length) return;
       emitDriverAccountStatus(rows[0].account_id);
+      logActivity(req, { role: 'admin', adminId: req.user.adminId, action: status === 'Active' ? 'driver_approved' : 'driver_rejected',
+        icon: 'gear', subjectAccountId: rows[0].account_id,
+        text: (c) => status === 'Active' ? `approved driver ${c.subject}. They can now accept rides.` : `did not approve driver ${c.subject}.` });
     });
   });
 };
@@ -344,6 +377,12 @@ exports.resetDriverPassword = async (req, res) => {
         if (err) return res.status(500).json({ error: err.message });
         if (result.affectedRows === 0) return res.status(404).json({ error: 'Driver not found' });
         res.status(200).json({ message: 'Password reset successfully', tempPassword });
+        // The temporary password is never put in the log.
+        db.query(`SELECT account_id FROM tricycle_driver WHERE driver_id = ?`, [driverId], (err2, rows) => {
+          if (err2 || !rows.length) return;
+          logActivity(req, { role: 'admin', adminId: req.user.adminId, action: 'driver_password_reset', icon: 'gear',
+            subjectAccountId: rows[0].account_id, text: (c) => `reset the password of driver ${c.subject}.` });
+        });
       }
     );
   } catch (error) {

@@ -10,6 +10,7 @@ const { hasDeclinesTable } = require('../rideDeclines');
 const { hasCertificateSeenColumn } = require('../certificateSeen');
 const { hasBookedForColumns } = require('../bookedFor');
 const { getFareSettings, computeFare, computeSharedFare, hasDistanceColumn } = require('../fareSettings');
+const { logActivity, place, peso } = require('../activityLog');
 
 // Flat fare of a ride between the fixed campus points (old campus route,
 // kept for when the bridge is repaired). Every GPS ride is priced by road
@@ -671,6 +672,10 @@ exports.createRide = async (req, res) => {
             if (err) return res.status(500).json({ error: err.message });
             res.status(201).json({ message: 'Ride requested', rideId: result.insertId, fare: soloFare, distanceKm });
             emitPendingOrSchedule(scheduled_at);
+            // Activity Log (see activityLog.js).
+            logActivity(req, { role: 'passenger', accountId: passenger_account_id, action: 'ride_booked', icon: 'ride',
+              rideId: result.insertId,
+              text: `booked a ride from ${place(pickup_location)} to ${place(dropoff_location)}${soloFare != null ? `. Fare: ${peso(soloFare)}` : ''}${bookedFor ? ` (for ${bookedFor.name})` : ''}.` });
           }
         );
         return;
@@ -730,6 +735,9 @@ exports.createRide = async (req, res) => {
                     if (err) return failWith(err);
                     releaseLockAndConnection();
                     res.status(201).json({ message: 'Ride requested', rideId: result.insertId, poolId, riderCount: count, distanceKm });
+                    logActivity(req, { role: 'passenger', accountId: passenger_account_id, action: 'ride_booked', icon: 'ride',
+                      rideId: result.insertId,
+                      text: `booked a Shared ride from ${place(pickup_location)} to ${place(dropoff_location)}${count > 1 ? ` (${count} students in this trip now)` : ''}.` });
                     // Tell every rider in the pool (their fare just changed)
                     // and its driver; with no driver yet, also tell every
                     // driver there's a request to look at.
@@ -1115,6 +1123,8 @@ exports.declineRide = (req, res) => {
         if (insertErr) return res.status(500).json({ error: insertErr.message });
         res.status(200).json({ message: 'Declined. The request stays open for other drivers.' });
         notifyIfNoDriversLeft(rideId, passengerAccountId);
+        logActivity(req, { role: 'driver', accountId: driverAccountId, action: 'ride_declined', icon: 'ride', rideId,
+          text: (c) => `said no to ${c.passenger}'s ride request. Another driver can still take it.` });
       }
     );
   });
@@ -1348,6 +1358,9 @@ exports.updateDriverAvailability = (req, res) => {
       if (result.affectedRows === 0) return res.status(404).json({ error: 'Driver not found' });
       res.status(200).json({ is_online: isOnline });
       emitAvailabilityChanged();
+      // The driver app only switches this off when the driver presses Logout.
+      logActivity(req, { role: 'driver', accountId, action: isOnline ? 'went_online' : 'logged_out', icon: 'person',
+        text: isOnline ? 'is now ready for rides.' : 'logged out.' });
     }
   );
 };
@@ -1435,13 +1448,13 @@ exports.acceptRide = (req, res) => {
           return res.status(409).json({ error: 'You already have an active ride — finish or cancel it before accepting another.' });
         }
 
-        acceptRideInternal(rideId, driver_account_id, res);
+        acceptRideInternal(rideId, driver_account_id, res, req);
       }
     );
   });
 };
 
-function acceptRideInternal(rideId, driver_account_id, res) {
+function acceptRideInternal(rideId, driver_account_id, res, req) {
   db.query(`SELECT * FROM rides WHERE ride_id = ?`, [rideId], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     if (!rows.length) return res.status(404).json({ error: 'Ride not found' });
@@ -1463,6 +1476,8 @@ function acceptRideInternal(rideId, driver_account_id, res) {
             return res.status(409).json({ error: 'Another driver already accepted this ride.' });
           }
           res.status(200).json({ message: 'Ride accepted' });
+          logActivity(req, { role: 'driver', accountId: driver_account_id, action: 'ride_accepted', icon: 'ride', rideId,
+            text: (c) => `accepted ${c.passenger}'s ride and is on the way to the pickup.` });
           emitRideUpdated(ride.passenger_account_id, driver_account_id);
           emitAvailabilityChanged();
           // LIVE LIST (2026-10-20): every other driver's pending list drops
@@ -1532,6 +1547,8 @@ function acceptRideInternal(rideId, driver_account_id, res) {
               (err) => {
                 if (err) return res.status(500).json({ error: err.message });
                 res.status(200).json({ message: 'Shared ride accepted', riderCount: count, poolStillOpen: !isFull });
+                logActivity(req, { role: 'driver', accountId: driver_account_id, action: 'ride_accepted', icon: 'ride', rideId,
+                  text: `accepted a Shared ride with ${count} students and is on the way to the pickup.` });
                 db.query(`SELECT passenger_account_id FROM rides WHERE pool_id = ? AND status != 'Cancelled'`, [ride.pool_id], (err2, riderRows) => {
                   if (err2) return;
                   riderRows.forEach(r => emitRideUpdated(r.passenger_account_id, driver_account_id));
@@ -1581,6 +1598,8 @@ exports.convertRideToSolo = (req, res) => {
           if (err) return res.status(500).json({ error: err.message });
           if (result.affectedRows === 0) return res.status(409).json({ error: 'Could not convert this ride.' });
           res.status(200).json({ message: 'Switched to Solo', fare: soloFare });
+          logActivity(req, { role: 'passenger', accountId: passengerAccountId, action: 'ride_to_solo', icon: 'ride', rideId,
+            text: `changed their Shared ride to a Solo ride. New fare: ${peso(soloFare)}.` });
           emitRideUpdated(passengerAccountId, null);
           // LIVE LIST: drivers now see it as a Solo request.
           emitNewPendingRide();
@@ -1712,6 +1731,26 @@ exports.updateRideStatus = (req, res) => {
 
     db.query(sql, params, (err) => {
       if (err) return res.status(500).json({ error: err.message });
+
+      // Activity Log (see activityLog.js): one entry per change, even when a
+      // Shared trip moves every student at once.
+      const shared = Boolean(ride.pool_id);
+      const quote = (reason, note) => `Reason: ${reason}${note ? ` — "${note}"` : ''}.`;
+      const statusLog = {
+        'Picked Up': { action: 'ride_picked_up', text: (c) => shared ? 'picked up the students of a Shared ride.' : `picked up ${c.passenger}.` },
+        'In Progress': { action: 'ride_in_progress', text: (c) => shared ? 'is now driving the Shared ride students to their drop-off.' : `is now driving ${c.passenger} to ${place(ride.dropoff_location)}.` },
+        'Completed': { action: 'ride_completed', text: (c) => shared ? 'finished a Shared ride.' : `finished ${c.passenger}'s ride${ride.fare != null ? `. Fare: ${peso(ride.fare)}` : ''}.` },
+        // Cancelled after a driver took it = a report for the admin (below).
+        'Cancelled': { action: 'ride_cancelled', attention: Boolean(ride.driver_account_id), link: ride.driver_account_id ? 'complaint' : null,
+          icon: ride.driver_account_id ? 'alert' : 'ride',
+          text: (c) => `${isRideDriver ? `cancelled ${c.passenger}'s ride` : 'cancelled their ride'}. ${quote(cancelReason, cancelNote)}` },
+        'Failed': { action: 'ride_failed', attention: true, link: 'complaint', icon: 'alert',
+          text: (c) => `could not finish ${shared ? 'a Shared ride' : `${c.passenger}'s ride`}. ${quote(failedReason, failedNote)}` },
+        'Declined': { action: 'ride_declined', text: (c) => `said no to ${c.passenger}'s ride request.` }
+      }[status];
+      if (statusLog) {
+        logActivity(req, { role: req.user.role, accountId: req.user.accountId, icon: 'ride', rideId: ride.ride_id, ...statusLog });
+      }
 
       // Every Failed ride reaches the admin as a Complaints entry from the
       // driver (red "N pending" badge), against the passenger only when the

@@ -19,7 +19,7 @@
        nothing flashes on refresh. Safety: shown anyway after 1.5 s. See
        revealNavWhenReady() in app.js and "SMOOTH NAV" in theme.css. -->
   <script>document.documentElement.classList.add('nav-pending');setTimeout(function(){document.documentElement.classList.remove('nav-pending');},1500);</script>
-  <link rel="stylesheet" href="../css/admin.css?v=20261004d">
+  <link rel="stylesheet" href="../css/admin.css?v=20261101a">
   <link rel="stylesheet" href="../css/theme.css?v=20261020a">
 </head>
 <body data-page="admin" class="admin-portal">
@@ -319,6 +319,55 @@
           </div>
         </div>
       </div>
+
+      <!-- ACTIVITY LOG (2026-11-01): plain sentences of what passengers,
+           drivers and the admin did, newest first. Filled by
+           renderAdminActivityLog() in app.js from GET /api/admin/activity. -->
+      <div class="admin-panel is-collapsed" id="activity-log-panel">
+        <div class="admin-panel-head">
+          <div class="admin-panel-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1"/><path d="M8.5 10h7M8.5 13.5h7M8.5 17h4"/></svg>
+          </div>
+          <div class="admin-panel-head-text">
+            <h2>Activity Log</h2>
+            <p>What passengers, drivers and the admin did in GoTSUian, newest first. Entries can't be changed or deleted.</p>
+          </div>
+          <span class="admin-panel-count" id="activity-attention-count" hidden>0 need attention</span>
+          <button type="button" class="admin-panel-toggle" aria-expanded="false" aria-label="Expand this section">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7.5L10 12.5L15 7.5"/></svg>
+          </button>
+        </div>
+
+        <div class="admin-panel-body">
+          <div class="activity-summary">
+            <div class="activity-num"><strong id="activity-sum-booked">0</strong><span>rides booked today</span></div>
+            <div class="activity-num tone-success"><strong id="activity-sum-finished">0</strong><span>rides finished today</span></div>
+            <div class="activity-num tone-warning"><strong id="activity-sum-cancelled">0</strong><span>rides cancelled today</span></div>
+            <div class="activity-num tone-danger"><strong id="activity-sum-attention">0</strong><span>need attention today</span></div>
+          </div>
+
+          <div class="activity-tabs" role="group" aria-label="Show activity of">
+            <button type="button" class="activity-tab is-active" data-activity-who="all" aria-pressed="true">Everyone</button>
+            <button type="button" class="activity-tab" data-activity-who="passenger" aria-pressed="false">Passengers</button>
+            <button type="button" class="activity-tab" data-activity-who="driver" aria-pressed="false">Drivers</button>
+            <button type="button" class="activity-tab" data-activity-who="admin" aria-pressed="false">Admin</button>
+            <button type="button" class="activity-tab" data-activity-who="attention" aria-pressed="false">Needs attention</button>
+          </div>
+
+          <label class="activity-search" for="activity-search">
+            <span>Find a person</span>
+            <input type="search" id="activity-search" placeholder="Type a name, like Juan Dela Cruz" autocomplete="off">
+          </label>
+
+          <div class="activity-list" id="activity-list" aria-live="polite">
+            <p class="activity-empty">Loading activity...</p>
+          </div>
+
+          <div class="activity-more">
+            <button type="button" class="admin-btn" id="activity-more-btn" hidden>Show older activity</button>
+          </div>
+        </div>
+      </div>
     </section>
   </main>
 
@@ -375,6 +424,6 @@
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="../js/app.js?v=20261026b"></script>
+  <script src="../js/app.js?v=20261101a"></script>
 </body>
 </html>

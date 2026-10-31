@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { logActivity } = require('../activityLog');
 
 // PASSENGER leaves a review for the driver of one of their completed rides.
 exports.createReview = (req, res) => {
@@ -33,6 +34,10 @@ exports.createReview = (req, res) => {
           return res.status(500).json({ error: err.message });
         }
         res.status(201).json({ message: 'Review submitted' });
+        // Activity Log (see activityLog.js). 1-2 stars is worth a look.
+        logActivity(req, { role: 'passenger', accountId: passenger_account_id, action: 'driver_rated', icon: 'star',
+          rideId: ride_id, attention: ratingNum <= 2,
+          text: (c) => `gave driver ${c.driver} ${ratingNum} star${ratingNum === 1 ? '' : 's'}.` });
       }
     );
   });
