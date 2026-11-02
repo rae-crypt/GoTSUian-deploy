@@ -2065,6 +2065,33 @@ a.admin-stat-card:active { transform: translateY(0); }
   color: #fff;
 }
 
+/* Dashboard groups (2026-11-02): a small heading above each group of panels
+   (Needs your action / Rides & records / Settings). */
+.admin-group + .admin-group { margin-top: 34px; }
+.admin-group-head {
+  display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px;
+  margin: 0 4px 12px;
+}
+.admin-group-title {
+  font-size: 12.5px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--primary);
+}
+.admin-group-head small { font-size: 13px; color: var(--muted); }
+.admin-group-head::after {
+  content: ""; flex: 1 1 40px; height: 1px; background: #f1d9d9; align-self: center;
+}
+/* Settings is changed rarely, so its panel is a little smaller. */
+.admin-group.is-quiet .admin-panel { padding-top: 18px; }
+.admin-group.is-quiet .admin-panel-icon { width: 34px; height: 34px; border-radius: 9px; }
+.admin-group.is-quiet .admin-panel-icon svg { width: 17px; height: 17px; }
+.admin-group.is-quiet .admin-panel-head-text h2 { font-size: 15.5px; }
+@media (max-width: 640px) {
+  .admin-group + .admin-group { margin-top: 24px; }
+  .admin-group-head { margin-bottom: 10px; }
+  .admin-group-title { font-size: 11.5px; }
+  .admin-group-head small { font-size: 12px; }
+}
+
 .admin-panel-count {
   flex: none;
   font-size: 12px;

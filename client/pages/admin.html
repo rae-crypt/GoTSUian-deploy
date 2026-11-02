@@ -19,7 +19,7 @@
        nothing flashes on refresh. Safety: shown anyway after 1.5 s. See
        revealNavWhenReady() in app.js and "SMOOTH NAV" in theme.css. -->
   <script>document.documentElement.classList.add('nav-pending');setTimeout(function(){document.documentElement.classList.remove('nav-pending');},1500);</script>
-  <link rel="stylesheet" href="../css/admin.css?v=20261102b">
+  <link rel="stylesheet" href="../css/admin.css?v=20261102c">
   <link rel="stylesheet" href="../css/theme.css?v=20261020a">
 </head>
 <body data-page="admin" class="admin-portal">
@@ -115,42 +115,41 @@
         </a>
       </div>
 
-      <div class="admin-panel is-collapsed" id="fare-settings-panel">
+      <!-- Dashboard sections grouped by how often the admin needs them
+           (after the defense, 2026-11-02): what needs action first, then
+           monitoring, then settings. TO CHANGE: move a whole
+           <div class="admin-panel"> block into another group to re-order;
+           the group titles are the admin-group-title spans. -->
+      <div class="admin-group">
+        <div class="admin-group-head" role="heading" aria-level="2"><span class="admin-group-title">Needs your action</span><small>check these first</small></div>
+
+      <div class="admin-panel is-collapsed" id="complaints-panel">
         <div class="admin-panel-head">
           <div class="admin-panel-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 20V4h6a4 4 0 0 1 0 8H7"/><path d="M4 8h14M4 11h14"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><circle cx="12" cy="16.2" r="0.4" fill="currentColor"/><path d="M10.3 4.3 2.7 18a1.6 1.6 0 0 0 1.4 2.4h15.8a1.6 1.6 0 0 0 1.4-2.4L13.7 4.3a1.6 1.6 0 0 0-2.8 0z"/></svg>
           </div>
           <div class="admin-panel-head-text">
-            <h2>Fare settings</h2>
-            <p>Every ride is priced by road distance with these rates. Changes apply to new bookings only.</p>
+            <h2>Complaints</h2>
+            <p>Reports filed by passengers and drivers against each other. Review and resolve, optionally issuing a warning or violation.</p>
           </div>
+          <span class="admin-panel-count" id="admin-complaints-count">0 pending</span>
           <button type="button" class="admin-panel-toggle" aria-expanded="false" aria-label="Expand this section">
             <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7.5L10 12.5L15 7.5"/></svg>
           </button>
         </div>
 
         <div class="admin-panel-body">
-          <form id="fare-settings-form" class="fare-settings-form" novalidate>
-            <div class="fare-settings-grid">
-              <label class="fare-field">
-                <span>First kilometre</span>
-                <span class="fare-input"><span>₱</span><input type="number" id="fare-first-km" min="1" max="1000" step="0.5" required></span>
-              </label>
-              <label class="fare-field">
-                <span>Each additional kilometre</span>
-                <span class="fare-input"><span>₱</span><input type="number" id="fare-per-km" min="0" max="1000" step="0.5" required></span>
-              </label>
-            </div>
-            <label class="fare-field">
-              <span>Based on</span>
-              <input type="text" id="fare-basis" maxlength="255" placeholder="e.g. City Ordinance IX-4-001-2024 (student rate, 1 passenger)">
-            </label>
-            <p class="fare-example" id="fare-example">Loading fare settings...</p>
-            <div class="fare-settings-actions">
-              <button type="submit" class="admin-btn tone-success" id="fare-save-btn">Save fare settings</button>
-              <small class="fare-save-status" id="fare-save-status" aria-live="polite"></small>
-            </div>
-          </form>
+          <div class="admin-table-scroll">
+            <table class="admin-table">
+              <thead><tr><th>Filed by</th><th>Against</th><th>Category</th><th>Route</th><th>Status</th><th>Filed</th><th>Actions</th></tr></thead>
+              <tbody id="admin-complaints-tbody">
+                <tr><td colspan="7">Loading complaints...</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="admin-mobile-list" id="admin-complaints-mobile">
+            <p class="admin-mcard-empty">Loading complaints...</p>
+          </div>
         </div>
       </div>
 
@@ -179,71 +178,6 @@
           </div>
           <div class="admin-mobile-list driver-rows" id="admin-drivers-mobile">
             <p class="admin-mcard-empty">Loading drivers...</p>
-          </div>
-        </div>
-      </div>
-
-      <div class="admin-panel is-collapsed" id="passenger-management-panel">
-        <div class="admin-panel-head">
-          <div class="admin-panel-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c1-3.6 3.4-5.5 5.5-5.5s4.5 1.9 5.5 5.5"/></svg>
-          </div>
-          <div class="admin-panel-head-text">
-            <h2>Passenger management</h2>
-            <p>Monitor students and how often they've booked a ride.</p>
-          </div>
-          <button type="button" class="admin-panel-toggle" aria-expanded="false" aria-label="Expand this section">
-            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7.5L10 12.5L15 7.5"/></svg>
-          </button>
-        </div>
-
-        <div class="admin-panel-body">
-          <div class="admin-table-scroll">
-            <table class="admin-table">
-              <thead><tr><th>Name</th><th>Mobile number</th><th>Rides booked</th><th>Last booking</th><th>Status</th><th>Actions</th></tr></thead>
-              <tbody id="admin-passengers-tbody">
-                <tr><td colspan="6">Loading passengers...</td></tr>
-              </tbody>
-            </table>
-          </div>
-          <div class="admin-mobile-list" id="admin-passengers-mobile">
-            <p class="admin-mcard-empty">Loading passengers...</p>
-          </div>
-        </div>
-      </div>
-
-      <div class="admin-panel is-collapsed" id="bookings-panel">
-        <div class="admin-panel-head">
-          <div class="admin-panel-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="15" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>
-          </div>
-          <div class="admin-panel-head-text">
-            <h2>All bookings</h2>
-            <p>Every ride ever requested, most recent first.</p>
-          </div>
-          <button type="button" class="admin-panel-toggle" aria-expanded="false" aria-label="Expand this section">
-            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7.5L10 12.5L15 7.5"/></svg>
-          </button>
-        </div>
-
-        <div class="admin-panel-body">
-          <div class="admin-bookings-filter">
-            <div id="admin-bookings-filter" class="ride-filter" role="group" aria-label="Show bookings from">
-              <button type="button" class="ride-filter-chip" data-show="today" aria-pressed="false">Today</button>
-              <button type="button" class="ride-filter-chip is-active" data-show="all" aria-pressed="true">All</button>
-            </div>
-            <div id="admin-bookings-summary" class="ride-filter-summary"></div>
-          </div>
-          <div class="admin-table-scroll">
-            <table class="admin-table">
-              <thead><tr><th>Passenger</th><th>Driver</th><th>Route</th><th>Type</th><th>Fare</th><th>Status</th><th>Requested</th></tr></thead>
-              <tbody id="admin-bookings-tbody">
-                <tr><td colspan="7">Loading bookings...</td></tr>
-              </tbody>
-            </table>
-          </div>
-          <div class="admin-mobile-list" id="admin-bookings-mobile">
-            <p class="admin-mcard-empty">Loading bookings...</p>
           </div>
         </div>
       </div>
@@ -289,33 +223,43 @@
           </div>
         </div>
       </div>
+      </div>
 
-      <div class="admin-panel is-collapsed" id="complaints-panel">
+      <div class="admin-group">
+        <div class="admin-group-head" role="heading" aria-level="2"><span class="admin-group-title">Rides &amp; records</span><small>what is happening in GoTSUian</small></div>
+
+      <div class="admin-panel is-collapsed" id="bookings-panel">
         <div class="admin-panel-head">
           <div class="admin-panel-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><circle cx="12" cy="16.2" r="0.4" fill="currentColor"/><path d="M10.3 4.3 2.7 18a1.6 1.6 0 0 0 1.4 2.4h15.8a1.6 1.6 0 0 0 1.4-2.4L13.7 4.3a1.6 1.6 0 0 0-2.8 0z"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="15" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>
           </div>
           <div class="admin-panel-head-text">
-            <h2>Complaints</h2>
-            <p>Reports filed by passengers and drivers against each other. Review and resolve, optionally issuing a warning or violation.</p>
+            <h2>All bookings</h2>
+            <p>Every ride ever requested, most recent first.</p>
           </div>
-          <span class="admin-panel-count" id="admin-complaints-count">0 pending</span>
           <button type="button" class="admin-panel-toggle" aria-expanded="false" aria-label="Expand this section">
             <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7.5L10 12.5L15 7.5"/></svg>
           </button>
         </div>
 
         <div class="admin-panel-body">
+          <div class="admin-bookings-filter">
+            <div id="admin-bookings-filter" class="ride-filter" role="group" aria-label="Show bookings from">
+              <button type="button" class="ride-filter-chip" data-show="today" aria-pressed="false">Today</button>
+              <button type="button" class="ride-filter-chip is-active" data-show="all" aria-pressed="true">All</button>
+            </div>
+            <div id="admin-bookings-summary" class="ride-filter-summary"></div>
+          </div>
           <div class="admin-table-scroll">
             <table class="admin-table">
-              <thead><tr><th>Filed by</th><th>Against</th><th>Category</th><th>Route</th><th>Status</th><th>Filed</th><th>Actions</th></tr></thead>
-              <tbody id="admin-complaints-tbody">
-                <tr><td colspan="7">Loading complaints...</td></tr>
+              <thead><tr><th>Passenger</th><th>Driver</th><th>Route</th><th>Type</th><th>Fare</th><th>Status</th><th>Requested</th></tr></thead>
+              <tbody id="admin-bookings-tbody">
+                <tr><td colspan="7">Loading bookings...</td></tr>
               </tbody>
             </table>
           </div>
-          <div class="admin-mobile-list" id="admin-complaints-mobile">
-            <p class="admin-mcard-empty">Loading complaints...</p>
+          <div class="admin-mobile-list" id="admin-bookings-mobile">
+            <p class="admin-mcard-empty">Loading bookings...</p>
           </div>
         </div>
       </div>
@@ -367,6 +311,79 @@
             <button type="button" class="admin-btn" id="activity-more-btn" hidden>Show older activity</button>
           </div>
         </div>
+      </div>
+
+      <div class="admin-panel is-collapsed" id="passenger-management-panel">
+        <div class="admin-panel-head">
+          <div class="admin-panel-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c1-3.6 3.4-5.5 5.5-5.5s4.5 1.9 5.5 5.5"/></svg>
+          </div>
+          <div class="admin-panel-head-text">
+            <h2>Passenger management</h2>
+            <p>Monitor students and how often they've booked a ride.</p>
+          </div>
+          <button type="button" class="admin-panel-toggle" aria-expanded="false" aria-label="Expand this section">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7.5L10 12.5L15 7.5"/></svg>
+          </button>
+        </div>
+
+        <div class="admin-panel-body">
+          <div class="admin-table-scroll">
+            <table class="admin-table">
+              <thead><tr><th>Name</th><th>Mobile number</th><th>Rides booked</th><th>Last booking</th><th>Status</th><th>Actions</th></tr></thead>
+              <tbody id="admin-passengers-tbody">
+                <tr><td colspan="6">Loading passengers...</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="admin-mobile-list" id="admin-passengers-mobile">
+            <p class="admin-mcard-empty">Loading passengers...</p>
+          </div>
+        </div>
+      </div>
+      </div>
+
+      <div class="admin-group is-quiet">
+        <div class="admin-group-head" role="heading" aria-level="2"><span class="admin-group-title">Settings</span><small>rarely changed</small></div>
+
+      <div class="admin-panel is-collapsed" id="fare-settings-panel">
+        <div class="admin-panel-head">
+          <div class="admin-panel-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 20V4h6a4 4 0 0 1 0 8H7"/><path d="M4 8h14M4 11h14"/></svg>
+          </div>
+          <div class="admin-panel-head-text">
+            <h2>Fare settings</h2>
+            <p>Every ride is priced by road distance with these rates. Changes apply to new bookings only.</p>
+          </div>
+          <button type="button" class="admin-panel-toggle" aria-expanded="false" aria-label="Expand this section">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7.5L10 12.5L15 7.5"/></svg>
+          </button>
+        </div>
+
+        <div class="admin-panel-body">
+          <form id="fare-settings-form" class="fare-settings-form" novalidate>
+            <div class="fare-settings-grid">
+              <label class="fare-field">
+                <span>First kilometre</span>
+                <span class="fare-input"><span>₱</span><input type="number" id="fare-first-km" min="1" max="1000" step="0.5" required></span>
+              </label>
+              <label class="fare-field">
+                <span>Each additional kilometre</span>
+                <span class="fare-input"><span>₱</span><input type="number" id="fare-per-km" min="0" max="1000" step="0.5" required></span>
+              </label>
+            </div>
+            <label class="fare-field">
+              <span>Based on</span>
+              <input type="text" id="fare-basis" maxlength="255" placeholder="e.g. City Ordinance IX-4-001-2024 (student rate, 1 passenger)">
+            </label>
+            <p class="fare-example" id="fare-example">Loading fare settings...</p>
+            <div class="fare-settings-actions">
+              <button type="submit" class="admin-btn tone-success" id="fare-save-btn">Save fare settings</button>
+              <small class="fare-save-status" id="fare-save-status" aria-live="polite"></small>
+            </div>
+          </form>
+        </div>
+      </div>
       </div>
     </section>
   </main>
