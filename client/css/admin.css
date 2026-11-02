@@ -2058,6 +2058,12 @@ a.admin-stat-card:active { transform: translateY(0); }
   background: linear-gradient(140deg, #f2867e, #dc5c53);
   color: #fff;
 }
+/* TO CHANGE: Activity Log icon color (GoTSUian maroon so it doesn't repeat
+   another panel's hue) */
+#activity-log-panel .admin-panel-icon {
+  background: linear-gradient(140deg, #b04a4a, #7a1f1f);
+  color: #fff;
+}
 
 .admin-panel-count {
   flex: none;
