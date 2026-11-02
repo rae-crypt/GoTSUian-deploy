@@ -1075,21 +1075,61 @@ async function getRoadRoutePoints(from, to) {
   }
 }
 
+// LIVE RE-ROUTING (after the defense, 2026-11-02). Once the passenger is
+// on board, a driver who leaves the maroon line (a shortcut, a closed or
+// flooded road) gets a new line from where they are now to the drop-off,
+// on BOTH maps, like a navigation app "recalculating". The phones decide
+// when the driver is off the line (?reroute=1); the server starts the new
+// line from the driver's last saved GPS (tricycle_driver), never from a
+// point a phone sends, and keeps the newest line per ride so the passenger
+// and the driver always see the same one. The fare is never changed by it.
+// TO CHANGE: REROUTE_MIN_MS = shortest wait between two re-routes of one
+// ride (30 s), so the free OSRM server isn't asked too often.
+const REROUTE_MIN_MS = 30 * 1000;
+const REROUTE_STATUSES = ['Picked Up', 'In Progress'];
+const rideReroutes = new Map(); // ride_id -> { points, at }
+
 // Passenger or assigned driver only — nobody else's trip is visible.
 exports.getRideRoute = (req, res) => {
   const { rideId } = req.params;
   const accountId = req.user.accountId;
+  const wantsReroute = req.query.reroute === '1';
 
   db.query(
-    `SELECT pickup_lat, pickup_lng, dropoff_lat, dropoff_lng FROM rides
-     WHERE ride_id = ? AND (passenger_account_id = ? OR driver_account_id = ?)`,
+    `SELECT r.status, r.pickup_lat, r.pickup_lng, r.dropoff_lat, r.dropoff_lng,
+            td.current_lat, td.current_lng,
+            TIMESTAMPDIFF(SECOND, td.location_updated_at, NOW()) AS location_age_s
+     FROM rides r
+     LEFT JOIN tricycle_driver td ON td.account_id = r.driver_account_id
+     WHERE r.ride_id = ? AND (r.passenger_account_id = ? OR r.driver_account_id = ?)`,
     [rideId, accountId, accountId],
     async (err, rows) => {
       if (err) return res.status(500).json({ error: err.message });
       if (!rows.length) return res.status(404).json({ error: 'Ride not found.' });
-      const from = normalizePoint({ lat: rows[0].pickup_lat, lng: rows[0].pickup_lng });
-      const to = normalizePoint({ lat: rows[0].dropoff_lat, lng: rows[0].dropoff_lng });
+      const ride = rows[0];
+      const from = normalizePoint({ lat: ride.pickup_lat, lng: ride.pickup_lng });
+      const to = normalizePoint({ lat: ride.dropoff_lat, lng: ride.dropoff_lng });
       if (!from || !to) return res.status(200).json({ points: [] });
+
+      // A re-routed line only means something while the passenger is on
+      // board; afterwards (or for another status) the original line is used.
+      const onBoard = REROUTE_STATUSES.includes(ride.status);
+      if (!onBoard) rideReroutes.delete(String(rideId));
+      const saved = onBoard ? rideReroutes.get(String(rideId)) : null;
+
+      if (onBoard && wantsReroute && (!saved || Date.now() - saved.at >= REROUTE_MIN_MS)) {
+        const fresh = ride.location_age_s != null && Number(ride.location_age_s) <= ETA_LOCATION_MAX_AGE_S;
+        const driverPoint = fresh ? normalizePoint({ lat: ride.current_lat, lng: ride.current_lng }) : null;
+        const points = driverPoint ? await getRoadRoutePoints(driverPoint, to) : null;
+        if (points) {
+          if (rideReroutes.size > 500) rideReroutes.clear();
+          const entry = { points, at: Date.now() };
+          rideReroutes.set(String(rideId), entry);
+          return res.status(200).json({ points, road: true, reroutedAt: entry.at });
+        }
+        // OSRM didn't answer: keep showing what the maps already have.
+      }
+      if (saved) return res.status(200).json({ points: saved.points, road: true, reroutedAt: saved.at });
 
       const cacheKey = `${rideId}:${from.join(',')}:${to.join(',')}`;
       if (!rideRouteCache.has(cacheKey)) {

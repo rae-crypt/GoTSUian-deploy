@@ -1540,6 +1540,9 @@ let driverDropoffPin = null;
 let passengerRouteLine = null;
 let passengerRouteIsRoad = false;
 let passengerRouteLoading = false;
+// The points of the maroon line, for the off-the-line check (re-routing).
+let passengerRouteFull = null;
+let passengerReroute = newRerouteState();
 const CAMPUS_PIN_COORDS = {
   sanIsidro: [15.502749, 120.578693],
   mainCampus: [15.485127, 120.587373]
@@ -1587,6 +1590,8 @@ function clearDriverTracking() {
     passengerRouteLine = null;
   }
   passengerRouteIsRoad = false;
+  passengerRouteFull = null;
+  passengerReroute = newRerouteState();
   driverActualTrailPoints = [];
   driverTrackedRideId = null;
   const legend = document.querySelector('#route-legend');
@@ -1619,7 +1624,7 @@ async function fetchRideRoute(ride) {
     const res = await fetch(`${RIDES_API_URL}/${ride.ride_id}/route`, { headers: getAuthHeaders() });
     if (res.ok) {
       const data = await res.json();
-      if (data.points && data.points.length >= 2) return { points: data.points, road: Boolean(data.road) };
+      if (data.points && data.points.length >= 2) return { points: data.points, road: Boolean(data.road), reroutedAt: data.reroutedAt || null };
     }
   } catch (error) {
     console.warn('Unable to load ride route', error);
@@ -1653,6 +1658,71 @@ function findNearestRouteIndex(route, point) {
     }
   });
   return nearestIndex;
+}
+
+// LIVE RE-ROUTING (after the defense, 2026-11-02): once the passenger is on
+// board, a driver who leaves the maroon line for a while (a shortcut, a
+// closed or flooded road) gets a new line from where they are to the
+// drop-off, on both maps (see getRideRoute on the server). The fare never
+// changes. TO CHANGE: OFF_ROUTE_M = how far from the line counts as "off
+// the line" (80 m), OFF_ROUTE_CHECKS = how many location updates in a row
+// must be off before re-routing (2, so one GPS wobble doesn't), and
+// REROUTE_WAIT_MS = shortest wait between two re-routes (30 s, the server
+// has the same limit).
+const OFF_ROUTE_M = 80;
+const OFF_ROUTE_CHECKS = 2;
+const REROUTE_WAIT_MS = 30 * 1000;
+const REROUTE_STATUSES = ['Picked Up', 'In Progress'];
+
+// Metres from a point to the nearest part of a route line. Flat-earth maths
+// is plenty for a few kilometres inside Tarlac.
+function distanceToRouteM(route, point) {
+  if (!route || route.length < 2 || !point) return 0;
+  const mPerLat = 111320;
+  const mPerLng = 111320 * Math.cos(point[0] * Math.PI / 180);
+  const px = point[1] * mPerLng;
+  const py = point[0] * mPerLat;
+  let best = Infinity;
+  for (let i = 0; i < route.length - 1; i += 1) {
+    const ax = route[i][1] * mPerLng, ay = route[i][0] * mPerLat;
+    const bx = route[i + 1][1] * mPerLng, by = route[i + 1][0] * mPerLat;
+    const dx = bx - ax, dy = by - ay;
+    const len2 = dx * dx + dy * dy;
+    const k = len2 ? Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / len2)) : 0;
+    const d = Math.hypot(px - (ax + k * dx), py - (ay + k * dy));
+    if (d < best) best = d;
+  }
+  return best;
+}
+
+// One per map: counts off-line updates in a row and remembers the last
+// re-route, so each map asks the server at most once per REROUTE_WAIT_MS.
+function newRerouteState() {
+  return { offCount: 0, lastAt: 0, loading: false };
+}
+
+// Called on every driver location update. Calls onNewLine(points) once the
+// server has drawn a new line from the driver's spot.
+function checkRideReroute(state, rideId, status, route, point, onNewLine) {
+  if (!REROUTE_STATUSES.includes(status) || !route || !point || state.loading) return;
+  if (distanceToRouteM(route, point) <= OFF_ROUTE_M) {
+    state.offCount = 0;
+    return;
+  }
+  state.offCount += 1;
+  if (state.offCount < OFF_ROUTE_CHECKS || Date.now() - state.lastAt < REROUTE_WAIT_MS) return;
+  state.loading = true;
+  state.lastAt = Date.now();
+  fetch(`${RIDES_API_URL}/${rideId}/route?reroute=1`, { headers: getAuthHeaders() })
+    .then(res => (res.ok ? res.json() : null))
+    .then((data) => {
+      if (data && data.points && data.points.length >= 2) {
+        state.offCount = 0;
+        onNewLine(data.points);
+      }
+    })
+    .catch(error => console.warn('Unable to re-route', error))
+    .finally(() => { state.loading = false; });
 }
 
 
@@ -1806,6 +1876,7 @@ async function pollDriverLocation() {
     fetchRideRoute(activeRide).then(({ points, road }) => {
       passengerRouteLoading = false;
       if (driverTrackedRideId !== routeRideId || !passengerMapInstance) return;
+      passengerRouteFull = points;
       if (passengerRouteLine) {
         passengerRouteLine.setLatLngs(points);
       } else {
@@ -1830,6 +1901,15 @@ async function pollDriverLocation() {
       driverActualTrailPoints.push(point);
       driverActualTrail.setLatLngs(driverActualTrailPoints);
     }
+
+    // Driver left the maroon line with the passenger on board: redraw it
+    // from where the driver is now (live re-routing, see checkRideReroute).
+    const rerouteRideId = activeRide.ride_id;
+    checkRideReroute(passengerReroute, rerouteRideId, activeRide.status, passengerRouteFull, point, (points) => {
+      if (driverTrackedRideId !== rerouteRideId || !passengerRouteLine) return;
+      passengerRouteFull = points;
+      passengerRouteLine.setLatLngs(points);
+    });
 
     if (!driverLocationMarker) {
       const driverIcon = L.divIcon({ className: 'driver-location-icon', html: DRIVER_MARKER_HTML, iconSize: [44, 44], iconAnchor: [22, 22] });
@@ -1922,6 +2002,15 @@ let driverMapRouteLine = null;
 let driverMapRouteFull = null;
 let driverMapTrackedRideId = null;
 let lastKnownDriverPosition = null;
+// Live re-routing + the driver's own "actual path" trail (2026-11-02): the
+// same blue dotted line the passenger sees, now on the driver's map too.
+let driverMapRideStatus = null;
+let driverMapReroute = newRerouteState();
+let driverMapTrail = null;
+let driverMapTrailPoints = [];
+// TO CHANGE: a new trail point is added only after moving this far (10 m),
+// so a phone standing still doesn't pile up points.
+const DRIVER_TRAIL_STEP_M = 10;
 
 function setupDriverMap() {
   const mapEl = document.querySelector('#driver-map');
@@ -1957,6 +2046,13 @@ function clearDriverMapTracking() {
     driverMapInstance.removeLayer(driverMapRouteLine);
     driverMapRouteLine = null;
   }
+  if (driverMapTrail) {
+    driverMapInstance.removeLayer(driverMapTrail);
+    driverMapTrail = null;
+  }
+  driverMapTrailPoints = [];
+  driverMapRideStatus = null;
+  driverMapReroute = newRerouteState();
   driverMapRouteFull = null;
   driverMapRouteIsRoad = false;
   driverMapTrackedRideId = null;
@@ -2003,6 +2099,7 @@ async function renderDriverMapTrackingBody() {
   }
 
   driverEtaRide = activeRide;
+  driverMapRideStatus = activeRide.status;
   refreshRideEta(activeRide);
 
   if (driverMapTrackedRideId !== activeRide.ride_id) {
@@ -2012,6 +2109,10 @@ async function renderDriverMapTrackingBody() {
     driverMapRouteFull = getRouteForRide(activeRide);
     driverMapRouteLine = L.polyline(driverMapRouteFull, {
       color: '#7f1d1d', weight: 5, opacity: 0.75, lineCap: 'round', lineJoin: 'round'
+    }).addTo(driverMapInstance);
+    driverMapTrailPoints = [];
+    driverMapTrail = L.polyline([], {
+      color: '#1d4ed8', weight: 4, opacity: 0.9, dashArray: '2 10', lineCap: 'round'
     }).addTo(driverMapInstance);
 
     const dropoffPoint = ridePoint(activeRide.dropoff_lat, activeRide.dropoff_lng);
@@ -2073,10 +2174,27 @@ function placeDriverMapMarker() {
   if (!driverMapInstance || driverMapTrackedRideId === null || !lastKnownDriverPosition) return;
   const point = lastKnownDriverPosition;
 
+  if (driverMapTrail) {
+    const last = driverMapTrailPoints[driverMapTrailPoints.length - 1];
+    if (!last || distanceToRouteM([last, last], point) >= DRIVER_TRAIL_STEP_M) {
+      driverMapTrailPoints.push(point);
+      driverMapTrail.setLatLngs(driverMapTrailPoints);
+    }
+  }
+
   if (driverMapRouteFull && driverMapRouteLine) {
     const nearestIndex = findNearestRouteIndex(driverMapRouteFull, point);
     driverMapRouteLine.setLatLngs(driverMapRouteFull.slice(nearestIndex));
   }
+
+  // Off the maroon line with the passenger on board: new line from here.
+  const rerouteRideId = driverMapTrackedRideId;
+  checkRideReroute(driverMapReroute, rerouteRideId, driverMapRideStatus, driverMapRouteFull, point, (points) => {
+    if (driverMapTrackedRideId !== rerouteRideId || !driverMapRouteLine) return;
+    driverMapRouteFull = points;
+    driverMapRouteIsRoad = true;
+    placeDriverMapMarker();
+  });
 
   if (!driverMapMarker) {
     const driverIcon = L.divIcon({ className: 'driver-location-icon', html: DRIVER_MARKER_HTML, iconSize: [44, 44], iconAnchor: [22, 22] });
