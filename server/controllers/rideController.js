@@ -11,6 +11,7 @@ const { hasCertificateSeenColumn } = require('../certificateSeen');
 const { hasBookedForColumns } = require('../bookedFor');
 const { getFareSettings, computeFare, computeSharedFare, hasDistanceColumn } = require('../fareSettings');
 const { logActivity, place, peso } = require('../activityLog');
+const { recordDrivenDistance, hasActualKmColumn } = require('../actualKm');
 
 // Flat fare of a ride between the fixed campus points (old campus route,
 // kept for when the bridge is repaired). Every GPS ride is priced by road
@@ -1036,6 +1037,8 @@ exports.updateDriverLocation = (req, res) => {
       if (result.affectedRows === 0) return res.status(404).json({ error: 'Driver not found' });
       res.status(200).json({ message: 'Location updated' });
       recordDriverSpeedSample(accountId, lat, lng);
+      // Adds this step to the km really driven, while a passenger is on board.
+      recordDrivenDistance(accountId, lat, lng);
       db.query(
         `SELECT passenger_account_id FROM rides WHERE driver_account_id = ? AND status IN ('Accepted', 'Picked Up', 'In Progress')`,
         [accountId],
@@ -1739,7 +1742,11 @@ exports.updateRideStatus = (req, res) => {
       const statusLog = {
         'Picked Up': { action: 'ride_picked_up', text: (c) => shared ? 'picked up the students of a Shared ride.' : `picked up ${c.passenger}.` },
         'In Progress': { action: 'ride_in_progress', text: (c) => shared ? 'is now driving the Shared ride students to their drop-off.' : `is now driving ${c.passenger} to ${place(ride.dropoff_location)}.` },
-        'Completed': { action: 'ride_completed', text: (c) => shared ? 'finished a Shared ride.' : `finished ${c.passenger}'s ride${ride.fare != null ? `. Fare: ${peso(ride.fare)}` : ''}.` },
+        // ride.actual_km is the km added up during the trip (actualKm.js).
+        'Completed': { action: 'ride_completed', text: (c) => {
+          const driven = hasActualKmColumn() && ride.actual_km != null ? ` Driven: ${Number(ride.actual_km).toFixed(1)} km.` : '';
+          return shared ? `finished a Shared ride.${driven}` : `finished ${c.passenger}'s ride${ride.fare != null ? `. Fare: ${peso(ride.fare)}` : ''}.${driven}`;
+        } },
         // Cancelled after a driver took it = a report for the admin (below).
         'Cancelled': { action: 'ride_cancelled', attention: Boolean(ride.driver_account_id), link: ride.driver_account_id ? 'complaint' : null,
           icon: ride.driver_account_id ? 'alert' : 'ride',

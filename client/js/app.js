@@ -3010,9 +3010,21 @@ async function renderAdminPassengerManagement() {
   }
 }
 
+// Admin's All bookings: the estimated km the fare was priced on, and the
+// km really driven (rides.actual_km, added up from the driver's GPS from
+// Picked Up to Completed, see server/actualKm.js). Empty when neither is known.
+function formatBookingKm(b) {
+  const parts = [];
+  if (b.distance_km != null) parts.push(`Est. ${Number(b.distance_km).toFixed(1)} km`);
+  if (b.actual_km != null) parts.push(`Driven ${Number(b.actual_km).toFixed(1)} km`);
+  return parts.join(' · ');
+}
+
 function renderBookingRow(b) {
   const statusConfig = getRideStatusConfig(b.status);
-  const fareText = b.fare != null ? `₱${Number(b.fare).toFixed(0)}` : '—';
+  const kmText = formatBookingKm(b);
+  const fareText = (b.fare != null ? `₱${Number(b.fare).toFixed(0)}` : '—') +
+    (kmText ? `<br><small class="booking-km">${escapeHtml(kmText)}</small>` : '');
   return `
     <tr>
       <td>${escapeHtml(b.passenger_name)}</td>
@@ -3040,6 +3052,7 @@ function renderBookingCard(b) {
         <div class="admin-mcard-row"><span>Route</span><span>${escapeHtml(b.pickup_location)} → ${escapeHtml(b.dropoff_location)}</span></div>
         <div class="admin-mcard-row"><span>Type</span><span>${escapeHtml(b.ride_type)}</span></div>
         <div class="admin-mcard-row"><span>Fare</span><span>${fareText}</span></div>
+        ${formatBookingKm(b) ? `<div class="admin-mcard-row"><span>Distance</span><span>${escapeHtml(formatBookingKm(b))}</span></div>` : ''}
         <div class="admin-mcard-row"><span>Requested</span><span>${new Date(b.created_at).toLocaleDateString()}</span></div>
       </div>
     </div>
@@ -6347,6 +6360,7 @@ async function renderBookingsList() {
               ${ride.ride_type === 'Shared' ? '<span>Shared</span>' : ''}
               <span>${escapeHtml(otherPartyLabel)}: ${escapeHtml(otherPartyName)}</span>
               <span>Requested ${escapeHtml(requestedAt)}</span>
+              ${ride.status === 'Completed' && ride.actual_km != null ? `<span>Driven: ${Number(ride.actual_km).toFixed(1)} km</span>` : ''}
             </div>
             ${ride.status === 'Failed' && ride.failed_reason ? `<div class="booking-failed-reason"><strong>Ended by the driver: ${escapeHtml(ride.failed_reason)}</strong>${ride.failed_note ? ` — ${escapeHtml(ride.failed_note)}` : ''}</div>` : ''}
           </div>

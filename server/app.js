@@ -21,6 +21,7 @@ const { ensureSuspensionColumns } = require('./suspension');
 const { ensureFailureColumns } = require('./rideFailures');
 const { ensureEvidenceColumn } = require('./complaintEvidence');
 const { ensureActivityLogTable } = require('./activityLog');
+const { ensureActualKmColumn } = require('./actualKm');
 const authRoutes = require('./routes/authRoutes');
 const rideRoutes = require('./routes/rideRoutes');
 const adminRoutes = require('./routes/adminRoutes');
@@ -156,4 +157,6 @@ server.listen(PORT, () => {
   ensureEvidenceColumn();
   // activity_log, the admin's Activity Log (see activityLog.js). Additions only.
   ensureActivityLogTable();
+  // rides.actual_km, the km really driven (see actualKm.js). Additions only.
+  ensureActualKmColumn();
 });

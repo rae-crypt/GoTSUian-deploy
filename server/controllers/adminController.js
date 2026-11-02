@@ -4,10 +4,11 @@ const crypto = require('crypto');
 const bcrypt = require('bcrypt');
 const db = require('../config/db');
 const { emitDriverAccountStatus, emitLoyaltyGranted, getPresentPassengerIds, getPresentDriverIds } = require('../socket');
-const { getFareSettings, saveFareSettings } = require('../fareSettings');
+const { getFareSettings, saveFareSettings, hasDistanceColumn } = require('../fareSettings');
 const { getSuspensionMap, liftSuspension } = require('../suspension');
 const { hasFailureColumns } = require('../rideFailures');
 const { logActivity, listActivity, peso } = require('../activityLog');
+const { hasActualKmColumn } = require('../actualKm');
 
 // ACTIVITY LOG — the admin's plain-sentence list of what everyone did (see
 // activityLog.js). ?who=all|passenger|driver|admin|attention, ?q= a name,
@@ -317,6 +318,8 @@ exports.listBookings = (req, res) => {
   const sql = `
     SELECT r.ride_id, r.pickup_location, r.dropoff_location, r.ride_type,
            r.status, r.fare, r.created_at, r.updated_at,
+           ${hasDistanceColumn() ? 'r.distance_km' : 'NULL AS distance_km'},
+           ${hasActualKmColumn() ? 'r.actual_km' : 'NULL AS actual_km'},
            CONCAT(s.first_name, ' ', s.last_name) AS passenger_name,
            CONCAT(td.first_name, ' ', td.last_name) AS driver_name
     FROM rides r
