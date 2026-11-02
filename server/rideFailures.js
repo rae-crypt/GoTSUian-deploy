@@ -9,17 +9,22 @@ const db = require('./config/db');
 // also attach an optional photo afterwards (rides.failed_photo_path, see
 // uploadFailedRidePhoto); only the admin can view it.
 
+// Wording revised after the final defense (panel, 2026-11-02): "Passenger
+// misbehaved" -> "Passenger misconduct" (the Code of Conduct term). Rides
+// failed before that keep their old saved text.
+// TO CHANGE: the reason names; keep FAILED_RIDE_REASONS in client/js/app.js
+// and PASSENGER_REASONS below the same, or the server refuses the reason.
 const FAILED_REASONS = [
-  'Tricycle breakdown',
-  'Passenger asked to stop early',
-  'Passenger misbehaved',
-  'Road or safety problem',
+  'Tricycle broke down',
+  'Passenger asked to get off early',
+  'Passenger misconduct',
+  'Road blocked or unsafe',
   'Other'
 ];
 
 // Reasons that point at the passenger: the admin's Complaints entry is then
 // filed against them, so the admin can warn them if it holds up.
-const PASSENGER_REASONS = ['Passenger asked to stop early', 'Passenger misbehaved'];
+const PASSENGER_REASONS = ['Passenger asked to get off early', 'Passenger misconduct'];
 
 // Whether both columns are known to exist. Until they are, a Failed ride
 // still needs a reason and still reaches the admin; only storing it on the

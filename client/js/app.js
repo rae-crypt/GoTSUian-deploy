@@ -6316,8 +6316,8 @@ async function renderBookingsList() {
     // witness/report the passenger-side violations listed there, and vice
     // versa, so the dropdown must match whoever is filing the complaint.
     const complaintCategories = isDriver
-      ? ['No-show', 'Rude behavior', 'Refused to pay', 'Fake booking', 'Misuse of Shared ride', 'Other']
-      : ['Reckless driving', 'Overcharging', 'Rude behavior', 'Refused service', 'Unsafe vehicle', 'Cancelled without reason', 'Other'];
+      ? ['No-show', 'Rude or disrespectful behavior', 'Refused to pay', 'Fake booking', 'Misuse of Shared ride', 'Other']
+      : ['Reckless driving', 'Overcharging', 'Rude or disrespectful behavior', 'Refused service', 'Unsafe vehicle', 'Cancelled without reason', 'Other'];
     // Driver side (IT expert review, 2026-10-06): no "Report a concern" on a
     // Completed ride, and none on a ride the driver already reported on --
     // a Failed ride (its form is the report), a cancellation (it asked why),
@@ -6925,7 +6925,7 @@ function openCancelRideForm({ rideIds, role, hasDriver }) {
         ${reasons.map(reason => `
           <label class="failed-form-reason">
             <input type="radio" name="cancel-reason" value="${escapeHtml(reason)}">
-            <span>${escapeHtml(reason)}</span>
+            <span>${escapeHtml(reason)}${FAILED_RIDE_HINTS[reason] ? `<small style="display:block;font-size:12.5px;font-weight:400;color:var(--muted, #7a5c50);margin-top:2px;">${escapeHtml(FAILED_RIDE_HINTS[reason])}</small>` : ''}</span>
           </label>`).join('')}
       </div>
       <label class="failed-form-note-label" for="cancel-form-note">Explain briefly</label>
@@ -6968,13 +6968,19 @@ function openCancelRideForm({ rideIds, role, hasDriver }) {
   });
 }
 
+// TO CHANGE: reason names (same as server/rideFailures.js) and the small
+// hint shown under a reason (FAILED_RIDE_HINTS).
 const FAILED_RIDE_REASONS = [
-  'Tricycle breakdown',
-  'Passenger asked to stop early',
-  'Passenger misbehaved',
-  'Road or safety problem',
+  'Tricycle broke down',
+  'Passenger asked to get off early',
+  'Passenger misconduct',
+  'Road blocked or unsafe',
   'Other'
 ];
+const FAILED_RIDE_HINTS = {
+  'Passenger misconduct': 'e.g. rude, unsafe, or under the influence',
+  'Road blocked or unsafe': 'e.g. flood, accident, or closed road'
+};
 
 function openFailedRideForm(rideId) {
   document.querySelectorAll('[data-failed-form]').forEach(el => el.remove());
@@ -6989,7 +6995,7 @@ function openFailedRideForm(rideId) {
         ${FAILED_RIDE_REASONS.map((reason, i) => `
           <label class="failed-form-reason">
             <input type="radio" name="failed-reason" value="${escapeHtml(reason)}"${i === 0 ? ' required' : ''}>
-            <span>${escapeHtml(reason)}</span>
+            <span>${escapeHtml(reason)}${FAILED_RIDE_HINTS[reason] ? `<small style="display:block;font-size:12.5px;font-weight:400;color:var(--muted, #7a5c50);margin-top:2px;">${escapeHtml(FAILED_RIDE_HINTS[reason])}</small>` : ''}</span>
           </label>`).join('')}
       </div>
       <label class="failed-form-note-label" for="failed-form-note">What happened?</label>
